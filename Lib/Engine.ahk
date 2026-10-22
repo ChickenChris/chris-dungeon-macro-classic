@@ -2547,6 +2547,7 @@ UpgradeAndWatch() {
             AddLog("The stage looks over but the end screen wasn't recognised")
             return
         }
+        TopUpUnits()
         busy := UpgradePass()
         if !busy
             Step("units done, watching the stage")
@@ -2562,6 +2563,42 @@ UpgradeAndWatch() {
         ; nothing affordable this round: give the yen a moment to build up
         Wait(!busy ? 700 : lastGain ? 200 : 1500)
     }
+}
+
+; Units that couldn't be placed at the start (not enough yen yet, e.g. a 10000 yen unit) used
+; to be forgotten for the rest of the stage. Now they're placed as soon as the game shows
+; their card as affordable. Each slot gets a go at most every 20 s and 4 times a stage, so a
+; unit with no room on the map can't hold things up. With "Save yen for the top priority" on,
+; a missing unit waits until the higher-priority units are done upgrading.
+TopUpUnits() {
+    static lastTry := Map(), tries := Map(), stageMark := -1
+    if stageMark != stageStart
+        lastTry := Map(), tries := Map(), stageMark := stageStart
+    topPrio := 99
+    for u in placedUnits
+        if !u.maxed && !u.capped && !u.lost && cfg["slots"][u.slot].up
+            topPrio := Min(topPrio, cfg["slots"][u.slot].prio)
+    for i, sl in cfg["slots"] {
+        if !sl.on || sl.count < 1
+            continue
+        need := sl.count - CountPlaced(i)
+        if slotCap.Has(i)
+            need := Min(need, slotCap[i] - CountPlaced(i))
+        if need <= 0 || tries.Get(i, 0) >= 4 || A_TickCount - lastTry.Get(i, 0) < 20000
+            continue
+        if cfg["saveForTop"] && sl.prio > topPrio
+            continue
+        if !SlotReady(i)                            ; card greyed out: can't afford it yet
+            continue
+        yen := ReadYen(), cost := SlotCost(i)
+        if yen >= 0 && cost > 0 && yen < cost
+            continue
+        lastTry[i] := A_TickCount, tries[i] := tries.Get(i, 0) + 1
+        AddLog("Slot " i ": enough yen now, placing the " need " still missing")
+        PlaceSlot(NewPlaceCtx(), i, need)
+        return true                                 ; one slot per round, then upgrades get a turn
+    }
+    return false
 }
 
 ; Goes through the units in priority order (1 first). Each one is upgraded while you can
