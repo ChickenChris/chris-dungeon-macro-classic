@@ -2299,38 +2299,140 @@ SlotCost(n) {
     global slotPrice
     if slotPrice.Has(n)
         return slotPrice[n]
-    try {
-        WinGetClientPos &ox, &oy, , , RBX
-        for opts in [{scale: 4, grayscale: true}, {scale: 4, grayscale: true, invertcolors: true}] {
-            txt := OCR.FromRect(ox + 254 + (n - 1) * 50, oy + 556, 44, 19, OcrLang(), opts).Text
-            txt := StrReplace(StrReplace(txt, "O", "0"), "l", "1")
-            if RegExMatch(txt, "\d[\d,.]{1,7}", &m) {
-                v := RegExReplace(m[0], "[^\d]")
-                if SubStr(v, -1) != "0" && SubStr(v, -2, 1) = "0"
-                    v := SubStr(v, 1, -1)               ; the ¥ read as a digit: prices end in 0
-                if StrLen(v) >= 2 && StrLen(v) <= 7 {
-                    slotPrice[n] := Integer(v)
-                    return slotPrice[n]
-                }
-            }
+    v := ReadYellowNumber(252 + (n - 1) * 50, 554, 48, 24)
+    if v >= 0 {
+        v := String(v)
+        if SubStr(v, -1) != "0" && SubStr(v, -2, 1) = "0"
+            v := SubStr(v, 1, -1)               ; the yen sign read as a digit: prices end in 0
+        if StrLen(v) >= 2 && StrLen(v) <= 7 {
+            slotPrice[n] := Integer(v)
+            return slotPrice[n]
         }
     }
     return -1
 }
 
 ; the yen counter above the unit bar, or -1 if it can't be read
-ReadYen() {
+ReadYen() => ReadYellowNumber(330, 498, 170, 32)
+
+; ---------- reading the yellow numbers (yen, unit prices) ----------
+; The unit portraits stick up over the yen counter, and the screen reader turned that into
+; nonsense (2509 read as 10591, or nothing at all). So only the yellow pixels of the digits
+; are kept, drawn black on white, and that clean picture is read instead. Small marks lower
+; than the digits (the yen sign) are trimmed off. Returns the number, or -1.
+ReadYellowNumber(x, y, w, h) {
+    txt := ""
     try {
         WinGetClientPos &ox, &oy, , , RBX
-        for opts in [{scale: 4, grayscale: true}, {scale: 4, grayscale: true, invertcolors: true}] {
-            txt := OCR.FromRect(ox + 345, oy + 505, 130, 24, OcrLang(), opts).Text
-            txt := StrReplace(StrReplace(StrReplace(txt, "O", "0"), "o", "0"), "l", "1")
-            if RegExMatch(txt, "\d[\d,.]{0,9}", &m) {
-                v := RegExReplace(m[0], "[^\d]")
-                if StrLen(v) >= 1 && StrLen(v) <= 9
-                    return Integer(v)
+        Fresh()
+        scr := FindText()
+        yel := [], rowCnt := []
+        loop h {
+            j := A_Index - 1, row := [], n := 0
+            loop w {
+                col := scr.GetColor(ox + x + A_Index - 1, oy + y + j, 0)
+                r := (col >> 16) & 0xFF, g := (col >> 8) & 0xFF, b := col & 0xFF
+                isY := (r >= 200 && g >= 140 && b <= 110 && r - b >= 120) ? 1 : 0
+                row.Push(isY), n += isY
+            }
+            yel.Push(row), rowCnt.Push(n)
+        }
+        ; the line of digits: the tallest block of rows with yellow in them
+        b1 := 0, b2 := -1, s := 0
+        loop h + 1 {
+            i := A_Index
+            if i <= h && rowCnt[i] >= 2 {
+                if !s
+                    s := i
+            } else if s {
+                if (i - 1) - s > b2 - b1
+                    b1 := s, b2 := i - 1
+                s := 0
             }
         }
+        if !b1 || b2 - b1 < 4
+            return -1
+        bh := b2 - b1 + 1
+        ; characters: runs of columns with yellow (a 1-column gap still counts as the same one)
+        occ := []
+        loop w {
+            c := A_Index, hit := 0
+            loop bh
+                if yel[b1 + A_Index - 1][c] {
+                    hit := 1
+                    break
+                }
+            occ.Push(hit)
+        }
+        blobs := [], c := 1
+        while c <= w {
+            if !occ[c] {
+                c++
+                continue
+            }
+            st := c
+            while c <= w && (occ[c] || (c + 1 <= w && occ[c + 1]))
+                c++
+            top := 0, bot := 0
+            loop bh {
+                rr := A_Index
+                loop c - st {
+                    if yel[b1 + rr - 1][st + A_Index - 1] {
+                        if !top
+                            top := rr
+                        bot := rr
+                        break
+                    }
+                }
+            }
+            blobs.Push({a: st, z: c - 1, ht: bot - top + 1})
+        }
+        if !blobs.Length
+            return -1
+        tall := 0
+        for bl in blobs
+            tall := Max(tall, bl.ht)
+        c1 := 0, c2 := 0
+        for bl in blobs
+            if bl.ht >= tall * 0.7 {
+                if !c1
+                    c1 := bl.a
+                c2 := bl.z
+            }
+        ; black on white, 4x bigger, with a white border
+        k := 4, pad := 6
+        pw := (c2 - c1 + 1 + 2 * pad) * k, ph := (bh + 2 * pad) * k
+        pix := Buffer(pw * ph * 4, 0xFF)
+        loop bh {
+            yy := A_Index - 1, row := yel[b1 + yy]
+            loop c2 - c1 + 1 {
+                xx := A_Index - 1
+                if row[c1 + xx] {
+                    loop k {
+                        base := (((yy + pad) * k + A_Index - 1) * pw + (xx + pad) * k) * 4
+                        loop k
+                            NumPut("uint", 0xFF000000, pix, base + (A_Index - 1) * 4)
+                    }
+                }
+            }
+        }
+        bi := Buffer(40, 0)
+        NumPut("uint", 40, bi, 0), NumPut("int", pw, bi, 4), NumPut("int", -ph, bi, 8)
+        NumPut("ushort", 1, bi, 12), NumPut("ushort", 32, bi, 14)
+        hbm := DllCall("CreateDIBSection", "ptr", 0, "ptr", bi, "uint", 0, "ptr*", &bits := 0, "ptr", 0, "uint", 0, "ptr")
+        if !hbm
+            return -1
+        DllCall("RtlMoveMemory", "ptr", bits, "ptr", pix, "uptr", pw * ph * 4)
+        try txt := OCR.FromBitmap(hbm, OcrLang()).Text
+        DllCall("DeleteObject", "ptr", hbm)
+    }
+    for pair in [["O", "0"], ["o", "0"], ["D", "0"], ["l", "1"], ["I", "1"], ["|", "1"], ["S", "5"], ["B", "8"]]
+        txt := StrReplace(txt, pair[1], pair[2])
+    txt := RegExReplace(txt, "\s+")
+    if RegExMatch(txt, "\d[\d,.]{0,9}", &m) {
+        v := RegExReplace(m[0], "[^\d]")
+        if StrLen(v) >= 1 && StrLen(v) <= 9
+            return Integer(v)
     }
     return -1
 }
@@ -2352,85 +2454,125 @@ NearUnit(x, y, r) {
 }
 
 TryPlace(x, y, slot) {
-    static toldSettings := false, menuSeen := false
+    static toldSettings := false, menuSeen := false, yenWarned := 0, yenDoubts := 0, doubtStage := 0
+    static promptGood := 0, promptBad := 0      ; how the Place/Rotate/Cancel check did on confirmed placements
+    if doubtStage != stageStart
+        doubtStage := stageStart, yenDoubts := 0
     ClosePanel()                            ; the unit panel covers the right side of the map
     if UnitMenuOpen() {                     ; an open menu would look like this placement worked
         Clk(325, 185)
         Wait(250)
     }
-    yenBefore := ReadYen()
-    static yenWarned := 0
-    if yenBefore < 0 && yenWarned != stageStart {
+    yenBefore := yenDoubts >= 3 ? -1 : ReadYen()
+    if yenBefore < 0 && yenWarned != stageStart && yenDoubts < 3 {
         yenWarned := stageStart
-        AddLog("Couldn't read your yen (the number above the unit bar), so placements can't be double-checked")
+        AddLog("Couldn't read your yen (the number above the unit bar), so placements are checked by the unit menu only")
         SaveDebugShot("no_yen")
     }
     Keys(String(slot))
     Sleep 50
     Clk(x, y)
-    Sleep 50
+    ; A spot the game won't take (the path, too close to another unit) leaves the unit stuck to
+    ; the mouse with "Place / Rotate / Cancel" in white next to it. Q cancels that, so if the
+    ; white text next to the mouse disappears on Q, it was probably refused. That check is only
+    ; trusted once it has agreed with the yen on a couple of real placements.
+    Sleep 150
+    Stale()
+    menuNow := UnitMenuOpen()
+    w1 := WhiteNear(x, y)
     Keys("q")
+    Sleep 150
+    Stale()
+    w2 := WhiteNear(x, y)
+    refused := !menuNow && w1 >= 150 && w1 - w2 >= w1 * 0.5
+    promptTrusted := promptGood >= 2 && !promptBad
     ; the game lags now and then: the menu can come a moment after the set placement time
-    ; (on the fastest setting that made it miss a unit every few stages), so give it extra time
     opened := WaitUnitMenu(PlaceTimeout()) || WaitUnitMenu(1200)
+    spent := YenSpent(yenBefore, 5)         ; 1 = went down, 0 = didn't, -1 = can't tell
     if opened {
-        ; a unit that was just placed has no upgrades yet. A menu showing upgrades means the
-        ; click opened a unit that was already there: nothing was placed (no space)
         lvl := ReadLevel()
-        if lvl > 0 || Det("Max") {
+        if lvl > 0 || Det("Max") {          ; an older unit's menu: the click hit a unit already there
             Clk(325, 185)
             Wait(200)
             return false
         }
-        ; a real placement costs yen. If the counter didn't drop, nothing was placed: the click
-        ; opened a unit that was already there, or the spot was on the path and the ground there
-        ; just looked like a menu. The yen counter can lag a moment behind, so it gets a few reads
-        ; before it counts as a miss. (a big jump means a wave reward came in at the same time:
-        ; can't tell, trust the menu)
-        if yenBefore >= 0 {
-            yenAfter := ReadYen()
-            loop 4 {
-                if yenAfter >= 0 && (yenAfter < yenBefore || yenAfter >= yenBefore + 400)
-                    break
-                Wait(350)
-                yenAfter := ReadYen()
-            }
-            if yenAfter >= 0 && yenAfter >= yenBefore && yenAfter < yenBefore + 400 {
-                Clk(325, 185)
-                Wait(200)
-                return false
-            }
+        if lvl < 0 {                        ; "Upgrade 0" can show up a moment after the menu
+            Wait(400)
+            lvl := ReadLevel()
         }
-        menuSeen := true                ; a real unit menu: the game settings are right
-        AddLog("Slot " slot ": menu opened, level " lvl ", yen " yenBefore " -> " (IsSet(yenAfter) ? yenAfter : "?"))
+        ; a new unit costs yen, and its menu says "Upgrade 0". Without a yen reading the menu
+        ; must say that; the menu colours alone also matched dark ground on the path.
+        ok := spent = 1 || (spent = -1 && lvl = 0 && !(refused && promptTrusted))
+        if spent = 1                        ; a confirmed placement: did the prompt check agree?
+            refused ? promptBad++ : promptGood++
+        if !ok && spent = 0 && lvl = 0 && ++yenDoubts >= 3
+            AddLog("The yen reading looks off (it didn't go down 3 times), checking placements by the unit menu for the rest of this stage")
+        AddLog("Slot " slot ": " (ok ? "placed" : "not placed") "  (menu level " lvl ", yen " (spent = 1 ? "went down" : spent = 0 ? "didn't go down" : "not readable") ")")
+        if !ok {
+            Clk(325, 185)
+            Wait(200)
+            return false
+        }
+        menuSeen := true                    ; a real unit menu: the game settings are right
         CheckAbility()
-        Clk(325, 185)                  ; close the unit menu
+        Clk(325, 185)                       ; close the unit menu
         return true
     }
     ; no menu came up. If the yen still went down, the unit IS down anyway: count it.
     ; If no menu has ever opened this session, it's the game settings (the menu never opens);
     ; otherwise it was just a lag spike.
-    if yenBefore >= 0 {
-        yenAfter := ReadYen()
-        loop 3 {
-            if yenAfter >= 0 && yenAfter <= yenBefore - 50
-                break
-            Wait(300)
-            yenAfter := ReadYen()
-        }
-        if yenAfter >= 0 && yenAfter <= yenBefore - 50 {
-            if !menuSeen && !toldSettings {
-                toldSettings := true
-                AddLog("A unit was placed but its upgrade menu didn't open. In Anime Adventures' settings turn OFF 'Disable Auto-Open Upgrade UI' and turn ON 'Show Upgrade UI on left' (picture: Images\aasettings.png), then press F4.")
-                TogglePause()
-            } else
-                AddLog("Slot " slot ": placed, but its menu was slow to open (game lag). Counted it anyway")
-            if UnitMenuOpen()
-                Clk(325, 185)
-            return true
-        }
+    if spent = 1 {
+        if !menuSeen && !toldSettings {
+            toldSettings := true
+            AddLog("A unit was placed but its upgrade menu didn't open. In Anime Adventures' settings turn OFF 'Disable Auto-Open Upgrade UI' and turn ON 'Show Upgrade UI on left' (picture: Images\aasettings.png), then press F4.")
+            TogglePause()
+        } else
+            AddLog("Slot " slot ": placed, but its menu was slow to open (game lag). Counted it anyway")
+        if UnitMenuOpen()
+            Clk(325, 185)
+        return true
     }
     return false
+}
+
+; did the yen go down (by 40 or more) since `before`? It can lag a moment behind, so it reads a
+; few times. 1 = yes, 0 = no, -1 = can't tell (not readable, or a wave reward came in too)
+YenSpent(before, tries := 5) {
+    if before < 0
+        return -1
+    now := -1
+    loop tries {
+        now := ReadYen()
+        if now >= 0 && before - now >= 40
+            return 1
+        if now >= before + 400
+            return -1
+        if A_Index < tries
+            Wait(300)
+    }
+    return now >= 0 ? 0 : -1
+}
+
+; how much white text there is right next to the mouse (where "Place / Rotate / Cancel" shows)
+WhiteNear(x, y) {
+    n := 0
+    try {
+        WinGetClientPos &ox, &oy, , , RBX
+        Fresh()
+        scr := FindText()
+        yy := Max(0, y - 20)
+        while yy <= Min(599, y + 85) {
+            xx := Max(0, x + 10)
+            while xx <= Min(799, x + 125) {
+                col := scr.GetColor(ox + xx, oy + yy, 0)
+                if Min((col >> 16) & 0xFF, (col >> 8) & 0xFF, col & 0xFF) >= 225
+                    n++
+                xx += 2
+            }
+            yy += 2
+        }
+    }
+    return n * 4                            ; every 2nd pixel each way: scale back up
 }
 
 PlaceTimeout() {
