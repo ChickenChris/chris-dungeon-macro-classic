@@ -2399,6 +2399,19 @@ ReadYellowNumber(x, y, w, h) {
                     c1 := bl.a
                 c2 := bl.z
             }
+        ; the yen sign can touch the last digit, but it never reaches the top: trim it off
+        topRows := Max(2, Floor(bh * 0.35))
+        while c2 > c1 {
+            hitTop := false
+            loop topRows
+                if yel[b1 + A_Index - 1][c2] {
+                    hitTop := true
+                    break
+                }
+            if hitTop
+                break
+            c2--
+        }
         ; black on white, 4x bigger, with a white border
         k := 4, pad := 6
         pw := (c2 - c1 + 1 + 2 * pad) * k, ph := (bh + 2 * pad) * k
@@ -2463,8 +2476,8 @@ TryPlace(x, y, slot) {
         Clk(325, 185)
         Wait(250)
     }
-    yenBefore := yenDoubts >= 3 ? -1 : ReadYen()
-    if yenBefore < 0 && yenWarned != stageStart && yenDoubts < 3 {
+    yenBefore := yenDoubts >= 2 ? -1 : ReadYen()
+    if yenBefore < 0 && yenWarned != stageStart && yenDoubts < 2 {
         yenWarned := stageStart
         AddLog("Couldn't read your yen (the number above the unit bar), so placements are checked by the unit menu only")
         SaveDebugShot("no_yen")
@@ -2502,11 +2515,15 @@ TryPlace(x, y, slot) {
         }
         ; a new unit costs yen, and its menu says "Upgrade 0". Without a yen reading the menu
         ; must say that; the menu colours alone also matched dark ground on the path.
-        ok := spent = 1 || (spent = -1 && lvl = 0 && !(refused && promptTrusted))
+        ; If the yen can't tell, the menu decides (unless the Place/Rotate/Cancel check, once it has
+        ; proven itself, says the spot was refused). If the yen keeps saying "not placed" for
+        ; menus that look real, the reading is off: it's ignored for the rest of the stage, so a
+        ; bad reading can never make it place the same unit over and over.
+        ok := spent = 1 || (spent = -1 && lvl <= 0 && !(refused && promptTrusted))
         if spent = 1                        ; a confirmed placement: did the prompt check agree?
             refused ? promptBad++ : promptGood++
-        if !ok && spent = 0 && lvl = 0 && ++yenDoubts >= 3
-            AddLog("The yen reading looks off (it didn't go down 3 times), checking placements by the unit menu for the rest of this stage")
+        if !ok && spent = 0 && !(refused && promptTrusted) && ++yenDoubts = 2
+            AddLog("The yen reading looks off (it didn't go down twice), checking placements by the unit menu for the rest of this stage")
         AddLog("Slot " slot ": " (ok ? "placed" : "not placed") "  (menu level " lvl ", yen " (spent = 1 ? "went down" : spent = 0 ? "didn't go down" : "not readable") ")")
         if !ok {
             Clk(325, 185)
