@@ -2349,7 +2349,7 @@ NearUnit(x, y, r) {
 }
 
 TryPlace(x, y, slot) {
-    static toldSettings := false
+    static toldSettings := false, menuSeen := false
     ClosePanel()                            ; the unit panel covers the right side of the map
     if UnitMenuOpen() {                     ; an open menu would look like this placement worked
         Clk(325, 185)
@@ -2361,7 +2361,12 @@ TryPlace(x, y, slot) {
     Clk(x, y)
     Sleep 50
     Keys("q")
-    if WaitUnitMenu(PlaceTimeout()) {
+    ; the game lags now and then: the menu can come a moment after the set placement time
+    ; (on the fastest setting that made it miss a unit every few stages), so give it extra time
+    opened := WaitUnitMenu(PlaceTimeout()) || WaitUnitMenu(1200)
+    if opened
+        menuSeen := true
+    if opened {
         ; a unit that was just placed has no upgrades yet. A menu showing upgrades means the
         ; click opened a unit that was already there: nothing was placed (no space)
         lvl := ReadLevel()
@@ -2392,16 +2397,26 @@ TryPlace(x, y, slot) {
         Clk(325, 185)                  ; close the unit menu
         return true
     }
-    ; no menu came up. If the yen still went down, the unit IS down: the game just didn't open
-    ; its upgrade menu, so the macro can't see or upgrade it. That's two game settings.
+    ; no menu came up. If the yen still went down, the unit IS down anyway: count it.
+    ; If no menu has ever opened this session, it's the game settings (the menu never opens);
+    ; otherwise it was just a lag spike.
     if yenBefore >= 0 {
         yenAfter := ReadYen()
+        loop 3 {
+            if yenAfter >= 0 && yenAfter <= yenBefore - 50
+                break
+            Wait(300)
+            yenAfter := ReadYen()
+        }
         if yenAfter >= 0 && yenAfter <= yenBefore - 50 {
-            if !toldSettings {
+            if !menuSeen && !toldSettings {
                 toldSettings := true
                 AddLog("A unit was placed but its upgrade menu didn't open. In Anime Adventures' settings turn OFF 'Disable Auto-Open Upgrade UI' and turn ON 'Show Upgrade UI on left' (picture: Images\aasettings.png), then press F4.")
                 TogglePause()
-            }
+            } else
+                AddLog("Slot " slot ": placed, but its menu was slow to open (game lag). Counted it anyway")
+            if UnitMenuOpen()
+                Clk(325, 185)
             return true
         }
     }
