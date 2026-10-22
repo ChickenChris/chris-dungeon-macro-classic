@@ -1766,13 +1766,14 @@ TeleportToSpawn() {
         if found {
             Clk(fx + 100, fy - 30)
             AddLog("Teleported to spawn")
-        }
+        } else if A_Index = 2
+            SaveDebugShot("no_spawn")               ; the open settings menu, so it can be checked
         CloseSettings()
         if found
             break
     }
     if !found
-        AddLog("Couldn't find Teleport to Spawn in settings")
+        AddLog("Couldn't find Teleport to Spawn in the game's settings. Send Logs\no_spawn_....bmp in Discord so it can be fixed. (Settings tab: 'Teleport to spawn' can be turned off meanwhile)")
     return found
 }
 
