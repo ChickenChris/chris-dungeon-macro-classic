@@ -46,9 +46,12 @@ global lastResult := ""
 global idleSince := 0
 global snapTick := 0
 global closeStreak := 0       ; times in a row the room picker had no Enter button
-global slotStops := Map()       ; slot -> how many it managed before giving up last time
+global slotStops := Map()       ; "slot|map" -> how many it managed before giving up last time
 global slotPrice := Map()       ; slot -> its price in the unit bar (this stage)
-global slotCap := Map()         ; slot -> the game's placement limit, once it's been seen twice
+global slotCap := Map()         ; "slot|map" -> the most that fit on that map, once it's been seen twice
+; (per map: a cramped map used to cap a slot for every later map, so later rooms were played
+; with fewer units until the macro was restarted)
+CapKey(n) => n "|" curMap
 global postStage := 0         ; when the last stage ended (reward popups follow)
 global lastGain := 0          ; levels gained in the last upgrade pass
 global stat := {runs: 0, wins: 0, losses: 0, rooms: 0, chests: 0, dungeons: 0, startTick: 0, streak: 0}
@@ -1957,8 +1960,8 @@ PlaceAll(ctx := "") {
 ; a spot that fails twice is skipped. Sets ctx.over if the stage ends.
 PlaceSlot(ctx, n, need) {
     global placedUnits
-    if slotCap.Has(n)
-        need := Min(need, Max(0, slotCap[n] - CountPlaced(n)))
+    if slotCap.Has(CapKey(n))
+        need := Min(need, Max(0, slotCap[CapKey(n)] - CountPlaced(n)))
     lv := ctx.lv, pts := ctx.pts
     newUnits := []
     got := 0, stuck := 0, greySince := 0
@@ -2029,14 +2032,14 @@ PlaceSlot(ctx, n, need) {
             ; (e.g. max 3). With none down it's more likely yen, so it waits longer.
             if stuck >= (got ? lv[2] : lv[3]) {
                 total := CountPlaced(n)
-                if got && slotStops.Has(n) && slotStops[n] = total {
-                    slotCap[n] := total
-                    AddLog("Slot " n " only allows " total ". Placing " total " from now on (set How many to " total ")")
+                if got && slotStops.Has(CapKey(n)) && slotStops[CapKey(n)] = total {
+                    slotCap[CapKey(n)] := total
+                    AddLog("Slot " n " only fits " total " on " curMap ". Placing " total " there from now on")
                 } else
                     AddLog("Slot " n " stopped at " got "/" need " (unit limit, no space or not enough yen), moving on")
                 if !placedUnits.Length
                     AddLog("Nothing placed. In the game's settings: 'Show Upgrade UI on left' ON and 'Disable Auto-Open Upgrade UI' OFF.")
-                slotStops[n] := total
+                slotStops[CapKey(n)] := total
                 break
             }
             if ctx.build {
@@ -2582,8 +2585,8 @@ TopUpUnits() {
         if !sl.on || sl.count < 1
             continue
         need := sl.count - CountPlaced(i)
-        if slotCap.Has(i)
-            need := Min(need, slotCap[i] - CountPlaced(i))
+        if slotCap.Has(CapKey(i))
+            need := Min(need, slotCap[CapKey(i)] - CountPlaced(i))
         if need <= 0 || tries.Get(i, 0) >= 4 || A_TickCount - lastTry.Get(i, 0) < 20000
             continue
         if cfg["saveForTop"] && sl.prio > topPrio
