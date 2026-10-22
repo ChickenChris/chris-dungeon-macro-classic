@@ -1200,6 +1200,11 @@ LoadStage(knownMap := "", knownDepth := "") {
         AddLog("Couldn't tell which map this is, using the auto pattern" (said != "" ? ". Last text read: " SubStr(said, 1, 80) : ""))
         SaveDebugShot("map_unknown")
     }
+    if !cfg["useBuild"] && cfg["build"].Length {
+        static buildTold := false
+        if !buildTold
+            buildTold := true, AddLog("Your build order has " cfg["build"].Length " steps but it's switched off (Build tab), so the Units tab is used")
+    }
     PlayStage()
 }
 
@@ -2718,8 +2723,10 @@ UpgradeAndWatch() {
         }
         TopUpUnits()
         busy := UpgradePass()
-        if !busy
+        if !busy {
             Step("units done, watching the stage")
+            UpgradesDoneHint()
+        }
         if A_TickCount - lastAfk > 60000 {
             Clk(560, 560)
             lastAfk := A_TickCount
@@ -2768,6 +2775,22 @@ TopUpUnits() {
         return true                                 ; one slot per round, then upgrades get a turn
     }
     return false
+}
+
+; once a stage, when everything is done: say which slots aren't being upgraded at all, so
+; "it just placed them" is clear (Upgrade off on the Units tab, or the build order is off)
+UpgradesDoneHint() {
+    static told := -1
+    if told = stageStart
+        return
+    told := stageStart
+    off := ""
+    for i, sl in cfg["slots"]
+        if sl.on && sl.count > 0 && !sl.up && CountPlaced(i)
+            off .= (off = "" ? "" : ", ") i
+    if off != ""
+        AddLog("All upgrades done. Slot" (InStr(off, ",") ? "s " : " ") off " have Upgrade switched off on the Units tab"
+            . (!cfg["useBuild"] && cfg["build"].Length ? " (and the build order is switched off on the Build tab)" : ""))
 }
 
 ; Goes through the units in priority order (1 first). Each one is upgraded while you can

@@ -183,7 +183,7 @@ MG.SetFont("s10 norm c" CL.text)
 ; ---------- Build ----------
 StartPanel("Build")
 Heading("Build order", "Your own plan, run step by step at the start of every stage. The Units tab fills in the rest.")
-TogCfg("x205 y86 w570", "Use the build order", "useBuild")
+global useBuildTog := TogCfg("x205 y86 w570", "Use the build order", "useBuild")
 MG.SetFont("s8 bold c" CL.muted)
 A("Text", "x205 y122 w50 h26 +0x200 Background" CL.line, "    #")
 A("Text", "x255 y122 w520 h26 +0x200 Background" CL.line, "  STEP")
@@ -590,6 +590,11 @@ BuildAdd(*) {
     if !(st := BuildFromEditor())
         return
     cfg["build"].Push(st)
+    if !cfg["useBuild"] {                   ; a build you just made is meant to be used
+        cfg["useBuild"] := 1
+        try useBuildTog.Value := "☑   Use the build order", useBuildTog.SetFont("c" CL.text)
+        Notify("Build order switched on")
+    }
     RefreshBuild(cfg["build"].Length)
     SaveConfig()
 }
