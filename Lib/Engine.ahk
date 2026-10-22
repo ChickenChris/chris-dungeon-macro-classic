@@ -1739,29 +1739,31 @@ TeleportToSpawn() {
         Wait(350)
         Clk(400, 215)                              ; mouse over the list so the wheel scrolls it
         Wait(200)
-        found := WaitDet("Spawn", 300, &fx, &fy)
+        found := SpawnFound(&fx, &fy) || (Wait(300), SpawnFound(&fx, &fy))
         if !found {
             ; the menu remembers how far it was scrolled: go to the top first,
             ; then step down one notch at a time until the button shows up
             ; (some players have more settings, so it keeps going until the list stops moving)
             loop 30 {
                 Keys("{WheelUp 1}")
-                Sleep 25
+                Sleep 40
             }
-            Wait(300)
+            Wait(500)
+            ; one notch at a time, and the list slides for a moment after each one: let it
+            ; settle before looking (looking mid-slide missed the button or matched a wrong row)
             same := 0, sig := MenuSig()
             loop 45 {
-                if found := Det("Spawn", &fx, &fy)
+                if found := SpawnFound(&fx, &fy)
                     break
                 Keys("{WheelDown 1}")
-                Wait(170)
+                Wait(350)
                 now := MenuSig()
                 same := now = sig ? same + 1 : 0, sig := now
                 if same >= 3                       ; reached the bottom of the list
                     break
             }
             if !found
-                found := WaitDet("Spawn", 300, &fx, &fy)
+                found := SpawnFound(&fx, &fy) || (Wait(300), SpawnFound(&fx, &fy))
         }
         if found {
             Clk(fx + 100, fy - 30)
@@ -1775,6 +1777,19 @@ TeleportToSpawn() {
     if !found
         AddLog("Couldn't find Teleport to Spawn in the game's settings. Send Logs\no_spawn_....bmp in Discord so it can be fixed. (Settings tab: 'Teleport to spawn' can be turned off meanwhile)")
     return found
+}
+
+; The Teleport to Spawn picture is matched loosely (20%), and on some players' settings lists
+; that also fit another row: it clicked that, stopped scrolling and never teleported. So a
+; loose hit must also read "Spawn"/"Teleport" on that row, or match the picture closely.
+SpawnFound(&fx, &fy) {
+    if !Det("Spawn", &fx, &fy)
+        return false
+    cx := fx - 5, cy := fy - 31                     ; window -> game-area coords
+    if OcrFindWord(Max(0, cx - 180), Max(0, cy - 23), 360, 46, "i)sp[a@]wn|tele", &wx, &wy)
+        return true
+    o := DetDefs()["Spawn"], a := o.area
+    return FT(&fx, &fy, a[1], a[2], a[3], a[4], 0.06, 0.06, o.pats) ? true : false
 }
 
 ; a rough fingerprint of the settings list, to tell when scrolling stops moving it
