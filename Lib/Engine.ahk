@@ -2364,8 +2364,6 @@ TryPlace(x, y, slot) {
     ; the game lags now and then: the menu can come a moment after the set placement time
     ; (on the fastest setting that made it miss a unit every few stages), so give it extra time
     opened := WaitUnitMenu(PlaceTimeout()) || WaitUnitMenu(1200)
-    if opened
-        menuSeen := true
     if opened {
         ; a unit that was just placed has no upgrades yet. A menu showing upgrades means the
         ; click opened a unit that was already there: nothing was placed (no space)
@@ -2375,11 +2373,12 @@ TryPlace(x, y, slot) {
             Wait(200)
             return false
         }
-        ; a real placement costs yen. Only needed when a unit already stands close by (the click
-        ; may have opened that one instead): with nobody near, the menu can only be the new unit.
-        ; The yen counter can lag a moment behind, so it gets a few reads before it counts as a miss.
-        ; (a big jump means a wave reward came in at the same time: can't tell, trust the menu)
-        if yenBefore >= 0 && NearUnit(x, y, 60) {
+        ; a real placement costs yen. If the counter didn't drop, nothing was placed: the click
+        ; opened a unit that was already there, or the spot was on the path and the ground there
+        ; just looked like a menu. The yen counter can lag a moment behind, so it gets a few reads
+        ; before it counts as a miss. (a big jump means a wave reward came in at the same time:
+        ; can't tell, trust the menu)
+        if yenBefore >= 0 {
             yenAfter := ReadYen()
             loop 4 {
                 if yenAfter >= 0 && (yenAfter < yenBefore || yenAfter >= yenBefore + 400)
@@ -2393,6 +2392,7 @@ TryPlace(x, y, slot) {
                 return false
             }
         }
+        menuSeen := true                ; a real unit menu: the game settings are right
         CheckAbility()
         Clk(325, 185)                  ; close the unit menu
         return true
