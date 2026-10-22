@@ -2359,6 +2359,12 @@ TryPlace(x, y, slot) {
         Wait(250)
     }
     yenBefore := ReadYen()
+    static yenWarned := 0
+    if yenBefore < 0 && yenWarned != stageStart {
+        yenWarned := stageStart
+        AddLog("Couldn't read your yen (the number above the unit bar), so placements can't be double-checked")
+        SaveDebugShot("no_yen")
+    }
     Keys(String(slot))
     Sleep 50
     Clk(x, y)
@@ -2396,6 +2402,7 @@ TryPlace(x, y, slot) {
             }
         }
         menuSeen := true                ; a real unit menu: the game settings are right
+        AddLog("Slot " slot ": menu opened, level " lvl ", yen " yenBefore " -> " (IsSet(yenAfter) ? yenAfter : "?"))
         CheckAbility()
         Clk(325, 185)                  ; close the unit menu
         return true
