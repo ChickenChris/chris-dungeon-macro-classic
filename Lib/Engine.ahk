@@ -2600,7 +2600,41 @@ PlaceTimeout() {
 ; shows the parts the way the macro knows them (after several colour-only menus and no real
 ; one), it goes back to the colours, so placing never gets stuck.
 global menuLoose := false
-MenuParts() => Det("UnitExit") || ReadLevel() >= 0 || Det("Max") || FT(&fx, &fy, 171, 348, 337, 447, 0, 0, UnitExistence)
+MenuParts() => MenuButtons() || Det("UnitExit") || ReadLevel() >= 0 || Det("Max") || FT(&fx, &fy, 171, 348, 337, 447, 0, 0, UnitExistence)
+
+; The menu's three buttons in a row at its bottom: targeting (light blue: "First", "Strongest"...),
+; Sell (red) and Upgrade (green). The same colours whatever a button says or the game's language,
+; and nothing on the map has those three side by side in that order. (Measured on a screenshot
+; of the macro's window: about 120 / 130 / 380 matching dots, and 0 on screenshots without a menu.)
+MenuButtons() {
+    try {
+        WinGetClientPos &ox, &oy, , , RBX
+        Fresh()
+        scr := FindText()
+        cn := 0, cx := 0, cy := 0, rn := 0, rx := 0, ry := 0, gn := 0, gx := 0, gy := 0
+        y := 330
+        while y <= 400 {
+            x := 15
+            while x <= 320 {
+                col := scr.GetColor(ox + x, oy + y, 0)
+                r := (col >> 16) & 0xFF, g := (col >> 8) & 0xFF, b := col & 0xFF
+                if r <= 70 && g >= 170 && b >= 200
+                    cn++, cx += x, cy += y
+                else if r >= 150 && g <= 50 && b <= 50
+                    rn++, rx += x, ry += y
+                else if r <= 90 && g >= 170 && b <= 60
+                    gn++, gx += x, gy += y
+                x += 3
+            }
+            y += 3
+        }
+        if cn < 40 || rn < 30 || gn < 60
+            return false
+        cx /= cn, cy /= cn, rx /= rn, ry /= rn, gx /= gn, gy /= gn
+        return cx < 120 && cx < rx && rx < gx && gx > 160 && Abs(cy - ry) <= 12 && Abs(gy - ry) <= 14
+    }
+    return false
+}
 
 WaitUnitMenu(timeout) {
     global menuLoose
@@ -2621,9 +2655,9 @@ WaitUnitMenu(timeout) {
             if menuLoose
                 return !Det("Elyssia")
         }
-        if Mod(++n, 4) = 0 {                    ; every ~100 ms also look for the upgrade text
+        if Mod(++n, 4) = 0 {                    ; every ~100 ms also look for the menu's buttons / upgrade text
             Stale()
-            if ReadLevel() >= 0 || Det("Max") {
+            if MenuButtons() || ReadLevel() >= 0 || Det("Max") {
                 partsSeen := true, colourOnly := 0
                 return !Det("Elyssia")
             }
