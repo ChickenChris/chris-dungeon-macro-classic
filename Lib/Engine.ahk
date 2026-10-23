@@ -226,13 +226,7 @@ Tick() {
         HandleEnd()
         return
     }
-    if EndByColourLog() {
-    static told := false
-    if !told
-        told := true, AddLog("Results screen found by its button colours (its text wasn't recognised)")
-}
-
-EndButtonsSeen() {                    ; the results screen by its button colours
+    if EndButtonsSeen() {                    ; the results screen by its button colours
         EndByColourLog()
         idleSince := 0
         HandleEnd()
@@ -3217,6 +3211,12 @@ HandleEnd() {
 ; away by a wide yellow one. Needs that on 3+ rows, so a stray green or yellow pixel can't fool it.
 ; (Tested on the recording where the old check failed: found on every frame once the buttons
 ; had faded in, and never fired on any other screen.)
+EndByColourLog() {
+    static told := false
+    if !told
+        told := true, AddLog("Results screen found by its button colours (its text wasn't recognised)")
+}
+
 ; The results screen found by its colours: the green "Return to lobby" and yellow "Open Dungeon"
 ; buttons side by side. Its text didn't match on some players' games (another game language, a
 ; different text size): the macro never saw the stage end and kept upgrading. At most every 1.5 s.
