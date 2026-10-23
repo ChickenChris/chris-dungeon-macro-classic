@@ -815,9 +815,10 @@ SaveDebugShot(tag) {
 ; every item the shop can sell, best first (the Dungeon page lets you reorder and switch them off)
 SHOP_ITEMS() => ["Philosophers Stone", "Mask of Riches", "Golden Mushroom", "Golden Branch", "Genie Lamp",
     "Golden Fishhook", "Fish Hook", "Shimmering Moon Fragment", "Celestial Blade", "Archmage's Hat", "Aures Maul",
-    "Magic Tome", "Solar Cleaver", "Mage Coat", "Reaper Scythe", "Glacial Axe", "Ninja Belt", "Elf Bow", "Bow"]
+    "Magic Tome", "Solar Cleaver", "Headsplitter", "Mage Coat", "Reaper Scythe", "Glacial Axe", "Ice Dagger",
+    "Ninja Belt", "Elf Bow", "Dagger", "Bow"]
 SHOP_MAGIC() => ["Archmage's Hat", "Magic Tome", "Mage Coat"]
-SHOP_PHYSICAL() => ["Aures Maul", "Solar Cleaver"]
+SHOP_PHYSICAL() => ["Aures Maul", "Solar Cleaver", "Headsplitter"]
 
 ; is this item on the buy list? (switched on, and fits the units' damage type)
 ShopWanted(name) {
@@ -854,6 +855,10 @@ ReadShopRows() {
             name := "Golden Fishhook"
         else if name = "Bow" && RegExMatch(raw, "5\s*0\s*%")
             name := "Elf Bow"
+        else if name = "Dagger" && RegExMatch(raw, "i)\b[il1]ce\b|2\s*0\s*%|speed")
+            name := "Ice Dagger"                ; Ice Dagger: -20% enemy speed
+        else if name = "Ice Dagger" && RegExMatch(raw, "1\s*5\s*%|attack") && !RegExMatch(raw, "i)\b[il1]ce\b")
+            name := "Dagger"                    ; Dagger: +15% attack
         rows.Push({y: y, name: name, raw: raw})
     }
     return rows
