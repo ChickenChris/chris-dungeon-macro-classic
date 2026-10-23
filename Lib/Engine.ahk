@@ -670,6 +670,17 @@ RoomOrder(rooms) {
     for pk in picks
         for thing in pk.has
             pk.score += ThingValue(thing, shopOk)
+    ; one line with how every room was valued, so each pick can be checked straight from the log
+    ; (worth = its place on your room list, rare chest double; a shop without enough coins = 0)
+    sum := ""
+    for pk in picks {
+        what := pk.cursed ? "Curse" : ""
+        for t in pk.has
+            what .= (what = "" ? "" : "+") RoomLabel(t)
+        sum .= (sum = "" ? "" : "  |  ") "[" (what = "" ? "nothing on your list" : what) "] = " pk.score
+    }
+    if sum != ""
+        AddLog("Rooms: " sum)
     ; rooms that aren't on your list and lead nowhere useful are left for the "least bad" fallback
     order := []
     for pk in picks
