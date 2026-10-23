@@ -1230,6 +1230,9 @@ MatchLoadingScreen() {
     name := MapFromLoadingText()
     if name != ""
         return name
+    name := MapFromNamePics()
+    if name != ""
+        return name
     Snap()
     ; Pictures that are almost one flat colour (rainvillage.png is a dark purple patch) "match"
     ; any dark night map: Spirit Town was taken for Rain Village. Those are never used, and
@@ -1268,6 +1271,48 @@ MatchLoadingScreen() {
         }
     }
     return found
+}
+
+; the map's name in big letters on the loading screen, matched as pictures (Ryn's patterns).
+; No text reading needed, so it also works on PCs whose text reader isn't English.
+MapFromNamePics() {
+    static pics := 0
+    if !IsObject(pics)
+        pics := [
+            ["Sacred Planet", SacredPlanet],
+            ["Planet Greenie", PlanetGreenie],
+            ["Walled City", WalledCity],
+            ["Snowy Town", SnowyTown],
+            ["Sand Village", Sand],
+            ["Navy Bay", Navy],
+            ["Fiend City", Fiend],
+            ["Spirit World", Spirit],
+            ["Ant Kingdom", Ant],
+            ["Magic Town", MagicTown],
+            ["Magic Hills", MagicHills],
+            ["Haunted Academy", Academy],
+            ["Alien Spaceship", AlienSpaceship],
+            ["Space Center", SpaceCenter],
+            ["Fabled Kingdom", Fabled],
+            ["Ruined City", Ruined],
+            ["Puppet Island", Puppet],
+            ["Virtual Dungeon", Virtual],
+            ["Snowy Kingdom", SnowyKingdom],
+            ["Dungeon Throne", DungeonThrone],
+            ["Rain Village", RainVillage],
+            ["Spirit Town", SpiritTown],
+            ["Mountain Temple", Mount],
+            ["Cursed Festival", Cursed],
+            ["Nightmare Train", Nightmare],
+            ["Air Craft", AirCraft],
+            ["Hellish City", Hellish],
+            ["Shibuya District", Shibuya],
+            ["Storm Hideout", Storm]
+        ]
+    for pr in pics
+        if FT(&fx, &fy, 10, 90, 415, 160, 0, 0, pr[2])
+            return pr[1]
+    return ""
 }
 
 ; The game is in English, but Windows reads text in the PC's own language: on a Korean PC
@@ -2555,7 +2600,7 @@ PlaceTimeout() {
 ; shows the parts the way the macro knows them (after several colour-only menus and no real
 ; one), it goes back to the colours, so placing never gets stuck.
 global menuLoose := false
-MenuParts() => Det("UnitExit") || ReadLevel() >= 0 || Det("Max")
+MenuParts() => Det("UnitExit") || ReadLevel() >= 0 || Det("Max") || FT(&fx, &fy, 171, 348, 337, 447, 0, 0, UnitExistence)
 
 WaitUnitMenu(timeout) {
     global menuLoose
