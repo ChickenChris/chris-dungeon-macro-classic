@@ -532,6 +532,10 @@ ScanRooms() {
             kind := "Opening"
         else if Seen(ar.x1, ar.y1, ar.x2, ar.y2, DungeonRoomBorderBoss, 0.1)
             kind := "Boss"
+        ; a cursed room is purple inside (78% on a real screenshot, normal rooms 0-5%): far more
+        ; reliable than the border picture, which let cursed rooms pass as normal ones
+        if (kind = "Available" || kind = "") && ColorShare(ar.cx - 35, 328, ar.cx + 35, 393, IsCurseRoom) >= 0.4
+            kind := "Cursed"
         if kind != ""
             found.Push({i: i, kind: kind, a: ar})
     }
@@ -868,6 +872,7 @@ SpecialScreen() => Det("Shop") || Det("Shrine") || Det("Chest") || ShrineButtons
 ShrineButtons() => ColorShare(366, 394, 470, 420, IsYellowish) >= 0.35 && ColorShare(496, 394, 598, 420, IsReddish) >= 0.35
     && ColorShare(476, 396, 488, 420, IsDarkish) >= 0.8 && ColorShare(360, 430, 600, 448, IsDarkish) >= 0.8
 IsYellowish(r, g, b) => r > 190 && g > 140 && b < 110
+IsCurseRoom(r, g, b) => b >= r + 12 && b >= g + 25 && r >= g + 5 && b >= 35
 IsReddish(r, g, b) => r > 150 && g < 90 && b < 90
 IsDarkish(r, g, b) => r + g + b < 170
 
