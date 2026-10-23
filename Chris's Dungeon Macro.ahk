@@ -356,7 +356,7 @@ if WinExist(RBX)
     FixWindow()
 UpdateHoleHint()
 AddLog("Ready. Press F2 to start.")
-AddLog("Game settings needed: 'Show Upgrade UI on left' ON and 'Disable Auto-Open Upgrade UI' OFF.")
+AddLog("Game settings needed: 'Show Upgrade UI on left' ON, and the upgrade menu must pop up when you place a unit (setting 'Disable Auto-Open Upgrade UI').")
 if !WinExist(RBX)
     AddLog("Open Roblox, then press F1 to snap it in.")
 if A_ScreenDPI != 96

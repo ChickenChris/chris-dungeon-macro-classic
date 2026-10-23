@@ -54,6 +54,9 @@ global slotCap := Map()         ; "slot|map" -> the most that fit on that map, o
 ; with fewer units until the macro was restarted)
 CapKey(n) => n "|" curMap
 global slotOne := Map()         ; slot -> true: a unique unit, the game allows one of it
+global autoOpenSeen := false   ; a menu has opened by itself after placing (the game setting is right)
+global autoOpenOff := false    ; menus only open when the new unit is clicked (setting is wrong)
+global clickOpened := 0
 global slotFull := Map()        ; slot -> stage it hit the game's limit in (no more that stage)
 
 ; trims `need` to what the game allows for slot n right now
@@ -177,10 +180,10 @@ DetectAll() {
 ;  Main loop
 ; =====================================================================
 EngineRun() {
-    global running, idleSince, slotStops, slotCap, slotOne, slotFull
+    global running, idleSince, slotStops, slotCap, slotOne, slotFull, autoOpenSeen, autoOpenOff, clickOpened
     errors := 0
     idleSince := 0
-    slotStops := Map(), slotCap := Map(), slotOne := Map(), slotFull := Map()
+    slotStops := Map(), slotCap := Map(), slotOne := Map(), slotFull := Map(), autoOpenSeen := false, autoOpenOff := false, clickOpened := 0
     loop {
         try {
             Chk()
@@ -2166,7 +2169,7 @@ PlaceSlot(ctx, n, need) {
                 } else
                     AddLog("Slot " n " stopped at " got "/" need " (unit limit, no space or not enough yen), moving on")
                 if !placedUnits.Length
-                    AddLog("Nothing placed. In the game's settings: 'Show Upgrade UI on left' ON and 'Disable Auto-Open Upgrade UI' OFF.")
+                    AddLog("Nothing placed. In the game's settings: 'Show Upgrade UI on left' ON, and the upgrade menu must pop up when you place a unit ('Disable Auto-Open Upgrade UI').")
                 slotStops[CapKey(n)] := total
                 break
             }
@@ -2595,6 +2598,7 @@ NearUnit(x, y, r) {
 }
 
 TryPlace(x, y, slot) {
+    global autoOpenSeen, autoOpenOff, clickOpened
     ClosePanel()                            ; the unit panel covers the right side of the map
     if UnitMenuOpen() {                     ; an open menu would look like this placement worked
         Clk(325, 185)
@@ -2613,7 +2617,20 @@ TryPlace(x, y, slot) {
     ; Placed = the unit's upgrade menu opens on the left, checked by the menu's own parts (see
     ; MenuParts): the yen can't be read reliably. The game lags now and then, so a late menu
     ; gets extra time.
-    if WaitUnitMenu(PlaceTimeout()) || WaitUnitMenu(1200) {
+    how := ""
+    if autoOpenOff ? WaitUnitMenu(300) : (WaitUnitMenu(PlaceTimeout()) || WaitUnitMenu(1200))
+        how := "auto"
+    else if PlaceRefused(slot)
+        return false
+    else if !autoOpenSeen && !NearUnit(x, y, 45) {
+        ; With 'Disable Auto-Open Upgrade UI' on in the game, no menu opens by itself after
+        ; placing. Clicking the spot opens the new unit's menu (an empty spot does nothing).
+        ; Skipped next to known units, whose menu could pass for a new one.
+        Clk(x, y)
+        if WaitUnitMenu(700)
+            how := "click"
+    }
+    if how != "" {
         lvl := ReadLevel()
         if lvl > 0 || MaxShown() {          ; an older unit's menu: the click hit a unit already there
             if !NearUnit(x, y, 45) {        ; no known unit there: maybe a new unit with an odd menu
@@ -2624,11 +2641,16 @@ TryPlace(x, y, slot) {
             Wait(200)
             return false
         }
+        if how = "auto"
+            autoOpenSeen := true, autoOpenOff := false
+        else if ++clickOpened = 2 && !autoOpenOff {
+            autoOpenOff := true
+            AddLog("The unit menu doesn't open by itself after placing, so the macro clicks each new unit. Faster: in the game's settings, set 'Disable Auto-Open Upgrade UI' so the menu pops up when you place a unit")
+        }
         CheckAbility()
         Clk(325, 185)                       ; close the unit menu
         return true
     }
-    PlaceRefused(slot)                      ; a late message (lag)
     return false
 }
 
