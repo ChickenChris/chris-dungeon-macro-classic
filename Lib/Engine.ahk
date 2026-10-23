@@ -226,10 +226,17 @@ Tick() {
         HandleEnd()
         return
     }
-    if EndButtonsSeen() {                    ; the results screen by its button colours
+    if EndButtonsSeen(true) {                ; the results screen by its button colours
         EndByColourLog()
         idleSince := 0
-        HandleEnd()
+        if NextByColour(&nx, &ny) {          ; VICTORY / DEFEAT with its green Next
+            ReadResult()
+            FinishStage()
+            Step("results: pressing Next")
+            Clk(nx, ny)
+            Wait(600)
+        } else
+            HandleEnd()                      ; "Return to lobby" / "Open Dungeon"
         return
     }
     ; Next comes before XP: the XP panel stays up next to the Next button,
@@ -3179,6 +3186,8 @@ ReadResult() {
         lastResult := "win"
     else if Det("Defeat")
         lastResult := "loss"
+    else if (k := TitleColour()) != ""
+        lastResult := k                       ; the gold VICTORY / red DEFEAT title, by colour
 }
 
 ; counts the stage once (win / loss / time), whichever end screen shows first
@@ -3220,13 +3229,116 @@ EndByColourLog() {
 ; The results screen found by its colours: the green "Return to lobby" and yellow "Open Dungeon"
 ; buttons side by side. Its text didn't match on some players' games (another game language, a
 ; different text size): the macro never saw the stage end and kept upgrading. At most every 1.5 s.
-EndButtonsSeen() {
+EndButtonsSeen(now := false) {
     static last := 0, was := false
-    if A_TickCount - last < 1500
+    if !now && A_TickCount - last < 1500
         return was
     last := A_TickCount
-    was := FindOpenDungeon(&bx, &by)
+    was := FindOpenDungeon(&bx, &by) || NextByColour(&bx, &by)
     return was
+}
+
+; The VICTORY / DEFEAT results with the green Next button under the title, found by colour: on
+; some players' games the "Next" text wasn't recognised and the macro kept upgrading forever.
+; Gives the button's middle in game-area coords.
+NextByColour(&cx, &cy) {
+    if Det("Shop") || TitleColour(&tx) = ""
+        return false
+    try {
+        WinGetClientPos &ox, &oy, , , RBX
+        Fresh()
+        scr := FindText()
+        xs := [], ys := []
+        py := 370
+        while py <= 480 {
+            from := 0, last := -99, bestW := 0, bestX := 0
+            px := 200
+            while px <= 602 {
+                isG := false
+                if px <= 600 {
+                    col := scr.GetColor(ox + px, oy + py, 0) & 0xFFFFFF
+                    r := (col >> 16) & 0xFF, g := (col >> 8) & 0xFF, b := col & 0xFF
+                    isG := g > 170 && r < 150 && b < 120
+                }
+                if isG {
+                    if px - last > 14                ; letters split the button: small gaps join up
+                        from := px
+                    last := px
+                } else if last > 0 && px - last > 14 && from {
+                    if last - from > bestW
+                        bestW := last - from, bestX := (from + last) // 2
+                    from := 0
+                }
+                px += 2
+            }
+            if bestW >= 60 && bestW <= 240
+                xs.Push(bestX), ys.Push(py)
+            py += 3
+        }
+        if xs.Length < 3
+            return false
+        cx := MiddleOf(xs), cy := MiddleOf(ys)
+        return Abs(cx - tx) <= 90               ; the button sits under the title
+    }
+    return false
+}
+
+; p-th percentile of a list of numbers
+Pct(nums, p) {
+    txt := ""
+    for n in nums
+        txt .= (txt = "" ? "" : ",") n
+    parts := StrSplit(Sort(txt, "N D,"), ",")
+    return Integer(parts[Max(1, Min(parts.Length, Round(parts.Length * p / 100)))])
+}
+
+; the results title by colour: "win" for the gold VICTORY, "loss" for the red DEFEAT, else "".
+; Also needs the dark results panel under the title (so a sandy map isn't taken for VICTORY).
+; tx = the title's middle.
+TitleColour(&tx := 0) {
+    gold := 0, red := 0, sx := 0, dark := 0, cnt := 0, gx := [], gy := [], rx := [], ry := []
+    try {
+        WinGetClientPos &ox, &oy, , , RBX
+        Fresh()
+        scr := FindText()
+        py := 165
+        while py <= 290 {
+            px := 180
+            while px <= 620 {
+                col := scr.GetColor(ox + px, oy + py, 0) & 0xFFFFFF
+                r := (col >> 16) & 0xFF, g := (col >> 8) & 0xFF, b := col & 0xFF
+                if r > 220 && g > 150 && g < 235 && b < 90
+                    gold++, gx.Push(px), gy.Push(py)
+                else if r > 190 && g < 70 && b < 70
+                    red++, rx.Push(px), ry.Push(py)
+                px += 3
+            }
+            py += 3
+        }
+        if gold < 120 && red < 120
+            return ""
+        ; the title is one wide, flat band of letters (VICTORY ~280 x 40): not the shop's stacked
+        ; yellow price buttons or a lobby's scattered red text
+        xs := gold >= red ? gx : rx, ys := gold >= red ? gy : ry
+        x1 := Pct(xs, 10), x2 := Pct(xs, 90), y1 := Pct(ys, 10), y2 := Pct(ys, 90)
+        if x2 - x1 < 180 || y2 - y1 > 60
+            return ""
+        tx := (x1 + x2) // 2
+        ; the panel between the title and the button ("Total Time", "Waves Completed") is dark
+        py := 300
+        while py <= 360 {
+            px := tx - 120
+            while px <= tx + 120 {
+                col := scr.GetColor(ox + px, oy + py, 0) & 0xFFFFFF
+                cnt++, dark += ((col >> 16) & 0xFF) + ((col >> 8) & 0xFF) + (col & 0xFF) < 270
+                px += 6
+            }
+            py += 6
+        }
+    }
+    if cnt && dark / cnt < 0.45
+        return ""
+    return gold >= 120 ? "win" : red >= 120 ? "loss" : ""
 }
 
 FindOpenDungeon(&cx, &cy) {
