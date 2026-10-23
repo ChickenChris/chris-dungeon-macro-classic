@@ -37,6 +37,7 @@ global stageStart := 0
 global bossDone := false
 global chestsDone := false      ; this dungeon's saved chests have been opened
 global curMap := "Unknown"
+global mapHow := ""             ; how the map was recognised (shown in the log)
 global dungeonTotal := 20       ; rooms in a dungeon run (read from "DEPTH: 14/20" when possible)
 global curDepth := ""          ; dungeon room depth read from the loading screen
 global lastMapRaw := ""        ; the last text read while looking for the map name (for the log)
@@ -1199,7 +1200,7 @@ LoadStage(knownMap := "", knownDepth := "") {
                 name := MapFromBanner()
             if name != "" {
                 curMap := name
-                AddLog("Map: " name (curDepth != "" ? ", depth " curDepth : "") "  (" Round((A_TickCount - t0) / 1000, 1) "s)")
+                AddLog("Map: " name (curDepth != "" ? ", depth " curDepth : "") "  (" mapHow ", " Round((A_TickCount - t0) / 1000, 1) "s)")
                 UpdateMapLabel()
             }
         }
@@ -1234,17 +1235,20 @@ LoadStage(knownMap := "", knownDepth := "") {
 ; 1) read the "Traveling to... <map>" text on the loading screen (Windows' built-in OCR)
 ; 2) fall back to matching loading-screen pictures
 MatchLoadingScreen() {
-    name := MapFromLoadingText()
+    global mapHow
+    name := MapFromLoadingText(), mapHow := "loading screen text"
     if name != ""
         return name
-    name := MapFromNamePics()
+    name := MapFromNamePics(), mapHow := "map name picture"
     if name != ""
         return name
+    mapHow := "scenery picture"
     Snap()
-    ; Pictures that are almost one flat colour (rainvillage.png is a dark purple patch) "match"
-    ; any dark night map: Spirit Town was taken for Rain Village. Those are never used, and
-    ; the looser search only uses the detailed ones (mostly the blue map-name banners).
-    static plain := "|hauntedacademy|navybay|nightmaretrain|rainvillage|sandvillage|shibuyadistrict|spacecenter|spiritworld|stormhideout|"
+    ; Only the detailed pictures are used. Low-detail ones (dark or plain patches of scenery)
+    ; "matched" other maps once the map itself showed: Spirit Town was taken for Rain Village and
+    ; Snowy Kingdom for Cursed Festival. The map-name pictures (MapFromNamePics) and the text
+    ; reading cover those maps instead. The looser search only uses the most detailed ones.
+    static strong := "|aircraft|antkingdom3|antkingdomraid|assassinpark|dungeonthrone2|fabledkingdom|magichill3|magichills2|magictown|planetgreenie|rainvillage2|sacredplanet|spacecenter2|spirittown2|virtualdungeon2|"
     static detailed := "|aircraft|antkingdomraid|dungeonthrone2|fabledkingdom|magichill3|magichills2|planetgreenie|rainvillage2|sacredplanet|spacecenter2|spirittown2|virtualdungeon2|"
     static lists := 0, sharp := 0
     if !IsObject(lists) {
@@ -1252,7 +1256,7 @@ MatchLoadingScreen() {
         for name, files in LoadingScreens() {
             paths := [], good := []
             for f in files {
-                if InStr(plain, "|" f "|") || !FileExist("Images\loading_screens\" f ".png")
+                if !InStr(strong, "|" f "|") || !FileExist("Images\loading_screens\" f ".png")
                     continue
                 paths.Push("Images\loading_screens\" f ".png")
                 if InStr(detailed, "|" f "|")
