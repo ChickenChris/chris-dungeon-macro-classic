@@ -428,8 +428,9 @@ TryRoom(r, prio, unsafe, curseOf, nextKind := "") {
     if r.kind = "Cursed" {
         curseName := DetectCurse()
         curseOf[r.i] := curseName
-        if curseName != "" && AvoidCurse(curseName) {
-            AddLog("Skipping " RoomLabel(prio) " room (curse of " curseName ")")
+        ; a curse it can't tell counts as one to avoid (it used to go in, so avoided curses got through)
+        if (curseName != "" && AvoidCurse(curseName)) || (curseName = "" && cfg["skipWorst"] > 0) {
+            AddLog("Skipping " RoomLabel(prio) " room (" (curseName != "" ? "curse of " curseName : "a curse it couldn't read") ")")
             unsafe[r.i] := true
             Clk(r.a.cx, r.a.cy)
             Wait(600)
@@ -518,13 +519,34 @@ DetectCurse() {
     if !IsObject(curses)
         curses := Map("Flying", CurseofFlight, "Wind", CurseOfWind, "Money", CurseOfMoney, "Health", CurseofHealth,
             "Shielding", CurseOfShielding, "Regen", CurseOfRegen, "Exploding", CurseOfExplosion)
-    t0 := A_TickCount
+    t0 := A_TickCount, n := 0
     while A_TickCount - t0 < 3000 {
         for name, pat in curses
             if Seen(121, 168, 681, 493, pat, 0.05)
                 return name
+        ; the pictures are of the old names ("Curse of Money" is "Curse of Shopping" now), so
+        ; the panel's words are read too
+        if Mod(++n, 2) = 1 && (name := CurseFromText()) != ""
+            return name
         Wait(150)
     }
+    return ""
+}
+
+; "Curse of Shopping" etc. read from the room's panel, as one of the names on the Dungeon tab
+CurseFromText() {
+    static words := [["fli|fly", "Flying"], ["win", "Wind"], ["shop|mon", "Money"], ["hea", "Health"],
+        ["shi", "Shielding"], ["reg", "Regen"], ["exp", "Exploding"]]
+    try {
+        WinGetClientPos &ox, &oy, , , RBX
+        txt := OCR.FromRect(ox + 110, oy + 130, 570, 340, OcrLang(), {scale: 2, grayscale: true}).Text
+    } catch
+        return ""
+    if !RegExMatch(txt, "i)curse\s*o\s*f\s*([a-z]{3,})", &m)
+        return ""
+    for pr in words
+        if RegExMatch(m[1], "i)^(" pr[1] ")")
+            return pr[2]
     return ""
 }
 
@@ -537,7 +559,7 @@ AvoidCurse(name) {
 ; how bad a room's curse is: 0 = clean ... 9 = your worst
 CurseBadness(name) {
     if name = ""
-        return 1                                ; cursed, but couldn't tell which
+        return 5                                ; cursed, but couldn't tell which: assume it's a bad one
     i := IndexOf(cfg["curseRank"], name)
     return i ? 10 - i : 1
 }
