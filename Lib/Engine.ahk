@@ -585,7 +585,11 @@ EnterRoom() {
     t0 := A_TickCount
     loop {
         roomMap := ReadRoomPanel(ex, ey, &depth, &raw)
-        if roomMap != "" || A_TickCount - t0 > 2000
+        if roomMap != "" {
+            AddLog("Room panel read: " SubStr(Trim(RegExReplace(raw, "\s+", " ")), 1, 70))
+            break
+        }
+        if A_TickCount - t0 > 2000
             break
         Wait(200)
     }
@@ -1185,23 +1189,33 @@ HandleDungeonPopups() {
 ;  Inside a stage
 ; =====================================================================
 LoadStage(knownMap := "", knownDepth := "") {
-    global curMap, curDepth
+    global curMap, curDepth, mapHow
     Step("loading the map")
     curMap := knownMap != "" ? knownMap : "Unknown", curDepth := knownDepth
     UpdateMapLabel()
     if knownMap != ""
         AddLog("Map: " knownMap (knownDepth != "" ? ", depth " knownDepth : "") "  (from the room panel)")
+    ; the loading screen double-checks the room panel: its map name (picture or text) wins if
+    ; they disagree (a misread panel once turned Snowy Kingdom into Cursed Festival)
+    checked := knownMap = ""
     t0 := A_TickCount
     loop {
         Snap()
-        if curMap = "Unknown" {
+        if curMap = "Unknown" || !checked {
             name := MatchLoadingScreen()
-            if name = ""
-                name := MapFromBanner()
-            if name != "" {
+            if name = "" && curMap = "Unknown"
+                name := MapFromBanner(), mapHow := "map banner"
+            if name != "" && curMap = "Unknown" {
                 curMap := name
                 AddLog("Map: " name (curDepth != "" ? ", depth " curDepth : "") "  (" mapHow ", " Round((A_TickCount - t0) / 1000, 1) "s)")
                 UpdateMapLabel()
+            } else if name != "" && mapHow != "scenery picture" {
+                checked := true
+                if name != curMap {
+                    AddLog("The room panel said " curMap ", the loading screen says " name ". Going with " name)
+                    curMap := name
+                    UpdateMapLabel()
+                }
             }
         }
         if IsLoaded()
@@ -1559,14 +1573,16 @@ MatchMapLoose(txt) {
     t := RegExReplace(txt, "\s+", " ")
     segs := [], pos := 1
     while pos := RegExMatch(t, "i)dungeon\W{0,2}r\S{0,5}\s+(.{2,40}?)\s*(?=\bd\s*e\s*p|\bde\b|\(|\bdiff|$)", &m, pos)
-        segs.Push(m[1]), pos := m.Pos[0] + Max(1, m.Len[0])
+        segs.Push({s: m[1], need: 0.6}), pos := m.Pos[0] + Max(1, m.Len[0])
+    ; the words just before "Dungeon Room" (loading screens) can be any other text on a panel,
+    ; so those need a clearer win
     pos := 1
     while pos := RegExMatch(t, "i)((?:\S+\s+){1,3}?)\s*dungeon\W{0,2}r[o0]", &m, pos)
-        segs.Push(m[1]), pos := m.Pos[0] + Max(1, m.Len[0])
+        segs.Push({s: m[1], need: 0.72}), pos := m.Pos[0] + Max(1, m.Len[0])
     bestName := "", bestScore := 0
-    for seg in segs {
+    for sg in segs {
         ws := [], letters := 0
-        for w in StrSplit(RegExReplace(StrLower(seg), "[^a-z0-9]+", " "), " ")
+        for w in StrSplit(RegExReplace(StrLower(sg.s), "[^a-z0-9]+", " "), " ")
             if RegExMatch(w, "[a-z]")
                 ws.Push(FoldLoose(w)), letters += StrLen(w)
         if !ws.Length || letters < 3
@@ -1579,7 +1595,7 @@ MatchMapLoose(txt) {
             else if s > s2
                 s2 := s
         }
-        if s1 >= 0.6 && s1 - s2 >= 0.12 && s1 > bestScore
+        if s1 >= sg.need && s1 - s2 >= 0.12 && s1 > bestScore
             bestScore := s1, bestName := n1
     }
     return bestName
