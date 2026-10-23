@@ -854,7 +854,7 @@ ReadShopRows() {
         ; still gives itself away by its first word
         if name = "" {
             for kw, full in Map("philos", "Philosophers Stone", "celest", "Celestial Blade", "shimmer", "Shimmering Moon Fragment",
-                "archmage", "Archmage's Hat", "stormbr", "Stormbringer", "headspl", "Headsplitter")
+                "archmage", "Archmage's Hat", "stormbr", "Stormbringer", "headspl", "Headsplitter", "riches", "Mask of Riches")
                 if InStr(StrLower(raw), kw) && IndexOf(cfg["shopRank"], full) {
                     name := full
                     break
@@ -869,7 +869,7 @@ ReadShopRows() {
             name := "Ice Dagger"                ; Ice Dagger: -20% enemy speed
         else if name = "Ice Dagger" && RegExMatch(raw, "1\s*5\s*%|attack") && !RegExMatch(raw, "i)\b[il1]ce\b")
             name := "Dagger"                    ; Dagger: +15% attack
-        else if name = "Axe" && RegExMatch(raw, "i)g[il1]ac|slow")
+        else if name = "Axe" && RegExMatch(raw, "i)g[il1]ac|slow|speed|3\s*0\s*%")
             name := "Glacial Axe"
         else if name = "Glacial Axe" && RegExMatch(raw, "i)crit") && !RegExMatch(raw, "i)g[il1]ac")
             name := "Axe"                       ; Axe: +50% physical crit chance
