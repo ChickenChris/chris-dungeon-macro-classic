@@ -815,7 +815,7 @@ SaveDebugShot(tag) {
 ; every item the shop can sell, best first (the Dungeon page lets you reorder and switch them off)
 SHOP_ITEMS() => ["Philosophers Stone", "Mask of Riches", "Golden Mushroom", "Golden Branch", "Genie Lamp",
     "Golden Fishhook", "Fish Hook", "Shimmering Moon Fragment", "Celestial Blade", "Stormbringer", "Scimitar", "Archmage's Hat", "Aures Maul",
-    "Magic Tome", "Solar Cleaver", "Headsplitter", "Axe", "Mage Coat", "Reaper Scythe", "Glacial Axe", "Ice Dagger",
+    "Magic Tome", "Solar Cleaver", "Headsplitter", "Axe", "Sword", "Mage Coat", "Reaper Scythe", "Glacial Axe", "Ice Dagger",
     "Ninja Belt", "Nimble Cloak", "Elf Bow", "Longbow", "Dagger", "Bow"]
 SHOP_MAGIC() => ["Archmage's Hat", "Magic Tome", "Mage Coat"]
 SHOP_PHYSICAL() => ["Aures Maul", "Solar Cleaver", "Headsplitter", "Axe"]
