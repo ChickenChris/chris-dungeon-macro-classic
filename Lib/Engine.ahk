@@ -534,7 +534,9 @@ ScanRooms() {
             kind := "Boss"
         ; a cursed room is purple inside (78% on a real screenshot, normal rooms 0-5%): far more
         ; reliable than the border picture, which let cursed rooms pass as normal ones
-        if (kind = "Available" || kind = "") && ColorShare(ar.cx - 35, 328, ar.cx + 35, 393, IsCurseRoom) >= 0.4
+        ; only for a room the border already found: on its own, a purple patch of a map in the middle
+        ; of a stage was taken for a cursed room (and the macro tried to pick a room mid-round)
+        if kind = "Available" && ColorShare(ar.cx - 35, 328, ar.cx + 35, 393, IsCurseRoom) >= 0.4
             kind := "Cursed"
         if kind != ""
             found.Push({i: i, kind: kind, a: ar})
