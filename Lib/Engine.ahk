@@ -304,6 +304,13 @@ Tick() {
         WaitFor(() => ScanRooms().Length || SpecialScreen(), 3000)
         return
     }
+    if EnterDungeonByColour(&bx, &by) {      ; same screen, its picture didn't match on this PC
+        idleSince := 0
+        Step("opening the dungeon")
+        Clk(bx, by)
+        WaitFor(() => ScanRooms().Length || SpecialScreen(), 3000)
+        return
+    }
     if Det("Lobby") {
         idleSince := 0
         OpenDungeonFromLobby()
@@ -368,7 +375,73 @@ OpenDungeonFromLobby() {
     if WaitDet("EnterDungeon", 1500) {
         Clk(395, 380)
         WaitFor(() => ScanRooms().Length || SpecialScreen(), 3000)
+    } else if EnterDungeonByColour(&bx, &by) {
+        Clk(bx, by)
+        WaitFor(() => ScanRooms().Length || SpecialScreen(), 3000)
     }
+}
+
+; The "DUNGEON RUN" window with its big green "Enter Dungeon" button, found by colour: the purple
+; title plus a wide green button in the middle. On some PCs the button's picture didn't match and
+; the macro sat there after clearing a dungeon. Gives the button's middle in game-area coords.
+EnterDungeonByColour(&bx, &by) {
+    static told := false
+    if Det("Shop")                              ; the shop has the same title (and a green Continue)
+        return false
+    try {
+        WinGetClientPos &ox, &oy, , , RBX
+        Fresh()
+        scr := FindText()
+        purple := 0, py := 110
+        while py <= 210 {
+            px := 60
+            while px <= 420 {
+                col := scr.GetColor(ox + px, oy + py, 0) & 0xFFFFFF
+                r := (col >> 16) & 0xFF, g := (col >> 8) & 0xFF, b := col & 0xFF
+                if r > 140 && g < 110 && b > 140 && b > g + 60
+                    purple++
+                px += 3
+            }
+            py += 3
+        }
+        if purple < 60
+            return false
+        xs := [], ys := [], py := 355
+        while py <= 430 {
+            from := 0, last := -99, bestW := 0, bestX := 0
+            px := 240
+            while px <= 572 {
+                isG := false
+                if px <= 570 {
+                    col := scr.GetColor(ox + px, oy + py, 0) & 0xFFFFFF
+                    r := (col >> 16) & 0xFF, g := (col >> 8) & 0xFF, b := col & 0xFF
+                    isG := g > 170 && r < 150 && b < 120
+                }
+                if isG {
+                    if px - last > 14
+                        from := px
+                    last := px
+                } else if last > 0 && px - last > 14 && from {
+                    if last - from > bestW
+                        bestW := last - from, bestX := (from + last) // 2
+                    from := 0
+                }
+                px += 2
+            }
+            if bestW >= 140 && bestW <= 290
+                xs.Push(bestX), ys.Push(py)
+            py += 3
+        }
+        if xs.Length < 3
+            return false
+        bx := MiddleOf(xs), by := MiddleOf(ys)
+        if bx < 330 || bx > 480
+            return false
+        if !told
+            told := true, AddLog("Enter Dungeon found by its colours (its picture didn't match)")
+        return true
+    }
+    return false
 }
 
 ; =====================================================================
