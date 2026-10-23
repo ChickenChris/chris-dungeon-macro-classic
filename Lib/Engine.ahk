@@ -594,6 +594,14 @@ TryRoom(r, prio, unsafe, curseOf, nextKind := "") {
         if (c := CurseFromText()) != "" {
             r.kind := "Cursed"
             AddLog("Room " r.i ": the panel shows a curse (" c ") its border didn't")
+        } else {
+            ; one picture of a checked room panel per session, so curse reading can be checked
+            static told := false
+            if !told {
+                told := true
+                AddLog("Room panel checked for a curse, none found (read: " SubStr(lastCurseRaw, 1, 80) ")")
+            }
+            SaveDebugShot("room_panel")
         }
     }
     if r.kind = "Cursed" {
