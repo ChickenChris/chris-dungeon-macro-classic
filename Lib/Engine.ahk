@@ -2436,6 +2436,28 @@ StepText(st) {
     return "Upgrade slot " st.slot " " up
 }
 
+; how far each unit of an upgrade step got, for the log: "2 of 3 units reached 6 (1 can't be found)"
+GroupResult(units, done, times) {
+    ok := 0, lost := 0, short := 0
+    for u in units {
+        if u.lost
+            lost++
+        else if times < 0 ? u.maxed : (done[u] >= times || u.maxed)
+            ok++
+        else
+            short++
+    }
+    txt := ok " of " units.Length " unit" (units.Length = 1 ? "" : "s") " reached " (times < 0 ? "max" : times " upgrade" (times = 1 ? "" : "s"))
+    extra := []
+    if short
+        extra.Push(short " not there yet")
+    if lost
+        extra.Push(lost " couldn't be found on the map")
+    for i, e in extra
+        txt .= (i = 1 ? " (" : ", ") e (i = extra.Length ? ")" : "")
+    return txt
+}
+
 ; Upgrades a group of units `times` times each (-1 = to max), taking turns:
 ; unit 1 as far as it can afford -> unit 2 -> unit 3 -> back to unit 1 ... until every
 ; unit has reached the target. Waits for yen when nobody can afford anything.
@@ -2468,16 +2490,22 @@ UpgradeGroup(units, times) {
             }
         }
         if !left {
-            AddLog("Slot " units[1].slot ": " (times < 0 ? "all fully upgraded" : "upgraded " times " time" (times = 1 ? "" : "s")))
+            ok := 0
+            for u in units
+                ok += !u.lost && (times < 0 ? u.maxed : done[u] >= times || u.maxed)
+            if ok = units.Length
+                AddLog("Slot " units[1].slot ": " (times < 0 ? "all fully upgraded" : "upgraded " times " time" (times = 1 ? "" : "s")) (units.Length > 1 ? " (all " units.Length " units)" : ""))
+            else
+                AddLog("Slot " units[1].slot ": step done. " GroupResult(units, done, times))
             return true                             ; everyone reached the target
         }
         if limitMs && A_TickCount - t0 > limitMs {
-            AddLog("Slot " units[1].slot ": upgrade step took too long, moving to the next step")
+            AddLog("Slot " units[1].slot ": upgrade step took too long, moving to the next step. " GroupResult(units, done, times))
             return true
         }
         if !roundGain {
             if A_TickCount - lastGainAt > waitMs {
-                AddLog("Slot " units[1].slot " couldn't upgrade for " waitMs // 60000 " min, moving to the next step")
+                AddLog("Slot " units[1].slot ": no upgrade went through for " Round(waitMs / 60000, 1) " min (not enough yen?), moving to the next step. " GroupResult(units, done, times))
                 return true
             }
             Step("build order: waiting for yen to upgrade slot " units[1].slot (times < 0 ? " to max" : ""))
