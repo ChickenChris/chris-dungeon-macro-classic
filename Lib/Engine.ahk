@@ -53,6 +53,19 @@ global slotCap := Map()         ; "slot|map" -> the most that fit on that map, o
 ; (per map: a cramped map used to cap a slot for every later map, so later rooms were played
 ; with fewer units until the macro was restarted)
 CapKey(n) => n "|" curMap
+global slotOne := Map()         ; slot -> true: a unique unit, the game allows one of it
+global slotFull := Map()        ; slot -> stage it hit the game's limit in (no more that stage)
+
+; trims `need` to what the game allows for slot n right now
+SlotRoom(n, need) {
+    if slotCap.Has(CapKey(n))
+        need := Min(need, slotCap[CapKey(n)] - CountPlaced(n))
+    if slotOne.Has(n)
+        need := Min(need, 1 - CountPlaced(n))
+    if slotFull.Get(n, -1) = stageStart
+        need := 0
+    return Max(0, need)
+}
 global postStage := 0         ; when the last stage ended (reward popups follow)
 global lastGain := 0          ; levels gained in the last upgrade pass
 global stat := {runs: 0, wins: 0, losses: 0, rooms: 0, chests: 0, dungeons: 0, startTick: 0, streak: 0}
@@ -164,10 +177,10 @@ DetectAll() {
 ;  Main loop
 ; =====================================================================
 EngineRun() {
-    global running, idleSince, slotStops, slotCap
+    global running, idleSince, slotStops, slotCap, slotOne, slotFull
     errors := 0
     idleSince := 0
-    slotStops := Map(), slotCap := Map()
+    slotStops := Map(), slotCap := Map(), slotOne := Map(), slotFull := Map()
     loop {
         try {
             Chk()
@@ -2074,8 +2087,7 @@ PlaceAll(ctx := "") {
 ; a spot that fails twice is skipped. Sets ctx.over if the stage ends.
 PlaceSlot(ctx, n, need) {
     global placedUnits
-    if slotCap.Has(CapKey(n))
-        need := Min(need, Max(0, slotCap[CapKey(n)] - CountPlaced(n)))
+    need := SlotRoom(n, need)
     lv := ctx.lv, pts := ctx.pts
     newUnits := []
     got := 0, stuck := 0, greySince := 0
@@ -2136,7 +2148,7 @@ PlaceSlot(ctx, n, need) {
             } else {
                 ctx.fails[key] := ctx.fails.Get(key, 0) + 1
                 misses++
-                if slotCap.Has(CapKey(n)) && CountPlaced(n) >= slotCap[CapKey(n)]
+                if !SlotRoom(n, 1)
                     return newUnits                 ; the game's limit for this unit
             }
         }
@@ -2593,12 +2605,21 @@ TryPlace(x, y, slot) {
     Clk(x, y)
     Sleep 50
     Keys("q")                               ; cancels the placing if the spot was refused (the path)
+    ; the game's red refusals ("Unique units may not be placed with others of its kind",
+    ; "Cannot place more than 3 of this unit!") show straight away and fade, so look first
+    Sleep 120
+    if PlaceRefused(slot)
+        return false
     ; Placed = the unit's upgrade menu opens on the left, checked by the menu's own parts (see
     ; MenuParts): the yen can't be read reliably. The game lags now and then, so a late menu
     ; gets extra time.
     if WaitUnitMenu(PlaceTimeout()) || WaitUnitMenu(1200) {
         lvl := ReadLevel()
         if lvl > 0 || MaxShown() {          ; an older unit's menu: the click hit a unit already there
+            if !NearUnit(x, y, 45) {        ; no known unit there: maybe a new unit with an odd menu
+                AddLog("Slot " slot ": a menu opened (" (lvl > 0 ? "level " lvl : "MAX") ") but no counted unit is near, treated as not placed")
+                SaveDebugShot("odd_menu")
+            }
             Clk(325, 185)
             Wait(200)
             return false
@@ -2607,15 +2628,35 @@ TryPlace(x, y, slot) {
         Clk(325, 185)                       ; close the unit menu
         return true
     }
-    ; "Cannot place more than 3 of this unit!" in red: that's the game's limit for this unit
-    if LimitMessage() {
+    PlaceRefused(slot)                      ; a late message (lag)
+    return false
+}
+
+; The game refused the unit with a red message: remember the limit so the macro stops trying.
+PlaceRefused(slot) {
+    msg := LimitMessage()
+    if msg = "unique" {
+        ; only one of a unique unit. One is down already, even if it wasn't counted (its
+        ; menu didn't show), so no more of this slot this stage, and one per stage after this
+        if !slotOne.Has(slot)
+            AddLog("Slot " slot " is a unique unit: the game allows only one. Placing one from now on")
+        if !CountPlaced(slot)
+            AddLog("Slot " slot ": one is on the map but its placing wasn't seen, so it won't be upgraded this stage")
+        slotOne[slot] := true
+        slotFull[slot] := stageStart
+        return true
+    }
+    if msg = "limit" {
         slotCap[CapKey(slot)] := CountPlaced(slot)
+        slotFull[slot] := stageStart
         AddLog("Slot " slot ": the game allows only " CountPlaced(slot) " of this unit, placing no more")
+        return true
     }
     return false
 }
 
-; the red "Cannot place more than N of this unit!" message in the middle of the screen
+; the game's red refusal in the middle of the screen: "unique" for "Unique units may not be
+; placed with others of its kind", "limit" for "Cannot place more than N of this unit!", else ""
 LimitMessage() {
     red := 0
     try {
@@ -2623,9 +2664,9 @@ LimitMessage() {
         Stale(), Fresh()
         scr := FindText()
         yy := 120
-        while yy <= 330 {
-            xx := 100
-            while xx <= 700 {
+        while yy <= 500 {
+            xx := 150
+            while xx <= 650 {
                 col := scr.GetColor(ox + xx, oy + yy, 0)
                 r := (col >> 16) & 0xFF, g := (col >> 8) & 0xFF, b := col & 0xFF
                 if r >= 200 && g <= 90 && b <= 100
@@ -2635,7 +2676,18 @@ LimitMessage() {
             yy += 3
         }
     }
-    return red >= 40 && OcrFindWord(100, 120, 600, 210, "i)^(cannot|more|place|unit)", &wx, &wy)
+    if red < 40
+        return ""
+    txt := ""
+    try {
+        WinGetClientPos &ox, &oy, , , RBX
+        txt := OCR.FromRect(ox + 100, oy + 120, 600, 390, OcrLang(), {scale: 2, grayscale: true}).Text
+    }
+    if RegExMatch(txt, "i)uniq|its kind|others of")
+        return "unique"
+    if RegExMatch(txt, "i)cannot|can.t place|more than")
+        return "limit"
+    return ""
 }
 
 PlaceTimeout() {
@@ -2851,9 +2903,7 @@ TopUpUnits() {
     for i, sl in cfg["slots"] {
         if !sl.on || sl.count < 1
             continue
-        need := sl.count - CountPlaced(i)
-        if slotCap.Has(CapKey(i))
-            need := Min(need, slotCap[CapKey(i)] - CountPlaced(i))
+        need := SlotRoom(i, sl.count - CountPlaced(i))
         if need <= 0 || tries.Get(i, 0) >= 4 || A_TickCount - lastTry.Get(i, 0) < 20000
             continue
         if cfg["saveForTop"] && sl.prio > topPrio
