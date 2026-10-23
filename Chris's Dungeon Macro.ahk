@@ -258,7 +258,7 @@ TogCfg("x205 y348 w270", "Save chests for after the boss", "saveChests")
 TogCfg("x205 y380 w270", "Buy everything in shops", "buyShop")
 TogCfg("x205 y412 w270", "Stop after a defeat", "stopAfterDefeat")
 
-SubHead(500, 88, "Curses, worst first", "If every room is cursed, it takes the mildest")
+SubHead(500, 88, "Curses, worst first", "Curses last the whole dungeon. All cursed? It takes the mildest")
 loop CURSES.Length {
     y := 126 + (A_Index - 1) * 29
     MG.SetFont("s10 bold c" CL.muted)
