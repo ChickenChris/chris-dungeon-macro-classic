@@ -297,6 +297,13 @@ Tick() {
         EnterRoom()
         return
     }
+    if (Det("EnterDungeon") || EnterDungeonByColour(&bx, &by)) && InStageWorld() {
+        idleSince := 0
+        Clk(666, 145)                            ; close it: "Enter Dungeon" only works in the lobby
+        Wait(800)
+        BackToLobby()
+        return
+    }
     if Det("EnterDungeon") {
         idleSince := 0
         Step("opening the dungeon")
@@ -379,6 +386,57 @@ OpenDungeonFromLobby() {
         Clk(bx, by)
         WaitFor(() => ScanRooms().Length || SpecialScreen(), 3000)
     }
+}
+
+; still standing in a dungeon stage: the green wave health bar across the top (the lobby has none)
+InStageWorld() {
+    n := 0
+    try {
+        WinGetClientPos &ox, &oy, , , RBX
+        Fresh()
+        scr := FindText()
+        py := 58
+        while py <= 78 {
+            px := 170
+            while px <= 640 {
+                col := scr.GetColor(ox + px, oy + py, 0) & 0xFFFFFF
+                r := (col >> 16) & 0xFF, g := (col >> 8) & 0xFF, b := col & 0xFF
+                if g > 190 && r < 90 && b < 90
+                    n++
+                px += 4
+            }
+            py += 2
+        }
+    }
+    return n >= 60
+}
+
+; From the results screen to the lobby (green "Return to lobby"), where the next dungeon is opened.
+BackToLobby() {
+    static told := false
+    Step("back to the lobby for the next dungeon")
+    loop 3 {
+        Stale()
+        if Det("Lobby")
+            return true
+        if Det("EndScreen")
+            ClickDet("EndScreen", 0, -35)           ; "Return to lobby"
+        else if FindOpenDungeon(&bx, &by)
+            Clk(bx - 210, by)                       ; the green button left of "Open Dungeon"
+        else
+            break
+        if WaitFor(() => Det("Lobby"), 15000, 500)
+            return true
+    }
+    Stale()
+    if Det("Lobby")
+        return true
+    if !told {
+        told := true
+        AddLog("Couldn't get back to the lobby after the dungeon. Send Logs\to_lobby_....bmp in Discord so it can be fixed")
+        SaveDebugShot("to_lobby")
+    }
+    return false
 }
 
 ; The "DUNGEON RUN" window with its big green "Enter Dungeon" button, found by colour: the purple
@@ -1295,11 +1353,10 @@ HandleDungeonPopups() {
         chestsDone := false, bossDone := false
         if !Det("EndScreen")
             Clk(666, 145)                       ; the dungeon window's X
-        WaitFor(() => Det("EndScreen") || Det("Lobby"), 3000)
-        if Det("EndScreen") {                   ; "Open Dungeon", not "Return to lobby": no trip to the lobby
-            Step("opening the next dungeon")
-            ClickOpenDungeon()
-        }
+        WaitFor(() => Det("EndScreen") || Det("Lobby") || EndButtonsSeen(true), 3000)
+        ; a new dungeon can only be started from the lobby: "Open Dungeon" here only brought up
+        ; the Dungeon Run window, whose "Enter Dungeon" does nothing outside the lobby
+        BackToLobby()
         return true
     }
     if Det("DungeonDeath") {
