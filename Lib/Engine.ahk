@@ -850,6 +850,16 @@ ReadShopRows() {
     for y in [225, 280, 335] {
         raw := ShopRowText(y)
         name := FuzzyPick(raw, cfg["shopRank"])
+        ; long names wrap onto a second line ("[*] Philosopher's" / "Stone"): a half-read name
+        ; still gives itself away by its first word
+        if name = "" {
+            for kw, full in Map("philos", "Philosophers Stone", "celest", "Celestial Blade", "shimmer", "Shimmering Moon Fragment",
+                "archmage", "Archmage's Hat", "stormbr", "Stormbringer", "headspl", "Headsplitter")
+                if InStr(StrLower(raw), kw) && IndexOf(cfg["shopRank"], full) {
+                    name := full
+                    break
+                }
+        }
         ; short names that are the end of longer ones: the description's % tells them apart
         if name = "Fish Hook" && RegExMatch(raw, "4\s*0\s*%")
             name := "Golden Fishhook"
