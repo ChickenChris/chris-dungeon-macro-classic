@@ -633,7 +633,9 @@ RoomOrder(rooms) {
     for r in rooms {
         if r.kind = "Unavailable"
             continue
-        own := "", rank := 0, rare := RareChestAt(r)
+        ; a room can hold several things (Shop + Chest + Shrine...): it's worth all of them.
+        ; "own" is the best of them (for the log), "has" all of them.
+        own := "", rank := 0, rare := RareChestAt(r), has := []
         for i, prio in route {
             if prio = "None"
                 continue
@@ -644,14 +646,16 @@ RoomOrder(rooms) {
             else
                 hit := Seen(r.a.sx1, r.a.sy1, r.a.sx2, r.a.sy2, RoomPattern(prio), 0.2)
             if hit {
-                own := prio, rank := i
-                break
+                has.Push(prio)
+                if own = ""
+                    own := prio, rank := i
             }
         }
-        picks.Push({r: r, prio: own, rank: rank ? rank : 99, score: 0, next: "", cursed: r.kind = "Cursed"})
+        picks.Push({r: r, prio: own, has: has, rank: rank ? rank : 99, score: 0, next: "", cursed: r.kind = "Cursed"})
     }
     for pk in picks
-        pk.score := pk.prio != "" ? ThingValue(pk.prio, shopOk) : 0
+        for thing in pk.has
+            pk.score += ThingValue(thing, shopOk)
     ; rooms that aren't on your list and lead nowhere useful are left for the "least bad" fallback
     order := []
     for pk in picks
@@ -715,7 +719,7 @@ CurseFromText() {
     ; ("cur„SE ... oard Konev Drops"), and then the room was skipped as an unknown curse
     static effects := [["m[o]n[e][yv]|[kh]on[e][vy]\b|drops|shop\s*pric|prices", "Money"],
         ["exp[il]|erupt|deaths\s*range", "Exploding"], ["f[il]y[il]ng|f[il]ight", "Flying"],
-        ["sh[il]e[il]d", "Shielding"], ["regen", "Regen"], ["hea[il]th|v[il]ta[il]", "Health"], ["\bw[il]nd\b", "Wind"]]
+        ["sh[il]e[il]d", "Shielding"], ["regen", "Regen"], ["hea[il]th|v[il]ta[il]", "Health"], ["\bw[il]nd\b|enemy\s*speed", "Wind"]]
     try {
         WinGetClientPos &ox, &oy, , , RBX
         txt := OCR.FromRect(ox + 110, oy + 130, 570, 340, OcrLang(), {scale: 2, grayscale: true}).Text
@@ -893,35 +897,43 @@ TextScreen() {
 ; the curse in the shrine's offer list ("[*] Curse of Chaos") -> "Chaos"
 ShrineKindFromText() {
     static spellings := Map("Armor", "ARMOR", "Burst", "BURST", "Chaos", "CHAOS", "Frenzy", "FRENZY", "Vamparism", "VAMPARISM|VAMPIRISM")
-    txt := ScreenText()
-    if !RegExMatch(txt, "CURSE ?[O0]F ?([A-Z]{3,})", &m) {
-        found := false
+    ; the effect line under the name, for when the name is misread
+    static effects := [["BURST", "Burst"], ["ARMOU?RED", "Armor"], ["RANDOM", "Chaos"], ["ENEMY ?SPEED", "Frenzy"], ["REGEN", "Vamparism"]]
+    ; "You will receive" is a list that scrolls: the curse can be below the visible rows
+    loop 4 {
+        if A_Index > 1 {
+            Clk(510, 300)                       ; on the list, so the wheel scrolls it
+            Keys("{WheelDown 3}")
+            Wait(450)
+        }
+        txt := ""
         for area in [[412, 236, 190, 145, {scale: 3, grayscale: true}], [412, 236, 190, 145, {scale: 3, grayscale: true, invertcolors: true}],
             [120, 160, 560, 320, {scale: 2.5, grayscale: true}]] {
-            txt := ""
             try {
                 WinGetClientPos &ox, &oy, , , RBX
-                txt := StrUpper(OCR.FromRect(ox + area[1], oy + area[2], area[3], area[4], OcrLang(), area[5]).Text)
-            }
-            if RegExMatch(RegExReplace(txt, "\s+", " "), "CURSE ?[O0]F ?([A-Z]{3,})", &m) {
-                found := true
-                break
+                txt .= " " StrUpper(OCR.FromRect(ox + area[1], oy + area[2], area[3], area[4], OcrLang(), area[5]).Text)
             }
         }
-        if !found
-            return ""
-    }
-    best := "", bestD := 3
-    for k, spelled in spellings {
-        for sp in StrSplit(spelled, "|") {
-            d := Levenshtein(sp, m[1])
-            if d < bestD
-                best := k, bestD := d
+        txt := RegExReplace(txt, "\s+", " ")
+        if RegExMatch(txt, "CURSE ?[O0]F ?([A-Z]{3,})", &m) {
+            best := "", bestD := 3
+            for k, spelled in spellings
+                for sp in StrSplit(spelled, "|") {
+                    d := Levenshtein(sp, m[1])
+                    if d < bestD
+                        best := k, bestD := d
+                }
+            if best != ""
+                return best
         }
+        if InStr(txt, "CURSE")
+            for pr in effects
+                if RegExMatch(txt, pr[1])
+                    return pr[2]
     }
-    if best = ""
+    if IsSet(m) && IsObject(m)
         AddLog("Shrine curse read as '" m[1] "', not one I know")
-    return best
+    return ""
 }
 
 ; press Accept or Deny: by its picture, or else by finding the word on screen
