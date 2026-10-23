@@ -696,17 +696,27 @@ DetectCurse() {
 
 ; "Curse of Shopping" etc. read from the room's panel, as one of the names on the Dungeon tab
 CurseFromText() {
-    static words := [["fli|fly", "Flying"], ["win", "Wind"], ["shop|mon", "Money"], ["hea", "Health"],
-        ["shi", "Shielding"], ["reg", "Regen"], ["exp", "Exploding"]]
+    static words := [["fli|fly", "Flying"], ["win", "Wind"], ["shop|mon", "Money"], ["hea|vit", "Health"],
+        ["shi", "Shielding"], ["reg", "Regen"], ["exp|eru", "Exploding"]]
+    ; the effect line under the name ("-10% Hoard Money Drops"): the name itself was often misread
+    ; ("cur„SE ... oard Konev Drops"), and then the room was skipped as an unknown curse
+    static effects := [["m[o]n[e][yv]|[kh]on[e][vy]\b|drops|shop\s*pric|prices", "Money"],
+        ["exp[il]|erupt|deaths\s*range", "Exploding"], ["f[il]y[il]ng|f[il]ight", "Flying"],
+        ["sh[il]e[il]d", "Shielding"], ["regen", "Regen"], ["hea[il]th|v[il]ta[il]", "Health"], ["\bw[il]nd\b", "Wind"]]
     try {
         WinGetClientPos &ox, &oy, , , RBX
         txt := OCR.FromRect(ox + 110, oy + 130, 570, 340, OcrLang(), {scale: 2, grayscale: true}).Text
     } catch
         return ""
-    if !RegExMatch(txt, "i)curse\s*o\s*f\s*([a-z]{3,})", &m)
-        return ""
-    for pr in words
-        if RegExMatch(m[1], "i)^(" pr[1] ")")
+    if RegExMatch(txt, "i)curse\s*o\s*f\s*([a-z]{3,})", &m)
+        for pr in words
+            if RegExMatch(m[1], "i)^(" pr[1] ")")
+                return pr[2]
+    low := StrLower(txt)
+    for pair in [["1", "l"], ["|", "l"], ["0", "o"], ["5", "s"], ["$", "s"]]
+        low := StrReplace(low, pair[1], pair[2])
+    for pr in effects
+        if RegExMatch(low, pr[1])
             return pr[2]
     return ""
 }
