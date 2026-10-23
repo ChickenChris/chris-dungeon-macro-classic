@@ -41,7 +41,8 @@ global mapHow := ""             ; how the map was recognised (shown in the log)
 global dungeonTotal := 20       ; rooms in a dungeon run (read from "DEPTH: 14/20" when possible)
 global curDepth := ""          ; dungeon room depth read from the loading screen
 global icFloor := 0             ; Infinity Castle floor as the game shows it (0 = not read yet)
-global lastMapRaw := ""        ; the last text read while looking for the map name (for the log)
+global lastMapRaw := ""
+global lastCurseRaw := ""      ; the text last read while looking for a room's curse (for the log)        ; the last text read while looking for the map name (for the log)
 global placedUnits := []
 global allPlaced := false       ; every unit is down: from now on the F panel may be used
 global lastResult := ""
@@ -600,7 +601,7 @@ TryRoom(r, prio, unsafe, curseOf, nextKind := "") {
         curseOf[r.i] := curseName
         ; a curse it can't tell counts as one to avoid (it used to go in, so avoided curses got through)
         if (curseName != "" && AvoidCurse(curseName)) || (curseName = "" && cfg["skipWorst"] > 0) {
-            AddLog("Skipping " RoomLabel(prio) " room (" (curseName != "" ? "curse of " curseName : "a curse it couldn't read") ")")
+            AddLog("Skipping " RoomLabel(prio) " room (" (curseName != "" ? "curse of " curseName : "a curse it couldn't read: " SubStr(lastCurseRaw, 1, 70)) ")")
             unsafe[r.i] := true
             Clk(r.a.cx, r.a.cy)
             Wait(600)
@@ -720,11 +721,23 @@ CurseFromText() {
     static effects := [["m[o]n[e][yv]|[kh]on[e][vy]\b|drops|shop\s*pric|prices", "Money"],
         ["exp[il]|erupt|deaths\s*range", "Exploding"], ["f[il]y[il]ng|f[il]ight", "Flying"],
         ["sh[il]e[il]d", "Shielding"], ["regen", "Regen"], ["hea[il]th|v[il]ta[il]", "Health"], ["\bw[il]nd\b|enemy\s*speed", "Wind"]]
-    try {
-        WinGetClientPos &ox, &oy, , , RBX
-        txt := OCR.FromRect(ox + 110, oy + 130, 570, 340, OcrLang(), {scale: 2, grayscale: true}).Text
-    } catch
+    global lastCurseRaw
+    ; the room's panel sits above its Enter button and moves with it: read the curse box there,
+    ; enlarged and both ways round (purple text on dark read as garbage with one fixed box)
+    txt := ""
+    try WinGetClientPos &ox, &oy, , , RBX
+    catch
         return ""
+    Stale()
+    if Det("Enter", &ex, &ey) {
+        cx := ex - 3, cy := ey - 32
+        x := Max(0, cx - 210), y := Max(0, cy - 230)
+        w := Min(800 - x, 420), h := Max(40, cy - 15 - y)
+        for tf in [{scale: 3, grayscale: true}, {scale: 3, grayscale: true, invertcolors: true}]
+            try txt .= " " OCR.FromRect(ox + x, oy + y, w, h, OcrLang(), tf).Text
+    }
+    try txt .= " " OCR.FromRect(ox + 110, oy + 130, 570, 340, OcrLang(), {scale: 2, grayscale: true}).Text
+    lastCurseRaw := Trim(RegExReplace(txt, "\s+", " "))
     if RegExMatch(txt, "i)curse\s*o\s*f\s*([a-z]{3,})", &m)
         for pr in words
             if RegExMatch(m[1], "i)^(" pr[1] ")")
