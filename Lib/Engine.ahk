@@ -90,7 +90,10 @@ DetDefs() {
     DetAdd(d, "Yen", "Yen counter", 340, 537, 468, 557, 0, YenHud)
     DetAdd(d, "Units", "Units button", 742, 287, 832, 377, 0.1, Units)
     DetAdd(d, "Spawn", "Teleport to Spawn (settings)", 215, 160, 596, 480, 0.2, Spawn)
-    DetAdd(d, "Max", "Max upgrade", 225, 234, 299, 412, 0, MaxText, MaxTextNew)
+    ; the two MAX styles each in their own small spot (as in Ryn's macro): one big box over the
+    ; whole menu let the new-style MAX match among the stats, so units counted as maxed too early
+    DetAdd(d, "Max", "Max upgrade (button)", 225, 388, 278, 412, 0, MaxText)
+    DetAdd(d, "MaxNew", "Max upgrade (title)", 255, 234, 299, 250, 0, MaxTextNew)
     DetAdd(d, "AutoOff", "Ability auto: off", 342, 253, 401, 281, 0, AutoOff)
     DetAdd(d, "Chat", "Chat window open", 123, 50, 156, 79, 0, OpenChat)
     DetAdd(d, "UnitExit", "Unit info close", 300, 190, 360, 250, 0, UnitExit)
@@ -114,7 +117,7 @@ DetAdd(d, name, label, x1, y1, x2, y2, err, pats*) {
 ; the order detectors are listed on the Detect tab
 DetOrder() => ["Lobby", "EnterDungeon", "RoomBorder", "Enter", "FinalRoom", "Shop", "Shrine", "ShrineAccept",
     "ShrineDeny", "Chest", "DungeonContinue", "FinishDungeon", "DungeonDeath", "DeathContinue", "RedX",
-    "VoteStart", "Yen", "Units", "Spawn", "Max", "AutoOff", "Chat", "UnitExit", "Next", "Xp", "Victory",
+    "VoteStart", "Yen", "Units", "Spawn", "Max", "MaxNew", "AutoOff", "Chat", "UnitExit", "Next", "Xp", "Victory",
     "Defeat", "EndScreen", "FinishText", "Elyssia"]
 
 ; teach a detector a new look (keeps the built-in one too). box is in capture space.
@@ -2549,7 +2552,7 @@ TryPlace(x, y, slot) {
     ; gets extra time.
     if WaitUnitMenu(PlaceTimeout()) || WaitUnitMenu(1200) {
         lvl := ReadLevel()
-        if lvl > 0 || Det("Max") {          ; an older unit's menu: the click hit a unit already there
+        if lvl > 0 || MaxShown() {          ; an older unit's menu: the click hit a unit already there
             Clk(325, 185)
             Wait(200)
             return false
@@ -2600,7 +2603,7 @@ PlaceTimeout() {
 ; shows the parts the way the macro knows them (after several colour-only menus and no real
 ; one), it goes back to the colours, so placing never gets stuck.
 global menuLoose := false
-MenuParts() => MenuButtons() || Det("UnitExit") || ReadLevel() >= 0 || Det("Max") || FT(&fx, &fy, 171, 348, 337, 447, 0, 0, UnitExistence)
+MenuParts() => MenuButtons() || Det("UnitExit") || ReadLevel() >= 0 || MaxShown() || FT(&fx, &fy, 171, 348, 337, 447, 0, 0, UnitExistence)
 
 ; The menu's three buttons in a row at its bottom: targeting (light blue: "First", "Strongest"...),
 ; Sell (red) and Upgrade (green). The same colours whatever a button says or the game's language,
@@ -2657,7 +2660,7 @@ WaitUnitMenu(timeout) {
         }
         if Mod(++n, 4) = 0 {                    ; every ~100 ms also look for the menu's buttons / upgrade text
             Stale()
-            if MenuButtons() || ReadLevel() >= 0 || Det("Max") {
+            if MenuButtons() || ReadLevel() >= 0 || MaxShown() {
                 partsSeen := true, colourOnly := 0
                 return !Det("Elyssia")
             }
@@ -2680,7 +2683,7 @@ UnitMenuOpen() {
             && (PixelSearch(&px, &py, 192, 244, 237, 400, 0xFFFFFF, 12) || PixelSearch(&px, &py, 192, 244, 237, 400, 0xFFC806, 20))
             return !Det("Elyssia")
         Stale()
-        return (ReadLevel() >= 0 || Det("Max")) && !Det("Elyssia")
+        return (ReadLevel() >= 0 || MaxShown()) && !Det("Elyssia")
     }
     return false
 }
@@ -2891,6 +2894,7 @@ UpgradeUnit(u, presses := 3, useLimit := true) {
             AddLog("Slot " u.slot " reached upgrade " lim " (its Until limit on the Units tab)")
             break
         }
+        priceBefore := UpgradeButtonBits()
         Keys("r")
         if MaxReached() {
             u.maxed := true, gained++
@@ -2907,8 +2911,10 @@ UpgradeUnit(u, presses := 3, useLimit := true) {
                 break
             }
             gained += now - lvl, lvl := now
-        } else
-            gained++                            ; can't read the level, assume it worked
+        } else if BitDiff(priceBefore, UpgradeButtonBits()) >= 6
+            gained++                            ; can't read the level, but the price changed: it went up
+        else
+            break                               ; same price: not enough yen yet
     }
     if gained && !u.maxed
         Step("slot " u.slot " upgraded" (lvl >= 0 ? " to level " lvl : ""))
@@ -2920,7 +2926,40 @@ UpgradeUnit(u, presses := 3, useLimit := true) {
 
 MaxReached() {
     Wait(400)
-    return Det("Max") && !Det("Elyssia")
+    return MaxShown() && !Det("Elyssia")
+}
+
+MaxShown() => Det("Max") || Det("MaxNew")
+
+; the white price text on the green Upgrade button, as bits: if it changes after pressing R,
+; the unit went up a level (used when the "Upgrade N" text can't be read)
+UpgradeButtonBits() {
+    bits := ""
+    try {
+        WinGetClientPos &ox, &oy, , , RBX
+        Stale(), Fresh()
+        scr := FindText()
+        y := 355
+        while y <= 376 {
+            x := 192
+            while x <= 302 {
+                col := scr.GetColor(ox + x, oy + y, 0)
+                bits .= Min((col >> 16) & 0xFF, (col >> 8) & 0xFF, col & 0xFF) >= 200 ? "1" : "0"
+                x += 2
+            }
+            y += 2
+        }
+    }
+    return bits
+}
+
+BitDiff(a, b) {
+    if a = "" || StrLen(a) != StrLen(b)
+        return 0
+    n := 0
+    loop StrLen(a)
+        n += SubStr(a, A_Index, 1) != SubStr(b, A_Index, 1)
+    return n
 }
 
 ; backup for when the "MAX" picture doesn't match: read the word in the unit menu
