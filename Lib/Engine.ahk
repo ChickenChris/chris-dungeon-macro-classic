@@ -619,20 +619,20 @@ RoomLabel(name) => name = "" ? "a plain room" : StrReplace(name, "_", " ")
 ; (Looking one room ahead is a Premium feature.)
 RoomOrder(rooms) {
     route := cfg["route"], n := route.Length
-    rareX := -2, picks := []
+    picks := []
     shopOk := true
     for r in rooms {
         if r.kind = "Unavailable"
             continue
-        own := "", rank := 0
+        own := "", rank := 0, rare := RareChestAt(r)
         for i, prio in route {
             if prio = "None"
                 continue
-            if prio = "Rare_Chest" {
-                if rareX = -2
-                    rareX := FindRareChestX()
-                hit := rareX >= 0 && Abs(r.a.cx - rareX) < 70
-            } else
+            if prio = "Rare_Chest"
+                hit := rare
+            else if prio = "Chest" && rare
+                hit := false                        ; the chest picture also fits a rare chest
+            else
                 hit := Seen(r.a.sx1, r.a.sy1, r.a.sx2, r.a.sy2, RoomPattern(prio), 0.2)
             if hit {
                 own := prio, rank := i
@@ -670,6 +670,10 @@ ThingValue(kind, shopOk := true) {
     v := i ? cfg["route"].Length + 1 - i : 0
     return kind = "Rare_Chest" ? v * 2 : v
 }
+
+; a rare chest in this room, looked for around the room itself (it used to look once, in the middle
+; of the screen only: a rare chest in an outer room, or a second one, counted as a plain chest)
+RareChestAt(r) => ImgFind(RareChestImage, r.a.cx - 48, 315, r.a.cx + 48, 462, &ix, &iy)
 
 FindRareChestX() {
     return ImgFind(RareChestImage, 247, 325, 561, 457, &ix, &iy) ? ix : -1
