@@ -1147,8 +1147,23 @@ HandleDungeonPopups() {
         return true
     }
     if Det("DungeonDeath") {
-        AddLog("Out of lives in this dungeon, starting a new one")
-        ClickDet("DeathContinue", 0, -30)
+        static deaths := 0, deathFirst := 0
+        if A_TickCount - deathFirst > 90000
+            deaths := 0, deathFirst := A_TickCount
+        if ++deaths = 1
+            AddLog("Out of lives in this dungeon, starting a new one")
+        ; its button: by picture, or by its text, or where it usually is (on some PCs the
+        ; picture didn't match and this repeated every 2 seconds)
+        if Det("DeathContinue")
+            ClickDet("DeathContinue", 0, -30)
+        else if OcrFindWord(120, 300, 560, 180, "i)^(continue|open|new|start|retry|ok)", &bx, &by)
+            Clk(bx, by)
+        else
+            Clk(396, 383)
+        if deaths = 4 {
+            AddLog("The out-of-lives screen won't go away. Send Logs\out_of_lives_....bmp in Discord so it can be fixed")
+            SaveDebugShot("out_of_lives")
+        }
         if WaitDet("RedX", 1500)
             ClickDet("RedX", -3, -35)
         bossDone := false, chestsDone := false
@@ -2027,6 +2042,8 @@ PlaceSlot(ctx, n, need) {
             } else {
                 ctx.fails[key] := ctx.fails.Get(key, 0) + 1
                 misses++
+                if slotCap.Has(CapKey(n)) && CountPlaced(n) >= slotCap[CapKey(n)]
+                    return newUnits                 ; the game's limit for this unit
             }
         }
         if !attempts && got < need
@@ -2472,129 +2489,59 @@ NearUnit(x, y, r) {
 }
 
 TryPlace(x, y, slot) {
-    static toldSettings := false, menuSeen := false, yenWarned := 0, yenDoubts := 0, doubtStage := 0
-    static promptGood := 0, promptBad := 0      ; how the Place/Rotate/Cancel check did on confirmed placements
-    if doubtStage != stageStart
-        doubtStage := stageStart, yenDoubts := 0
     ClosePanel()                            ; the unit panel covers the right side of the map
     if UnitMenuOpen() {                     ; an open menu would look like this placement worked
         Clk(325, 185)
         Wait(250)
     }
-    yenBefore := yenDoubts >= 2 ? -1 : ReadYen()
-    if yenBefore < 0 && yenWarned != stageStart && yenDoubts < 2 {
-        yenWarned := stageStart
-        AddLog("Couldn't read your yen (the number above the unit bar), so placements are checked by the unit menu only")
-        SaveDebugShot("no_yen")
-    }
     Keys(String(slot))
     Sleep 50
     Clk(x, y)
-    ; A spot the game won't take (the path, too close to another unit) leaves the unit stuck to
-    ; the mouse with "Place / Rotate / Cancel" in white next to it. Q cancels that, so if the
-    ; white text next to the mouse disappears on Q, it was probably refused. That check is only
-    ; trusted once it has agreed with the yen on a couple of real placements.
-    Sleep 150
-    Stale()
-    menuNow := UnitMenuOpen()
-    w1 := WhiteNear(x, y)
-    Keys("q")
-    Sleep 150
-    Stale()
-    w2 := WhiteNear(x, y)
-    refused := !menuNow && w1 >= 150 && w1 - w2 >= w1 * 0.5
-    promptTrusted := promptGood >= 2 && !promptBad
-    ; the game lags now and then: the menu can come a moment after the set placement time
-    opened := WaitUnitMenu(PlaceTimeout()) || WaitUnitMenu(1200)
-    spent := YenSpent(yenBefore, 5)         ; 1 = went down, 0 = didn't, -1 = can't tell
-    if opened {
+    Sleep 50
+    Keys("q")                               ; cancels the placing if the spot was refused (the path)
+    ; Placed = the unit's upgrade menu opens on the left, checked by the menu's own parts (see
+    ; MenuParts): the yen can't be read reliably. The game lags now and then, so a late menu
+    ; gets extra time.
+    if WaitUnitMenu(PlaceTimeout()) || WaitUnitMenu(1200) {
         lvl := ReadLevel()
         if lvl > 0 || Det("Max") {          ; an older unit's menu: the click hit a unit already there
             Clk(325, 185)
             Wait(200)
             return false
         }
-        if lvl < 0 {                        ; "Upgrade 0" can show up a moment after the menu
-            Wait(400)
-            lvl := ReadLevel()
-        }
-        ; a new unit costs yen, and its menu says "Upgrade 0". Without a yen reading the menu
-        ; must say that; the menu colours alone also matched dark ground on the path.
-        ; If the yen can't tell, the menu decides (unless the Place/Rotate/Cancel check, once it has
-        ; proven itself, says the spot was refused). If the yen keeps saying "not placed" for
-        ; menus that look real, the reading is off: it's ignored for the rest of the stage, so a
-        ; bad reading can never make it place the same unit over and over.
-        ok := spent = 1 || (spent = -1 && lvl <= 0 && !(refused && promptTrusted))
-        if spent = 1                        ; a confirmed placement: did the prompt check agree?
-            refused ? promptBad++ : promptGood++
-        if !ok && spent = 0 && !(refused && promptTrusted) && ++yenDoubts = 2
-            AddLog("The yen reading looks off (it didn't go down twice), checking placements by the unit menu for the rest of this stage")
-        AddLog("Slot " slot ": " (ok ? "placed" : "not placed") "  (menu level " lvl ", yen " (spent = 1 ? "went down" : spent = 0 ? "didn't go down" : "not readable") ")")
-        if !ok {
-            Clk(325, 185)
-            Wait(200)
-            return false
-        }
-        menuSeen := true                    ; a real unit menu: the game settings are right
         CheckAbility()
         Clk(325, 185)                       ; close the unit menu
         return true
     }
-    ; no menu came up. If the yen still went down, the unit IS down anyway: count it.
-    ; If no menu has ever opened this session, it's the game settings (the menu never opens);
-    ; otherwise it was just a lag spike.
-    if spent = 1 {
-        if !menuSeen && !toldSettings {
-            toldSettings := true
-            AddLog("A unit was placed but its upgrade menu didn't open. In Anime Adventures' settings turn OFF 'Disable Auto-Open Upgrade UI' and turn ON 'Show Upgrade UI on left' (picture: Images\aasettings.png), then press F4.")
-            TogglePause()
-        } else
-            AddLog("Slot " slot ": placed, but its menu was slow to open (game lag). Counted it anyway")
-        if UnitMenuOpen()
-            Clk(325, 185)
-        return true
+    ; "Cannot place more than 3 of this unit!" in red: that's the game's limit for this unit
+    if LimitMessage() {
+        slotCap[CapKey(slot)] := CountPlaced(slot)
+        AddLog("Slot " slot ": the game allows only " CountPlaced(slot) " of this unit, placing no more")
     }
     return false
 }
 
-; did the yen go down (by 40 or more) since `before`? It can lag a moment behind, so it reads a
-; few times. 1 = yes, 0 = no, -1 = can't tell (not readable, or a wave reward came in too)
-YenSpent(before, tries := 5) {
-    if before < 0
-        return -1
-    now := -1
-    loop tries {
-        now := ReadYen()
-        if now >= 0 && before - now >= 40
-            return 1
-        if now >= before + 400
-            return -1
-        if A_Index < tries
-            Wait(300)
-    }
-    return now >= 0 ? 0 : -1
-}
-
-; how much white text there is right next to the mouse (where "Place / Rotate / Cancel" shows)
-WhiteNear(x, y) {
-    n := 0
+; the red "Cannot place more than N of this unit!" message in the middle of the screen
+LimitMessage() {
+    red := 0
     try {
         WinGetClientPos &ox, &oy, , , RBX
-        Fresh()
+        Stale(), Fresh()
         scr := FindText()
-        yy := Max(0, y - 20)
-        while yy <= Min(599, y + 85) {
-            xx := Max(0, x + 10)
-            while xx <= Min(799, x + 125) {
+        yy := 120
+        while yy <= 330 {
+            xx := 100
+            while xx <= 700 {
                 col := scr.GetColor(ox + xx, oy + yy, 0)
-                if Min((col >> 16) & 0xFF, (col >> 8) & 0xFF, col & 0xFF) >= 225
-                    n++
-                xx += 2
+                r := (col >> 16) & 0xFF, g := (col >> 8) & 0xFF, b := col & 0xFF
+                if r >= 200 && g <= 90 && b <= 100
+                    red++
+                xx += 3
             }
-            yy += 2
+            yy += 3
         }
     }
-    return n * 4                            ; every 2nd pixel each way: scale back up
+    return red >= 40 && OcrFindWord(100, 120, 600, 210, "i)^(cannot|more|place|unit)", &wx, &wy)
 }
 
 PlaceTimeout() {
@@ -2603,26 +2550,45 @@ PlaceTimeout() {
     return (i >= 1 && i <= speeds.Length) ? speeds[i] : 2000
 }
 
-; the unit menu (with its upgrade button) shows up when a placement works
-; Two ways to tell: the menu's colours (with a little slack, colours differ a bit
-; between PCs and graphics settings) or the "Upgrade N" text in the menu.
+; The unit menu's own parts: its red X, its "Upgrade N" text or MAX. Its dark colours alone
+; also matched dark ground, so a click on the path counted as a placed unit. If a PC never
+; shows the parts the way the macro knows them (after several colour-only menus and no real
+; one), it goes back to the colours, so placing never gets stuck.
+global menuLoose := false
+MenuParts() => Det("UnitExit") || ReadLevel() >= 0 || Det("Max")
+
 WaitUnitMenu(timeout) {
+    global menuLoose
+    static partsSeen := false, colourOnly := 0
     Wait(300)
-    t0 := A_TickCount, n := 0
+    t0 := A_TickCount, n := 0, colourHit := false
     while A_TickCount - t0 < timeout {
         Chk()
         FocusRoblox()
         if PixelSearch(&px, &py, 178, 309, 305, 336, 0x000000, 12)
             && (PixelSearch(&px, &py, 192, 244, 237, 400, 0xFFFFFF, 12) || PixelSearch(&px, &py, 192, 244, 237, 400, 0xFFC806, 20)) {
             Stale()
-            return !Det("Elyssia")
+            colourHit := true
+            if MenuParts() {
+                partsSeen := true, colourOnly := 0
+                return !Det("Elyssia")
+            }
+            if menuLoose
+                return !Det("Elyssia")
         }
         if Mod(++n, 4) = 0 {                    ; every ~100 ms also look for the upgrade text
             Stale()
-            if ReadLevel() >= 0 || Det("Max")
+            if ReadLevel() >= 0 || Det("Max") {
+                partsSeen := true, colourOnly := 0
                 return !Det("Elyssia")
+            }
         }
         Sleep 25
+    }
+    if colourHit && !partsSeen && !menuLoose && ++colourOnly >= 6 {
+        menuLoose := true
+        AddLog("The unit menu's buttons aren't recognised on this PC, going by its colours instead")
+        SaveDebugShot("unit_menu")
     }
     return false
 }
