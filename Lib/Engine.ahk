@@ -584,8 +584,14 @@ ChooseRoom(rooms) {
 ; click a room; if it has a curse you skip, back out. Returns true when it went in.
 TryRoom(r, prio, unsafe, curseOf, nextKind := "") {
     global bossDone
+    static shots := 0
     Clk(r.a.cx, r.a.cy)
     Wait(400)
+    if shots < 8 {                              ; pictures of room panels, to build exact curse icons from
+        shots++
+        Wait(300)
+        SaveDebugShot("room_panel_" shots)
+    }
     curseName := ""
     ; the border picture can pass a cursed room for a normal one (the curse was then never read):
     ; when you skip curses, the room's panel is read too, and a curse there counts
@@ -601,7 +607,6 @@ TryRoom(r, prio, unsafe, curseOf, nextKind := "") {
                 told := true
                 AddLog("Room panel checked for a curse, none found (read: " SubStr(lastCurseRaw, 1, 80) ")")
             }
-            SaveDebugShot("room_panel")
         }
     }
     if r.kind = "Cursed" {
