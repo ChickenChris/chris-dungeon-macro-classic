@@ -2657,16 +2657,16 @@ WaitUnitMenu(timeout) {
             colourHit := true
             if MenuParts() {
                 partsSeen := true, colourOnly := 0
-                return !Det("Elyssia")
+                return !IsSummonMenu()
             }
             if menuLoose
-                return !Det("Elyssia")
+                return !IsSummonMenu()
         }
         if Mod(++n, 4) = 0 {                    ; every ~100 ms also look for the menu's buttons / upgrade text
             Stale()
             if MenuButtons() || ReadLevel() >= 0 || MaxShown() {
                 partsSeen := true, colourOnly := 0
-                return !Det("Elyssia")
+                return !IsSummonMenu()
             }
         }
         Sleep 25
@@ -2685,9 +2685,9 @@ UnitMenuOpen() {
         FocusRoblox()
         if PixelSearch(&px, &py, 178, 309, 305, 336, 0x000000, 12)
             && (PixelSearch(&px, &py, 192, 244, 237, 400, 0xFFFFFF, 12) || PixelSearch(&px, &py, 192, 244, 237, 400, 0xFFC806, 20))
-            return !Det("Elyssia")
+            return !IsSummonMenu()
         Stale()
-        return (ReadLevel() >= 0 || MaxShown()) && !Det("Elyssia")
+        return (ReadLevel() >= 0 || MaxShown()) && !IsSummonMenu()
     }
     return false
 }
@@ -2930,7 +2930,22 @@ UpgradeUnit(u, presses := 3, useLimit := true) {
 
 MaxReached() {
     Wait(400)
-    return MaxShown() && !Det("Elyssia")
+    return MaxShown() && !IsSummonMenu()
+}
+
+; Some units (Elyssia) spawn summons like the Abyssal Eel. A summon's menu says "Upgrade [0] (MAX)"
+; (level 0 and maxed at once, which a real unit never is) and sells for 0. When an eel swims over
+; a unit, clicking that unit opens the eel's menu: that made the unit count as fully upgraded.
+; Such a menu is treated as the wrong one, so the macro clicks around the eel instead.
+IsSummonMenu() {
+    static told := false
+    ; summons always show MAX, so the name is only read when MAX is there (keeps it quick)
+    hit := Det("Elyssia") || (MaxShown() && (ReadLevel() = 0 || OcrFindWord(4, 188, 160, 30, "i)^(abyssal|eel|eels)$", &wx, &wy)))
+    if hit && !told {
+        told := true
+        AddLog("A summon (like Elyssia's Abyssal Eel) was in the way of a unit. Its menu is skipped, the macro clicks around it")
+    }
+    return hit
 }
 
 MaxShown() => Det("Max") || Det("MaxNew")
@@ -2968,7 +2983,7 @@ BitDiff(a, b) {
 
 ; backup for when the "MAX" picture doesn't match: read the word in the unit menu
 MaxByText() {
-    if Det("Elyssia")
+    if IsSummonMenu()
         return false
     return OcrFindWord(220, 230, 85, 185, "i)^MAX\W*$", &mx, &my)
 }
