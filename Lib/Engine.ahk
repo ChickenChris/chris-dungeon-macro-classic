@@ -2464,7 +2464,10 @@ GroupResult(units, done, times) {
 ; A build order step is exact: the "Until" limit on the Units tab doesn't cut it short.
 ; Returns false if the stage ended.
 UpgradeGroup(units, times) {
-    done := Map()
+    ; counted from the level the menu shows ("Upgrade [5]") when it can be read: counting presses
+    ; once called a unit done at level 5 of 6 (a misread level or a flickering price counted a
+    ; press that didn't go through). Every unit is checked again before the step moves on.
+    done := Map(), start := Map(), checked := false
     for u in units
         done[u] := 0
     lastGainAt := A_TickCount, t0 := A_TickCount
@@ -2482,11 +2485,39 @@ UpgradeGroup(units, times) {
                 if StageOver()
                     return false
                 g := UpgradeUnit(u, times < 0 ? 3 : Min(3, times - done[u]), false)
+                if !start.Has(u) && u.HasOwnProp("lvlOpen") && u.lvlOpen >= 0
+                    start[u] := u.lvlOpen
+                if start.Has(u) && u.HasOwnProp("lvl") && u.lvl >= 0
+                    done[u] := Max(0, u.lvl - start[u])
+                else
+                    done[u] += g
                 if !g
                     break
-                done[u] += g, roundGain += g, lastGainAt := A_TickCount
+                roundGain += g, lastGainAt := A_TickCount
                 if u.maxed || u.lost || (times >= 0 && done[u] >= times)
                     break
+            }
+        }
+        if !left && times >= 0 && !checked {
+            ; one last look at each unit's real level before calling the step done
+            checked := true, short := false
+            for u in units {
+                if u.maxed || u.lost || !start.Has(u)
+                    continue
+                if !OpenUnit(u)
+                    continue
+                now := ReadLevel()
+                Clk(325, 185)
+                Wait(250)
+                if now >= 0 && now - start[u] < times {
+                    done[u] := Max(0, now - start[u])
+                    short := true
+                    AddLog("Slot " u.slot ": a unit is at level " now ", not " start[u] + times " yet, upgrading it more")
+                }
+            }
+            if short {
+                lastGainAt := A_TickCount
+                continue
             }
         }
         if !left {
@@ -3234,9 +3265,11 @@ UpgradePass(ignoreSave := false) {
 UpgradeUnit(u, presses := 3, useLimit := true) {
     lim := useLimit ? cfg["slots"][u.slot].limit : 0
     Step("upgrading slot " u.slot)
+    u.lvlOpen := -1
     if !OpenUnit(u)
         return 0
     lvl := ReadLevel()
+    u.lvlOpen := lvl                            ; the level as the menu opened (-1 = couldn't read it)
     if lvl >= 0
         u.lvl := lvl
     gained := 0
@@ -3268,6 +3301,8 @@ UpgradeUnit(u, presses := 3, useLimit := true) {
         else
             break                               ; same price: not enough yen yet
     }
+    if lvl >= 0
+        u.lvl := lvl                            ; the level it ended on
     if gained && !u.maxed
         Step("slot " u.slot " upgraded" (lvl >= 0 ? " to level " lvl : ""))
     CheckAbility()
