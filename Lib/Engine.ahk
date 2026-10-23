@@ -40,6 +40,7 @@ global curMap := "Unknown"
 global mapHow := ""             ; how the map was recognised (shown in the log)
 global dungeonTotal := 20       ; rooms in a dungeon run (read from "DEPTH: 14/20" when possible)
 global curDepth := ""          ; dungeon room depth read from the loading screen
+global icFloor := 0             ; Infinity Castle floor as the game shows it (0 = not read yet)
 global lastMapRaw := ""        ; the last text read while looking for the map name (for the log)
 global placedUnits := []
 global allPlaced := false       ; every unit is down: from now on the F panel may be used
@@ -1471,7 +1472,7 @@ ReadRoomPanel(ex, ey, &depth := "", &raw := "") {
 
 ; OCR a part of the game area (client coords) and find a known map name + depth in it
 MapFromScreenText(x, y, w, h, &depth := "", &raw := "", tf := "") {
-    global lastMapRaw
+    global lastMapRaw, icFloor
     static warned := false
     raw := ""
     if !WinExist(RBX)
@@ -1492,13 +1493,15 @@ MapFromScreenText(x, y, w, h, &depth := "", &raw := "", tf := "") {
     }
     if RegExMatch(raw, "i)depth\D{0,4}(\d(?: ?\d)?)(?!\d)", &m)
         depth := StrReplace(m[1], " ")
+    if RegExMatch(raw, "i)f[il1]oor\D{0,4}(\d+)", &m)
+        icFloor := Integer(m[1])
     return MatchMapName(raw)
 }
 
 ; reads the top-left of the loading screen: "Traveling to...", the map name, "Dungeon Room (Depth N)"
 MapFromLoadingText() {
-    global curDepth
-    static lastLogged := "", warned := false
+    global curDepth, icFloor
+    static lastLogged := "", warned := false, floorTold := false
     if !WinExist(RBX)
         return ""
     try {
@@ -1514,8 +1517,14 @@ MapFromLoadingText() {
     }
     if RegExMatch(txt, "i)depth\D{0,4}(\d+)", &m)
         curDepth := m[1]
+    if RegExMatch(txt, "i)f[il1]oor\D{0,4}(\d+)", &m)
+        icFloor := Integer(m[1])
     name := MatchMapName(txt)
     one := Trim(RegExReplace(txt, "\s+", " "))
+    if !floorTold && RegExMatch(one, "i)castle") && !RegExMatch(one, "i)f[il1]oor\D{0,4}\d") {
+        floorTold := true
+        AddLog("Loading screen says: " SubStr(one, 1, 70) "  (no floor number in it)")   ; to learn where the floor shows
+    }
     if name = "" && one != "" && one != lastLogged && (InStr(StrLower(one), "dungeon") || InStr(StrLower(one), "depth")) {
         lastLogged := one
         AddLog("Loading screen says: " SubStr(one, 1, 60))     ; helps fix names it can't match
