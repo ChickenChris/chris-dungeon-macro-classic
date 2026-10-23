@@ -304,6 +304,8 @@ TogCfg("x205 y454 w570", "Snap Roblox into the frame when the macro starts (F1 d
 Btn("x205 y494 w180 h36", "Open macro folder", (*) => Run(A_ScriptDir))
 Btn("x395 y494 w180 h36", "Open log", (*) => (FileExist(logFile) ? Run(logFile) : Notify("No log yet")))
 Btn("x585 y494 w190 h36", "Save screenshot", SaveShot)
+Btn("x205 y538 w280 h32", "Import settings…", ImportPick)
+Btn("x495 y538 w280 h32", "Save a backup…", BackupConfig)
 
 ; ---------- Look ----------
 StartPanel("Look")
@@ -751,6 +753,137 @@ ClearWalk(*) {
 ;  Screenshot (Settings tab) and saved recaptures
 ; =====================================================================
 ; saves exactly what the macro sees into the Logs folder (handy for fixing detection)
+; =====================================================================
+;  Import / backup (Settings tab)
+; =====================================================================
+; reads another macro's config.ini (an older version, Premium or a friend's) and asks what to
+; bring over. The window is built once, so after importing the macro restarts to show it all.
+ImportPick(*) {
+    if running || manualRun
+        return Notify("Stop the macro first")
+    MG.Opt("+OwnDialogs")
+    f := FileSelect(1, A_Desktop, "Pick config.ini in the other macro's Settings folder", "Macro settings (*.ini)")
+    if f = ""
+        return
+    if f = cfgFile
+        return Notify("That's this macro's own settings file. Pick the other one")
+    try sections := "`n" IniRead(f) "`n"
+    catch
+        return Notify("Couldn't read that file")
+    has := (name) => InStr(sections, "`n" name "`n")
+    theirs := ReadConfigFile(f)
+    parts := []
+    add := (id, label, on := true) => parts.Push({id: id, label: label, on: on})
+    if has("Build")
+        add("build", "Build order (" theirs["build"].Length " step" (theirs["build"].Length = 1 ? "" : "s") ")")
+    if has("Slot1")
+        add("units", "Units (slots, pattern, retries)")
+    if has("Route") || has("Curses") || has("DenyShrine")
+        add("dungeon", "Dungeon (room priority, curses, shrines, shop)")
+    if has("Spots") || has("Walks")
+        add("spots", "Spots and walks (only the maps in that file change)")
+    if has("General") {
+        add("general", "Other settings (placement speed, camera, teleport)")
+        if theirs["webhook"] != "" || theirs["psLink"] != ""
+            add("links", "Discord webhook and private server link (personal)", false)
+    }
+    if !parts.Length
+        return Notify("No macro settings in that file")
+    ; a small window to tick what to bring over
+    SplitPath f, , &dir
+    dlg := Gui("+Owner" MG.Hwnd " -MinimizeBox", "Import settings")
+    dlg.SetFont("s10", "Segoe UI")
+    dlg.Add("Text", "w420", "From: " dir "`nYour current settings are replaced for what you tick.")
+    boxes := []
+    for pt in parts
+        boxes.Push(dlg.Add("CheckBox", "w420 " (pt.on ? "Checked" : ""), pt.label))
+    go := dlg.Add("Button", "w120 Default", "Import")
+    no := dlg.Add("Button", "x+10 w120", "Cancel")
+    no.OnEvent("Click", (*) => dlg.Destroy())
+    go.OnEvent("Click", (*) => ImportDo(theirs, parts, boxes, dlg))
+    dlg.Show()
+}
+
+ImportDo(theirs, parts, boxes, dlg) {
+    picked := []
+    for i, pt in parts
+        if boxes[i].Value
+            picked.Push(pt.id)
+    dlg.Destroy()
+    if !picked.Length
+        return Notify("Nothing ticked, nothing imported")
+    copyKeys := (names) => ForEachKey(names, theirs)
+    done := []
+    for id in picked {
+        switch id {
+            case "build":
+                cfg["build"] := theirs["build"], copyKeys(["useBuild"]), done.Push("build order")
+            case "units":
+                cfg["slots"] := theirs["slots"], copyKeys(["pattern", "retries", "saveForTop", "autoAbility"]), done.Push("units")
+            case "dungeon":
+                for k in ["route", "curseRank", "denyShrine", "avoid", "shopRank", "shopOff"]
+                    if theirs.Has(k)
+                        cfg[k] := theirs[k]
+                copyKeys(["skipWorst", "saveChests", "buyShop", "stopAfterDefeat", "denyAllShrines", "denyUnknownShrine"])
+                done.Push("dungeon choices")
+            case "spots":
+                for name, list in theirs["spots"]
+                    if list.Length
+                        cfg["spots"][name] := list
+                for name, route in theirs["walks"]
+                    cfg["walks"][name] := route
+                copyKeys(["useSpots"]), done.Push("spots and walks")
+            case "general":
+                copyKeys(["placeSpeed", "zoom", "tpSpawn", "fixOnStart", "tolerance", "hookRuns"]), done.Push("other settings")
+            case "links":
+                copyKeys(["webhook", "psLink"]), done.Push("webhook and server link")
+        }
+    }
+    SaveConfig()
+    list := ""
+    for i, d in done
+        list .= (i = 1 ? "" : i = done.Length ? " and " : ", ") d
+    AddLog("Imported " list ". Restarting to load them")
+    MsgBox("Imported " list ".`n`nThe macro restarts now to load them.", "Import settings", "Iconi T4")
+    Reload()
+}
+
+ForEachKey(names, theirs) {
+    for k in names
+        if theirs.Has(k) && cfg.Has(k)
+            cfg[k] := theirs[k]
+}
+
+; loads a settings file into its own map (the same reader as our own config)
+ReadConfigFile(f) {
+    global cfg, cfgFile
+    Critical "On"
+    mine := cfg, myFile := cfgFile
+    cfg := DefaultConfig(), cfgFile := f
+    try LoadConfig()
+    theirs := cfg
+    cfg := mine, cfgFile := myFile
+    Critical "Off"
+    return theirs
+}
+
+; a copy of your settings, to keep or to import into another copy of the macro
+BackupConfig(*) {
+    SaveConfig()
+    MG.Opt("+OwnDialogs")
+    f := FileSelect("S16", A_Desktop "\Chris's Dungeon settings " FormatTime(, "yyyy-MM-dd") ".ini", "Save a copy of your settings", "Settings (*.ini)")
+    if f = ""
+        return
+    if !RegExMatch(f, "i)\.ini$")
+        f .= ".ini"
+    try {
+        FileCopy cfgFile, f, true
+        SplitPath f, &fname
+        Notify("Saved " fname ". Import it here or in any copy of the macro")
+    } catch as err
+        Notify("Couldn't save: " err.Message)
+}
+
 SaveShot(*) {
     if !WinExist(RBX)
         return Notify("Open Roblox first")
