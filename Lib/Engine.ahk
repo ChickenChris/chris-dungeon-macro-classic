@@ -823,9 +823,13 @@ HandleShop() {
         AddLog("Shop: skipping (buying is off)")
     } else {
         rows := ReadShopRows()
-        named := 0
-        for r in rows
+        named := 0, shopRead := ""
+        for r in rows {
             named += r.name != "" ? 1 : 0
+            shopRead .= (shopRead = "" ? "" : "  |  ") (r.name != "" ? r.name : "?") " (read: " SubStr(Trim(RegExReplace(r.raw, "\s+", " ")), 1, 30) ")"
+        }
+        AddLog("Shop rows: " shopRead)
+        SaveDebugShot("shop_seen")                  ; one per session, to check the item reading
         if !named {
             ; couldn't read any item: buy all three only if you allow items it can't read
             if cfg["shopUnknown"] {
