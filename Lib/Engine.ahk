@@ -586,6 +586,15 @@ TryRoom(r, prio, unsafe, curseOf, nextKind := "") {
     Clk(r.a.cx, r.a.cy)
     Wait(400)
     curseName := ""
+    ; the border picture can pass a cursed room for a normal one (the curse was then never read):
+    ; when you skip curses, the room's panel is read too, and a curse there counts
+    if r.kind != "Cursed" && cfg["skipWorst"] > 0 && r.kind != "Boss" {
+        Wait(200)
+        if (c := CurseFromText()) != "" {
+            r.kind := "Cursed"
+            AddLog("Room " r.i ": the panel shows a curse (" c ") its border didn't")
+        }
+    }
     if r.kind = "Cursed" {
         curseName := DetectCurse()
         curseOf[r.i] := curseName
