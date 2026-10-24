@@ -3945,8 +3945,23 @@ Launch() {
 ;  Roblox window
 ; =====================================================================
 EnsureRoblox() {
+    static lastCheck := 0, fails := 0
     if !WinExist(RBX)
         return false
+    ; Roblox minimized or pulled out of the macro's frame (Windows, a popup, a click elsewhere):
+    ; every screenshot was then of nothing, and it looped "No Enter button" / "The Red X close
+    ; wouldn't go away" until someone noticed. Checked every 3 seconds and put back.
+    if A_TickCount - lastCheck > 3000 {
+        lastCheck := A_TickCount
+        mm := 0
+        try mm := WinGetMinMax(RBX)
+        bad := mm = -1 || (fails < 3 && !WindowOk())     ; a PC where it never fits: only un-minimize
+        if bad {
+            AddLog(mm = -1 ? "Roblox was minimized, bringing it back" : "Roblox moved out of the macro's frame, putting it back")
+            fails := FixWindow() ? 0 : fails + 1
+            Wait(500)
+        }
+    }
     FocusRoblox()
     return true
 }
