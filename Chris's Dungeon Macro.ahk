@@ -350,6 +350,22 @@ MG.Show("w" GUI_W " h" GUI_H)
 WinSetTransColor CL.hole, MG
 SetTimer LoadBackground, -150
 OnExit((*) => ReleaseKeys())
+
+; An error nothing else caught used to open AutoHotkey's error box. It often sat hidden behind
+; Roblox or this window, and until it was closed the whole macro was frozen: nothing could be
+; clicked and it stopped farming (players saw it after 2-3 hours). Now it's logged and skipped.
+OnError(UnhandledError)
+UnhandledError(err, mode) {
+    static lastKey := "", lastAt := 0
+    if err is MacroStop
+        return 1
+    key := err.Message "|" err.Line
+    if key = lastKey && A_TickCount - lastAt < 60000       ; the same one over and over: log it once a minute
+        return mode = "Return" ? -1 : 1
+    lastKey := key, lastAt := A_TickCount
+    try AddLog("Error: " err.Message " (line " err.Line "), skipped. If it keeps happening, send Logs\log.txt in Discord")
+    return mode = "Return" ? -1 : 1
+}
 OnMessage(0x0201, GuiDrag)          ; drag the window by any empty spot
 OnMessage(0x0232, GuiMoved)         ; Roblox follows when you let go
 SetTimer HoverCheck, 50
