@@ -2265,8 +2265,14 @@ GoToSpot(mapName, walk := true, force := false) {
     tp := cfg["tpSpawn"] || force
     if tp
         TeleportToSpawn()
-    if cfg["zoom"]
-        ZoomCamera()
+    if cfg["zoom"] {
+        loop 3 {                        ; a Fool's Hunt card vote in the middle can leave it in first person
+            votes := foolVotes
+            ZoomCamera()
+            if foolVotes = votes
+                break
+        }
+    }
     if tp && walk
         WalkRoute(mapName)
 }
@@ -4171,6 +4177,7 @@ PixelIs(x, y, color) {
 FoolRandom() => false
 FoolTick() => 0
 FoolWaitHook() => 0
+global foolVotes := 0              ; Premium counts its Fool's Hunt card votes (none here)
 
 Chk() {
     if (!running && !manualRun) || (manualRun && cancelManual)
