@@ -3919,7 +3919,30 @@ Summary() {
 ; =====================================================================
 ;  Disconnects
 ; =====================================================================
-IsDisconnected() => PixelIs(430, 384, 0xFFFFFF) && PixelIs(489, 341, 0x393B3D)
+; Roblox's disconnect box: its grey and its white button at two dots. Game screens can have
+; those two colours there too (a player in Magic Town was "disconnected" ~20 s into every
+; round, and the reconnect threw the round away), so the box's text has to say so as well
+IsDisconnected() {
+    static lastAt := 0, lastRes := false, told := false
+    if !(PixelIs(430, 384, 0xFFFFFF) && PixelIs(489, 341, 0x393B3D))
+        return false
+    if A_TickCount - lastAt < 5000              ; it's looked at often: read the text once per 5 s
+        return lastRes
+    lastAt := A_TickCount
+    txt := ""
+    try {
+        WinGetClientPos &ox, &oy, , , RBX
+        txt := OCR.FromRect(ox + 180, oy + 170, 440, 260, OcrLang(), {scale: 2, grayscale: true}).Text
+    }
+    ; no English text read (reading failed, or Roblox in another language): trust the dots, as before
+    lastRes := !RegExMatch(txt, "[A-Za-z]{3}") || RegExMatch(txt, "i)disconnect|reconnect|connection|kicked|leave|lost|error code|shut ?down")
+    if !lastRes && !told {
+        told := true
+        AddLog("Something looked like Roblox's disconnect box but isn't, carrying on")
+        SaveDebugShot("not_disconnected")
+    }
+    return lastRes
+}
 
 ; returns true if it had to reconnect
 CheckConnection() {
