@@ -3379,6 +3379,8 @@ UpgradeAndWatch() {
 ; a missing unit waits until the higher-priority units are done upgrading.
 TopUpUnits() {
     static lastTry := Map(), tries := Map(), stageMark := -1
+    if FoolRandom()                                 ; Fool's Hunt places its random units itself
+        return false
     if stageMark != stageStart
         lastTry := Map(), tries := Map(), stageMark := stageStart
     topPrio := 99
@@ -3435,7 +3437,7 @@ UpgradePass(ignoreSave := false) {
     loop 6 {
         p := A_Index
         for u in placedUnits
-            if !u.maxed && !u.capped && !u.lost && cfg["slots"][u.slot].up && cfg["slots"][u.slot].prio = p
+            if !u.maxed && !u.capped && !u.lost && (cfg["slots"][u.slot].up || FoolRandom()) && cfg["slots"][u.slot].prio = p
                 todo.Push(u)
     }
     if !todo.Length
@@ -3461,7 +3463,7 @@ UpgradePass(ignoreSave := false) {
 
 ; returns how many levels it went up this time (0 = couldn't afford it)
 UpgradeUnit(u, presses := 3, useLimit := true) {
-    lim := useLimit ? cfg["slots"][u.slot].limit : 0
+    lim := useLimit && !FoolRandom() ? cfg["slots"][u.slot].limit : 0
     Step("upgrading slot " u.slot)
     u.lvlOpen := -1
     if !OpenUnit(u)
@@ -3599,6 +3601,7 @@ CheckAbility() {
 
 StageOver() {
     Chk()
+    FoolTick()                                  ; Fool's Hunt: card votes and the hotbar
     return Det("Xp") || Det("EndScreen") || Det("Next") || Det("Lobby") || EndButtonsSeen()
         || Det("FinishDungeon") || Det("DungeonDeath") || SpecialScreen() || ScanRooms().Length
 }
@@ -4102,6 +4105,10 @@ PixelIs(x, y, color) {
 ; =====================================================================
 ;  Waiting and clicking
 ; =====================================================================
+; Fool's Hunt is Premium only: these keep the code shared with Premium the same
+FoolRandom() => false
+FoolTick() => 0
+
 Chk() {
     if (!running && !manualRun) || (manualRun && cancelManual)
         throw MacroStop("stopped")
