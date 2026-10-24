@@ -1625,7 +1625,10 @@ HandleDungeonPopups() {
 ; lenient: the round may already be playing (loaded behind Fool's Hunt's freeze), so the green
 ; wave bar counts as loaded too (by its colour range; otherwise only right after a teleport)
 LoadStage(knownMap := "", knownDepth := "", lenient := false) {
-    global curMap, curDepth, mapHow
+    global curMap, curDepth, mapHow, stageActive
+    ; a new stage: fresh units, vote and placing. (A stage stopped half-way with F3 stayed
+    ; "active", so the next stage skipped the vote and placing and looked for the old units)
+    stageActive := false
     Step("loading the map")
     curMap := knownMap != "" ? knownMap : "Unknown", curDepth := knownDepth
     UpdateMapLabel()
