@@ -165,8 +165,66 @@ ClearDetCustom(name) {
 Det(name, &x := "", &y := "") {
     o := DetDefs()[name]
     a := o.area
-    return FT(&x, &y, a[1], a[2], a[3], a[4], o.err, o.err, o.pats) ? true : false
+    if !FT(&x, &y, a[1], a[2], a[3], a[4], o.err, o.err, o.pats)
+        return false
+    if !OnAd(x, y, &b)
+        return true
+    ; it found the tournament ad: look again above and left of it
+    for r in [[a[1], a[2], a[3], Min(a[4], b[2] - 1)], [a[1], a[2], Min(a[3], b[1] - 1), a[4]]]
+        if r[3] > r[1] + 4 && r[4] > r[2] + 4 && FT(&x, &y, r[1], r[2], r[3], r[4], o.err, o.err, o.pats) && !OnAd(x, y)
+            return true
+    return false
 }
+
+; The "Don't Miss Out!" tournament ad pops up over the right side of the screen. It isn't part
+; of the dungeon, so the macro ignores it: a detection that lands on it doesn't count (its red X
+; was taken for the room picker's X: "The Red X close wouldn't go away"). Found by its yellow title.
+; Returns its box in detection coordinates [left, top, right, bottom], or 0 when it isn't up.
+AdBox() {
+    static pts := 0, last := -9999, box := 0
+    if A_TickCount - last < 400
+        return box
+    last := A_TickCount, box := 0
+    if !IsObject(pts) {
+        pts := []
+        for e in StrSplit("1,0,F8E100|70,0,E0CB02|3,1,FFE300|54,1,FFE300|103,1,FFE300|1,2,FFE000|41,2,FFE000|72,2,E0C502|128,2,FFE000|35,3,E0C202|64,3,FFDD00|127,3,FFDD00|17,4,EFCB01|43,4,FFD900|65,4,FFD900|89,4,CDAF03|127,4,FFD900|10,5,FFD600|28,5,FFD600|45,5,FFD600|64,5,FED500|81,5,FFD600|111,5,D8B602|130,5,FFD600|14,6,FFD300|28,6,FFD300|45,6,FFD300|65,6,FFD300|81,6,FCD100|110,6,FFD300|129,6,FFD300|11,7,F3C501|31,7,FFCF00|62,7,FFCF00|86,7,FFCF00|122,7,FFCF00|13,8,F5C301|41,8,FFCB00|70,8,FFCB00|89,8,E5B602|127,8,FFCB00|14,9,FFC800|42,9,FFC800|71,9,FFC800|99,9,FFC800|127,9,FFC800|16,10,F3BB01|43,10,FFC400|82,10,F4BB01|114,10,FFC400|2,11,FFC000|18,11,FFC000|43,11,FFC000|75,11,FBBD00|88,11,EEB301|108,11,FFC000|128,11,FFC000|6,12,FFBD00|31,12,FFBD00|67,12,FBBA00|85,12,FFBD00|107,12,FFBD00|130,12,FFBD00|25,13,F6B300|117,13,F7B400|2,-4,0E0E0E|11,-4,0E0E0E|20,-4,0E0E0E|29,-4,0E0E0E|38,-4,0E0E0E|47,-4,0E0E0E|56,-4,0E0E0E|65,-4,0E0E0E|74,-4,0E0E0E|83,-4,0E0E0E|92,-4,0E0E0E|101,-4,0E0E0E|110,-4,0E0E0E|119,-4,0E0E0E|128,-4,0E0E0E|2,-3,0E0E0E|11,-3,0E0E0E|20,-3,0E0E0E|29,-3,0E0E0E|38,-3,0E0E0E|47,-3,0E0E0E|56,-3,0E0E0E|65,-3,0E0E0E|74,-3,0E0E0E|83,-3,0E0E0E|92,-3,0E0E0E|101,-3,0E0E0E|110,-3,0E0E0E|119,-3,0E0E0E|128,-3,0E0E0E", "|") {
+            f := StrSplit(e, ","), rgb := Integer("0x" f[3])
+            pts.Push([Integer(f[1]), Integer(f[2]), (rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF])
+        }
+    }
+    try {
+        WinGetClientPos &ox, &oy, , , RBX
+        Fresh()
+        scr := FindText()
+        loop 25 {
+            ay := 209 + A_Index
+            loop 25 {
+                ax := 599 + A_Index, quick := true
+                for k in [1, 17, 33, 49] {             ; 4 title pixels first: most spots fail here
+                    p := pts[k], col := scr.GetColor(ox + ax + p[1], oy + ay + p[2], 0)
+                    if Abs(((col >> 16) & 0xFF) - p[3]) > 25 || Abs(((col >> 8) & 0xFF) - p[4]) > 25 || Abs((col & 0xFF) - p[5]) > 25 {
+                        quick := false
+                        break
+                    }
+                }
+                if quick && IconScore(scr, ox + ax, oy + ay, pts, 0.8) >= 0.8 {
+                    box := [ax - 22 + 3 - 4, ay - 20 + 33 - 4, ax + 164 + 3 + 4, ay + 108 + 33 + 4]
+                    return box
+                }
+            }
+        }
+    }
+    return box
+}
+
+; is a detection point (x, y) on the tournament ad? (cheap: only looks when it's where the ad goes)
+OnAd(x, y, &b := 0) {
+    if !IsNumber(x) || !IsNumber(y) || x < 580 || y < 220 || y > 380
+        return false
+    b := AdBox()
+    return IsObject(b) && x >= b[1] && x <= b[3] && y >= b[2] && y <= b[4]
+}
+
 
 ; run every detector on one screenshot (Detect tab). Returns {hits: Map, ms}
 DetectAll() {
