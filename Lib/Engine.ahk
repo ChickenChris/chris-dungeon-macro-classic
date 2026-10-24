@@ -1598,11 +1598,25 @@ HandleDungeonPopups() {
             deaths := 0, deathFirst := A_TickCount
         if ++deaths = 1
             AddLog("Out of lives in this dungeon, starting a new one")
+        ; still in the dungeon (its Return to lobby / Open Dungeon buttons, or the wave bar): a
+        ; new dungeon only starts from the lobby. Pressing Continue or Open Dungeon here just
+        ; brought this screen back, over and over. Back to the lobby first, the lobby opens a new one
+        if !Det("Lobby") && (EndButtonsSeen(true) || InStageWorld()) {
+            if WaitDet("RedX", 800)
+                ClickDet("RedX", -3, -35)       ; the popup off the buttons
+            Wait(500)
+            Stale()
+            if BackToLobby() {
+                bossDone := false, chestsDone := false
+                deaths := 0
+                return true
+            }
+        }
         ; its button: by picture, or by its text, or where it usually is (on some PCs the
         ; picture didn't match and this repeated every 2 seconds)
         if Det("DeathContinue")
             ClickDet("DeathContinue", 0, -30)
-        else if OcrFindWord(120, 300, 560, 180, "i)^(continue|open|new|start|retry|ok)", &bx, &by)
+        else if OcrFindWord(120, 300, 560, 180, "i)^(continue|new|start|retry|ok)", &bx, &by)   ; not "Open" (Open Dungeon)
             Clk(bx, by)
         else
             Clk(396, 383)
