@@ -4147,6 +4147,7 @@ PixelIs(x, y, color) {
 ; Fool's Hunt is Premium only: these keep the code shared with Premium the same
 FoolRandom() => false
 FoolTick() => 0
+FoolWaitHook() => 0
 
 Chk() {
     if (!running && !manualRun) || (manualRun && cancelManual)
@@ -4167,6 +4168,7 @@ Wait(ms) {
     endT := A_TickCount + ms
     loop {
         Chk()
+        FoolWaitHook()
         left := endT - A_TickCount
         if left <= 0
             break
@@ -4213,6 +4215,8 @@ ClickDet(name, ox, oy, maxMs := 20000) {
 
 ; a click Roblox reliably registers (it needs the mouse to move first)
 Clk(x, y, btn := "Left") {
+    if paused && running                        ; F4 holds here, not only at the next wait
+        Chk()
     FocusRoblox()
     MouseMove x, y
     MouseMove 1, 0, , "R"
@@ -4222,6 +4226,8 @@ Clk(x, y, btn := "Left") {
 }
 
 Keys(k) {
+    if paused && running
+        Chk()
     FocusRoblox()
     SendInput k
     Stale()
