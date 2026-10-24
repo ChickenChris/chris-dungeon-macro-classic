@@ -16,7 +16,15 @@ SendMode "Event"
 #Include %A_ScriptDir%\Lib\Patterns.ahk
 #Include %A_ScriptDir%\Lib\Engine.ahk
 
-global APP_VER := "3.0 Classic"
+global APP_VER := ClassicVersion()       ; e.g. "3.0.64 Classic", from version.txt (Update.bat keeps it current)
+
+ClassicVersion() {
+    try {
+        if RegExMatch(FileRead(A_ScriptDir "\version.txt"), "\d+\.\d+\.\d+", &m)
+            return m[0] " Classic"
+    }
+    return "3.0 Classic"
+}
 global cfgFile := A_ScriptDir "\Settings\config.ini"
 global ovrFile := A_ScriptDir "\Settings\patterns.ini"   ; recaptured detections
 global logFile := A_ScriptDir "\Logs\log.txt"
@@ -408,7 +416,7 @@ StartMacro(*) {
     UpdateStats()
     SetStatus("Running", CL.greenHi)
     SetTimer ClockTick, 1000
-    AddLog("Macro started")
+    AddLog("Macro started (v" APP_VER ")")
     if cfg["fixOnStart"]
         FixWindow()
     try WinActivate RBX
@@ -703,7 +711,7 @@ RecordWalk(*) {
             }
             now := A_TickCount - t0
             for k in keysWatched {
-                st := GetKeyState(k, "P")
+                st := GetKeyState(StrLen(k) = 1 ? "vk" Format("{:02X}", Ord(StrUpper(k))) : k, "P")   ; by key code: any keyboard layout
                 if st != down[k] {
                     down[k] := st
                     events.Push({k: k, d: st, t: now})

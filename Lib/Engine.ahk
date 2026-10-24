@@ -2433,7 +2433,7 @@ PlayRoute(route) {
                 Sleep 5
             }
             if kind = "key"
-                SendInput "{" m[1] (m[2] = "+" ? " down}" : " up}")
+                SendKeys("{" m[1] (m[2] = "+" ? " down}" : " up}"))
             else if kind = "rclick"
                 Clk(Integer(m[1]), Integer(m[2]), "Right")
         }
@@ -2472,10 +2472,22 @@ BuiltInWalk(mapName) {
 HasBuiltInWalk(mapName) => BuiltInWalks().Has(mapName)
 
 ReleaseKeys() {
-    for k in ["w", "a", "s", "d", "Space"]
+    for k in ["vk57", "vk41", "vk53", "vk44", "Space"]     ; W A S D by key code (any keyboard layout)
         if GetKeyState(k)
             SendInput "{" k " up}"
 }
+
+; Letters are sent by their key code, not as the letter: with a keyboard layout that has no
+; Latin letters (Russian, for one) Windows typed them as text, and Roblox ignored that. R never
+; upgraded, F never opened the panel, W/A/S/D never walked. "{a down}" -> "{vk41 down}", "r" -> "{vk52}"
+LayoutSafe(ks) {
+    ks := RegExReplace(ks, "^([A-Za-z])$", "{$1}")
+    while RegExMatch(ks, "\{([A-Za-z])( down| up)?\}", &m)
+        ks := StrReplace(ks, m[0], "{vk" Format("{:02X}", Ord(StrUpper(m[1]))) m[2] "}")
+    return ks
+}
+
+SendKeys(ks) => SendInput(LayoutSafe(ks))
 
 ; ---------- placing ----------
 ; where to try, which spots are taken / failed, and the Placement retries setting
@@ -4259,7 +4271,7 @@ Keys(k) {
     if paused && running
         Chk()
     FocusRoblox()
-    SendInput k
+    SendKeys(k)
     Stale()
 }
 
