@@ -107,7 +107,9 @@ class OCR {
                 throw ValueError('Invalid IUnknown interface pointer', -2, this.__Class)
             this.DefineProp("ptr", {Value:ptr ?? 0})
         }
-        __Delete() => this.ptr ? ObjRelease(this.ptr) : 0
+        ; HasOwnProp: when the game window went away (a disconnect) the pointer is 0, __New throws
+        ; before "ptr" is set, and reading it here stopped the whole macro with an error box
+        __Delete() => this.HasOwnProp("ptr") && this.ptr ? ObjRelease(this.ptr) : 0
     }
 
     static __New() {
