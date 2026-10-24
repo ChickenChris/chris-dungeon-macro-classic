@@ -634,8 +634,7 @@ ChooseRoom(rooms) {
     if best {
         c := curseOf.Has(best.i) ? curseOf[best.i] : ""
         AddLog("No preferred room left, taking the least bad one" (c != "" ? " (curse of " c ")" : ""))
-        Clk(best.a.cx, best.a.cy)
-        Wait(400)
+        OpenRoom(best)
         EnterRoom()
         return
     }
@@ -643,6 +642,21 @@ ChooseRoom(rooms) {
     Clk(400, 355)
     Wait(400)
     EnterRoom()
+}
+
+; click a room so its panel (with the Enter button) opens. A room that's already selected (left
+; open by the curse check, or picked before a trip to the lobby) closes again on a click, so when
+; no Enter button shows up it's clicked once more. Before: "No Enter button" right after
+; "taking the least bad one".
+OpenRoom(r) {
+    Clk(r.a.cx, r.a.cy)
+    Wait(400)
+    if WaitDet("Enter", 1500)
+        return true
+    AddLog("Room " r.i ": its panel didn't open, clicking it again")
+    Clk(r.a.cx, r.a.cy)
+    Wait(400)
+    return WaitDet("Enter", 1500)
 }
 
 ; click a room; if it has a curse you skip, back out. Returns true when it went in.
@@ -655,8 +669,7 @@ TryRoom(r, prio, unsafe, curseOf, nextKind := "") {
         r.kind := "Cursed"
         AddLog("Room " r.i ": its box shows the curse of " iconCurse " (the border didn't)")
     }
-    Clk(r.a.cx, r.a.cy)
-    Wait(400)
+    OpenRoom(r)
     if shots < 8 {                              ; pictures of room panels, to build exact curse icons from
         shots++
         Wait(300)
