@@ -1320,7 +1320,7 @@ class OCR {
                     , hbm := hbm2, pdc := pdc2
                 }
                 DllCall("SelectObject", "Ptr", PDC, "Ptr", OBM)
-                , DllCall("DeleteDC", "Ptr", HDC)
+                , DllCall("ReleaseDC", "Ptr", hWnd, "Ptr", HDC)     ; (was DeleteDC: the window DC leaked every call)
                 , oHBM := this.IBase(HBM), oHBM.DC := PDC
                 return oHBM.DefineProp("__Delete", {call:(this, *)=>(DllCall("DeleteObject", "Ptr", this), DllCall("DeleteDC", "Ptr", this.DC))})
             }
@@ -1336,9 +1336,10 @@ class OCR {
         , DllCall("StretchBlt", "Ptr", PDC, "Int", 0, "Int", 0, "Int", sW, "Int", sH, "Ptr", HDC, "Int", X, "Int", Y, "Int", W, "Int", H, "UInt", 0x00CC0020 | this.CAPTUREBLT) ; SRCCOPY
         , DllCall("SetStretchBltMode", "Ptr", PDC, "Int", PrevStretchBltMode)
         , DllCall("SelectObject", "Ptr", PDC, "Ptr", OBM)
-        , DllCall("DeleteDC", "Ptr", HDC)
+        , DllCall("ReleaseDC", "Ptr", 0, "Ptr", HDC)      ; the screen DC from GetDC (was DeleteDC: leaked every read)
         , oHBM := this.IBase(HBM), oHBM.DC := PDC
-        return oHBM.DefineProp("__Delete", {call:(this, *)=>(DllCall("DeleteObject", "Ptr", this), DllCall("ReleaseDC", "Ptr", 0, "Ptr", this.DC))})
+        ; PDC is our own memory DC: deleted (was ReleaseDC, which doesn't free it: leaked every read)
+        return oHBM.DefineProp("__Delete", {call:(this, *)=>(DllCall("DeleteObject", "Ptr", this), DllCall("DeleteDC", "Ptr", this.DC))})
     }
 
     static CreateDirect3DSoftwareBitmapFromWindow(hWnd) {
@@ -1447,7 +1448,7 @@ class OCR {
         }
         
         if IsSet(dhDC)
-            DllCall("DeleteDC", "ptr", dhDC)
+            DllCall("ReleaseDC", "ptr", 0, "ptr", dhDC)    ; from GetDC (was DeleteDC: leaked)
         BufferByteAccess := "", MemoryBufferReference := "", MemoryBuffer := "", BitmapBuffer := "" ; Release in correct order
 
         return SoftwareBitmap
