@@ -1622,7 +1622,9 @@ HandleDungeonPopups() {
 ; =====================================================================
 ;  Inside a stage
 ; =====================================================================
-LoadStage(knownMap := "", knownDepth := "") {
+; lenient: the round may already be playing (loaded behind Fool's Hunt's freeze), so the green
+; wave bar counts as loaded too (by its colour range; otherwise only right after a teleport)
+LoadStage(knownMap := "", knownDepth := "", lenient := false) {
     global curMap, curDepth, mapHow
     Step("loading the map")
     curMap := knownMap != "" ? knownMap : "Unknown", curDepth := knownDepth
@@ -1632,7 +1634,7 @@ LoadStage(knownMap := "", knownDepth := "") {
     ; the loading screen double-checks the room panel: its map name (picture or text) wins if
     ; they disagree (a misread panel once turned Snowy Kingdom into Cursed Festival)
     checked := knownMap = ""
-    t0 := A_TickCount
+    t0 := A_TickCount, waitShot := false
     loop {
         Snap()
         if curMap = "Unknown" || !checked {
@@ -1652,12 +1654,17 @@ LoadStage(knownMap := "", knownDepth := "") {
                 }
             }
         }
-        if IsLoaded()
+        if IsLoaded() || (lenient && InStageWorld())
             break
         ; the room picker stays up for a moment after pressing Enter, so only treat it
         ; as "we didn't actually enter" once a few seconds have passed
         if A_TickCount - t0 > 6000 && (SpecialScreen() || ScanRooms().Length || Det("FinishDungeon"))
             return
+        if A_TickCount - t0 > 30000 && !waitShot {
+            waitShot := true                    ; a picture of what it's waiting on
+            AddLog("Still waiting for the stage after 30s. Send Logs\load_wait_....bmp in Discord if it stays like this")
+            SaveDebugShot("load_wait")
+        }
         if A_TickCount - t0 > 120000 {
             AddLog("The map took over 2 minutes to load")
             return
