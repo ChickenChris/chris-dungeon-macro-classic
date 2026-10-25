@@ -2332,8 +2332,19 @@ GoToSpot(mapName, walk := true, force := false) {
         WalkRoute(mapName)
 }
 
+; the camera is being zoomed: fully zoomed in, Roblox is in first person and a click turns the
+; camera, so nothing else may click (a Fool's Hunt card vote picked here left the camera stuck)
+global camBusy := false
+
 ZoomCamera() {
+    global camBusy
     Step("lining up the camera")
+    camBusy := true
+    try ZoomCameraNow()
+    finally camBusy := false
+}
+
+ZoomCameraNow() {
     FocusRoblox()
     MouseMove 400, 300
     Wait(100)
