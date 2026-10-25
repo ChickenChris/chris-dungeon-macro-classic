@@ -213,7 +213,7 @@ Btn("x445 y392 w100 h34", "Remove", BuildRemove)
 Btn("x555 y392 w105 h34", "Move up", () => BuildMove(-1))
 Btn("x670 y392 w105 h34", "Move down", () => BuildMove(1))
 MG.SetFont("s9 norm c" CL.muted)
-A("Text", "x205 y438 w570 h110", "Example:  1. Place slot 1 x2, upgrade each 2 times   2. Place slot 6 x1, upgrade each to max   3. Upgrade slot 1 to max.`n`nA step only moves on once it's done, waiting for yen if it needs to (an upgrade stuck for 90s is skipped). After the last step it places whatever the Units tab still asks for, and keeps upgrading by priority. Upgrade limits on the Units tab still apply.")
+A("Text", "x205 y438 w570 h110", "Example:  1. Place slot 1 x2, upgrade each 2 times   2. Place slot 6 x1, upgrade each to max   3. Upgrade slot 1 to max.`n`nA step only moves on once it's done, waiting for yen if it needs to (an upgrade stuck for 90s is skipped). After the last step it places whatever the Units tab still asks for, and keeps upgrading by priority. "To max" in a step means the real max, even past the Until limit on the Units tab.")
 MG.SetFont("s10 norm c" CL.text)
 
 ; ---------- Spots ----------
