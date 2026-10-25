@@ -417,6 +417,8 @@ StartMacro(*) {
     SetStatus("Running", CL.greenHi)
     SetTimer ClockTick, 1000
     AddLog("Macro started (v" APP_VER ")")
+    if FollowCamera()
+        Notify("Set Roblox's Camera Mode to Classic (Esc > Settings). Follow makes the walks go the wrong way")
     if cfg["fixOnStart"]
         FixWindow()
     try WinActivate RBX

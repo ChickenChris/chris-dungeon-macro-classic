@@ -2257,6 +2257,25 @@ PlayStage() {
     UpgradeAndWatch()
 }
 
+; Roblox's Camera Mode "Follow" (Esc > Settings) swings the camera round behind you while you walk,
+; so a walk (recorded with the Classic camera) goes off in other directions and gets stuck. Roblox
+; keeps the setting in its settings file: ComputerCameraMovementMode 0 Default, 1 Classic, 2 Follow
+FollowCamera() {
+    newest := "", stamp := ""
+    try loop files EnvGet("LOCALAPPDATA") "\Roblox\GlobalBasicSettings_*.xml"
+        if A_LoopFileTimeModified > stamp
+            newest := A_LoopFilePath, stamp := A_LoopFileTimeModified
+    if newest = ""
+        return false
+    try txt := FileRead(newest)
+    catch
+        return false
+    if !RegExMatch(txt, 'name="ComputerCameraMovementMode">\s*(\d+)', &cm) || Integer(cm[1]) != 2
+        return false
+    AddLog("Your Roblox Camera Mode is Follow, so the walks go the wrong way. In Roblox press Esc > Settings > Camera Mode and pick Classic")
+    return true
+}
+
 SetupCamera() {
     Step("getting ready")
     Keys("{Tab}")                      ; close the player list
