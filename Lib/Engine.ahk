@@ -2472,9 +2472,11 @@ BuiltInWalk(mapName) {
 HasBuiltInWalk(mapName) => BuiltInWalks().Has(mapName)
 
 ReleaseKeys() {
-    for k in ["vk57", "vk41", "vk53", "vk44", "Space"]     ; W A S D by key code (any keyboard layout)
-        if GetKeyState(k)
-            SendInput "{" k " up}"
+    for k in ["w", "a", "s", "d"]                ; checked by key code (any keyboard layout), let go the same way they went down
+        if GetKeyState("vk" Format("{:02X}", Ord(StrUpper(k))))
+            SendKeys("{" k " up}")
+    if GetKeyState("Space")
+        SendInput "{Space up}"
 }
 
 ; Letters are sent by their key code, not as the letter: with a keyboard layout that has no
@@ -2485,9 +2487,14 @@ ReleaseKeys() {
 LayoutSafe(ks) {
     if !NonLatinLayout()
         return ks
+    ; key code AND the key's place on the keyboard: Roblox moves by the place (scan code). The key
+    ; code alone made the character stand still (Infinity Castle never walked to its entrance)
+    static sc := Map("a", 0x1E, "b", 0x30, "c", 0x2E, "d", 0x20, "e", 0x12, "f", 0x21, "g", 0x22, "h", 0x23,
+        "i", 0x17, "j", 0x24, "k", 0x25, "l", 0x26, "m", 0x32, "n", 0x31, "o", 0x18, "p", 0x19, "q", 0x10,
+        "r", 0x13, "s", 0x1F, "t", 0x14, "u", 0x16, "v", 0x2F, "w", 0x11, "x", 0x2D, "y", 0x15, "z", 0x2C)
     ks := RegExReplace(ks, "^([A-Za-z])$", "{$1}")
     while RegExMatch(ks, "\{([A-Za-z])( down| up)?\}", &m)
-        ks := StrReplace(ks, m[0], "{vk" Format("{:02X}", Ord(StrUpper(m[1]))) m[2] "}")
+        ks := StrReplace(ks, m[0], "{vk" Format("{:02X}", Ord(StrUpper(m[1]))) "sc" Format("{:03X}", sc[StrLower(m[1])]) m[2] "}")
     return ks
 }
 
