@@ -60,6 +60,7 @@ global autoOpenSeen := false   ; a menu has opened by itself after placing (the 
 global autoOpenOff := false    ; menus only open when the new unit is clicked (setting is wrong)
 global clickOpened := 0
 global slotFull := Map()        ; slot -> stage it hit the game's limit in (no more that stage)
+global mapFull := 0             ; when the game last said the map holds no more units at all (not one unit's limit)
 
 ; trims `need` to what the game allows for slot n right now
 SlotRoom(n, need) {
@@ -68,6 +69,8 @@ SlotRoom(n, need) {
     if slotOne.Has(n)
         need := Min(need, 1 - CountPlaced(n))
     if slotFull.Get(n, -1) = stageStart
+        need := 0
+    if mapFull && A_TickCount - mapFull < 30000  ; the map is full right now: try again in a bit
         need := 0
     return Max(0, need)
 }
@@ -3214,7 +3217,24 @@ TryPlace(x, y, slot) {
 
 ; The game refused the unit with a red message: remember the limit so the macro stops trying.
 PlaceRefused(slot) {
-    msg := LimitMessage()
+    global mapFull
+    static toldMsg := false, toldFull := -1
+    msg := LimitMessage(&said)
+    if msg = "limit" && !toldMsg {
+        toldMsg := true
+        AddLog("The game said: " RegExReplace(Trim(said), "\s+", " "))
+    }
+    ; a limit for the whole map (some modes, like Fool's Hunt, cap the total): it isn't this unit's
+    ; limit, so no slot gets locked; placing waits 30 s and tries again, in case the cap goes up.
+    ; Before, it was saved as this unit's limit, even "0" for a slot with none placed
+    if msg = "limit" && (!CountPlaced(slot) || !RegExMatch(said, "i)this\s*unit|of\s*this|of\s*the\s*unit")) {
+        mapFull := A_TickCount
+        if toldFull != stageStart {
+            toldFull := stageStart
+            AddLog("The game won't take more units right now (" placedUnits.Length " on the map). Trying again every 30 s in case the limit goes up")
+        }
+        return true
+    }
     if msg = "unique" {
         ; only one of a unique unit. One is down already, even if it wasn't counted (its
         ; menu didn't show), so no more of this slot this stage, and one per stage after this
@@ -3237,7 +3257,7 @@ PlaceRefused(slot) {
 
 ; the game's red refusal in the middle of the screen: "unique" for "Unique units may not be
 ; placed with others of its kind", "limit" for "Cannot place more than N of this unit!", else ""
-LimitMessage() {
+LimitMessage(&txt := "") {
     red := 0
     try {
         WinGetClientPos &ox, &oy, , , RBX
@@ -3256,9 +3276,9 @@ LimitMessage() {
             yy += 3
         }
     }
+    txt := ""
     if red < 40
         return ""
-    txt := ""
     try {
         WinGetClientPos &ox, &oy, , , RBX
         txt := OCR.FromRect(ox + 100, oy + 120, 600, 390, OcrLang(), {scale: 2, grayscale: true}).Text
@@ -3498,6 +3518,8 @@ TopUpUnits() {
         lastTry[i] := A_TickCount, tries[i] := tries.Get(i, 0) + 1
         AddLog("Slot " i ": enough yen now, placing the " need " still missing")
         PlaceSlot(NewPlaceCtx(), i, need)
+        if mapFull >= lastTry[i]                    ; refused because the map was full: doesn't count
+            tries[i] -= 1
         return true                                 ; one slot per round, then upgrades get a turn
     }
     return false
