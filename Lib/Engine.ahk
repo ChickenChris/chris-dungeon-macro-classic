@@ -1620,14 +1620,23 @@ HandleDungeonPopups() {
             Clk(bx, by)
         else
             Clk(396, 383)
-        if deaths = 4 {
-            AddLog("The out-of-lives screen won't go away. Send Logs\out_of_lives_....bmp in Discord so it can be fixed")
-            SaveDebugShot("out_of_lives")
-        }
-        if WaitDet("RedX", 1500)
-            ClickDet("RedX", -3, -35)
         bossDone := false, chestsDone := false
-        Wait(500)
+        if WaitFor(() => !Det("DungeonDeath"), 4000, 250) {
+            ; it went: close the Dungeon Run window that can stay open behind it
+            if WaitDet("RedX", 1500)
+                ClickDet("RedX", -3, -35)
+            Wait(500)
+            return true
+        }
+        ; "You Died!" still there after Continue (it stayed for hours on some games, and the red
+        ; X clicked right after Continue only brought it back): Roblox is closed and opened again,
+        ; which always lands in the lobby, and the macro starts a new dungeon from there
+        if deaths >= 3 {
+            AddLog("The out-of-lives screen won't go away, rejoining Roblox to get back to the lobby")
+            SaveDebugShot("out_of_lives")
+            deaths := 0
+            RejoinToLobby()
+        }
         return true
     }
     return false
@@ -4017,6 +4026,16 @@ CheckConnection() {
     AddLog("Couldn't reconnect, stopping")
     StopMacro()
     Chk()
+}
+
+; closes Roblox and opens it again (lands in the lobby), then waits there like a reconnect
+RejoinToLobby() {
+    global stageActive
+    stageActive := false
+    try WinClose RBX
+    try WinWaitClose RBX, , 10
+    Wait(2000)
+    CheckConnection()                           ; Roblox is closed: opens it and waits for the lobby
 }
 
 Launch() {
