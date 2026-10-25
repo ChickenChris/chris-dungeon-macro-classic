@@ -3264,8 +3264,8 @@ PlaceRefused(slot) {
     ; Before, it was saved as this unit's limit, even "0" for a slot with none placed
     ; "Cannot place more than 20 units! Sell some weaker ones to make room." (Fool's Hunt): summons
     ; like Elyssia's eels count too, so it can come before your own units reach 20
-    if msg = "limit" && (!CountPlaced(slot) || RegExMatch(said, "i)units\s*!|sell\s*some|make\s*room|weaker")
-        || !RegExMatch(said, "i)this\s*unit|of\s*this|of\s*the\s*unit")) {
+    thisUnit := RegExMatch(said, "i)th[il1]s\s*un[il1]t|of\s*th[il1]s|of\s*the\s*un")
+    if msg = "limit" && !thisUnit && (!CountPlaced(slot) || RegExMatch(said, "i)\d\s*u\s*n\s*[il1]\s*t\s*s|sell\s*s|make\s*r|r[o0][o0]m|weaker")) {
         mapFull := A_TickCount
         if toldFull != stageStart {
             toldFull := stageStart
@@ -3325,7 +3325,9 @@ LimitMessage(&txt := "") {
     }
     if RegExMatch(txt, "i)uniq|its kind|others of")
         return "unique"
-    if RegExMatch(txt, "i)cannot|can.t place|more than|sell some|make room")
+    ; only a real limit: "more than N ..." or "sell some / make room". "Cannot" alone was also
+    ; "can't place here" (a bad spot), which once stopped placing at 3 of 10 as "map full"
+    if RegExMatch(txt, "i)m[o0]re\s*th[ae]n|sell\s*some|make\s*room")
         return "limit"
     return ""
 }
