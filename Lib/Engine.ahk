@@ -3265,8 +3265,10 @@ PlaceRefused(slot) {
     ; Before, it was saved as this unit's limit, even "0" for a slot with none placed
     ; "Cannot place more than 20 units! Sell some weaker ones to make room." (Fool's Hunt): summons
     ; like Elyssia's eels count too, so it can come before your own units reach 20
+    ; only a clear "of this unit" is that unit's limit (it stops the slot for the map); anything
+    ; else counts as the map being full, which just waits a minute and tries again
     thisUnit := RegExMatch(said, "i)th[il1]s\s*un[il1]t|of\s*th[il1]s|of\s*the\s*un")
-    if msg = "limit" && !thisUnit && (!CountPlaced(slot) || RegExMatch(said, "i)\d\s*u\s*n\s*[il1]\s*t\s*s|sell\s*s|make\s*r|r[o0][o0]m|weaker")) {
+    if msg = "limit" && !thisUnit {
         mapFull := A_TickCount
         if toldFull != stageStart {
             toldFull := stageStart
@@ -3320,15 +3322,19 @@ LimitMessage(&txt := "") {
     txt := ""
     if red < 40
         return ""
+    ; the text reader garbles it often over a busy map ("Cannot place more than 20 units!" came
+    ; out as "Cannot,rldc"), so any piece of it counts; a second, closer read of the strip under
+    ; the wave counter when the first finds nothing
+    static limitWords := "i)c[a@]nn[o0]t|can.t\s*pl|m[o0]re\s*th|rn[o0]re\s*th|th[ae]n\s*\d+\s*un|sell\s*s|make\s*r[o0]|weaker"
     try {
         WinGetClientPos &ox, &oy, , , RBX
         txt := OCR.FromRect(ox + 100, oy + 60, 600, 450, OcrLang(), {scale: 2, grayscale: true}).Text
+        if !RegExMatch(txt, limitWords) && !RegExMatch(txt, "i)uniq|its kind|others of")
+            txt .= " " OCR.FromRect(ox + 100, oy + 70, 600, 110, OcrLang(), {scale: 3, grayscale: true}).Text
     }
     if RegExMatch(txt, "i)uniq|its kind|others of")
         return "unique"
-    ; only a real limit: "more than N ..." or "sell some / make room". "Cannot" alone was also
-    ; "can't place here" (a bad spot), which once stopped placing at 3 of 10 as "map full"
-    if RegExMatch(txt, "i)m[o0]re\s*th[ae]n|sell\s*some|make\s*room")
+    if RegExMatch(txt, limitWords)
         return "limit"
     return ""
 }
