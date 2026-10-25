@@ -2472,41 +2472,46 @@ BuiltInWalk(mapName) {
 HasBuiltInWalk(mapName) => BuiltInWalks().Has(mapName)
 
 ReleaseKeys() {
-    for k in ["w", "a", "s", "d", "Space"]
-        if GetKeyState(k)
-            SendInput "{" k " up}"
+    for k in ["w", "a", "s", "d"]                ; checked by key code: a Russian layout has no "w" key name
+        if GetKeyState("vk" Format("{:02X}", Ord(StrUpper(k))))
+            SendKeys("{" k " up}")
+    if GetKeyState("Space")
+        SendInput "{Space up}"
 }
 
-; Keys go exactly as they always did (by name). Sending them by key code for non-English
-; keyboards broke walking for everyone. Instead, a Roblox window on a keyboard layout without
-; Latin letters (Russian, Greek...) is switched to English (US) before keys are sent: then R, F,
-; Q and W/A/S/D reach the game as keys again, not as typed text.
+; How keys are sent depends on the keyboard layout Roblox is on, each way tested by players:
+;  - a layout with English letters (English, German, Norwegian...): by name, as always
+;  - one without (Russian, Greek...): by key code. By name they arrived as typed text and R, F, Q
+;    and W/A/S/D did nothing; by key code they worked on Kirito's Russian keyboard. (Key codes
+;    for everyone broke walking on English keyboards, so they're only used there.)
 SendKeys(ks) {
-    LatinLayout()
+    if NonLatinLayout() {
+        ks := RegExReplace(ks, "^([A-Za-z])$", "{$1}")
+        while RegExMatch(ks, "\{([A-Za-z])( down| up)?\}", &m)
+            ks := StrReplace(ks, m[0], "{vk" Format("{:02X}", Ord(StrUpper(m[1]))) m[2] "}")
+    }
     SendInput ks
 }
 
-LatinLayout() {
-    static lastAt := 0, told := false
-    if A_TickCount - lastAt < 5000
-        return
-    lastAt := A_TickCount
+; true when the keyboard layout of Roblox's window has no "a" key (Russian, Greek, ...)
+NonLatinLayout() {
+    static lastAt := 0, res := false, told := false
+    if A_TickCount - lastAt < 3000
+        return res
+    lastAt := A_TickCount, res := false
     try {
         hwnd := WinExist(RBX)
         if !hwnd
-            return
+            return res
         tid := DllCall("GetWindowThreadProcessId", "Ptr", hwnd, "Ptr", 0, "UInt")
         hkl := DllCall("GetKeyboardLayout", "UInt", tid, "Ptr")
-        if !hkl || DllCall("VkKeyScanExW", "UShort", Ord("a"), "Ptr", hkl, "Short") != -1
-            return                              ; has an "a" key: nothing to do
-        us := DllCall("LoadKeyboardLayoutW", "Str", "00000409", "UInt", 1, "Ptr")
-        PostMessage 0x50, 0, us, , "ahk_id " hwnd      ; WM_INPUTLANGCHANGEREQUEST: Roblox to English (US)
-        Sleep 100
-        if !told {
-            told := true
-            AddLog("Roblox was on a keyboard layout without English letters, switched it to English (US) so the keys work")
-        }
+        res := hkl && DllCall("VkKeyScanExW", "UShort", Ord("a"), "Ptr", hkl, "Short") = -1
     }
+    if res && !told {
+        told := true
+        AddLog("Your keyboard is on a layout without English letters: keys are sent by key code")
+    }
+    return res
 }
 
 ; ---------- placing ----------
