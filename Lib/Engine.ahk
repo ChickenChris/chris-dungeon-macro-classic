@@ -2480,11 +2480,29 @@ ReleaseKeys() {
 ; Letters are sent by their key code, not as the letter: with a keyboard layout that has no
 ; Latin letters (Russian, for one) Windows typed them as text, and Roblox ignored that. R never
 ; upgraded, F never opened the panel, W/A/S/D never walked. "{a down}" -> "{vk41 down}", "r" -> "{vk52}"
+; Only when the letter isn't on the keyboard layout Roblox is using: with an English (or other
+; Latin) layout keys go exactly as they always did (sending every key by code broke walking).
 LayoutSafe(ks) {
+    if !NonLatinLayout()
+        return ks
     ks := RegExReplace(ks, "^([A-Za-z])$", "{$1}")
     while RegExMatch(ks, "\{([A-Za-z])( down| up)?\}", &m)
         ks := StrReplace(ks, m[0], "{vk" Format("{:02X}", Ord(StrUpper(m[1]))) m[2] "}")
     return ks
+}
+
+; true when the keyboard layout of Roblox's window has no "a" key (Russian, Greek, ...)
+NonLatinLayout() {
+    static lastAt := 0, res := false
+    if A_TickCount - lastAt < 3000
+        return res
+    lastAt := A_TickCount, res := false
+    try {
+        tid := DllCall("GetWindowThreadProcessId", "Ptr", WinExist(RBX) || WinExist("A"), "Ptr", 0, "UInt")
+        hkl := DllCall("GetKeyboardLayout", "UInt", tid, "Ptr")
+        res := DllCall("VkKeyScanExW", "UShort", Ord("a"), "Ptr", hkl, "Short") = -1
+    }
+    return res
 }
 
 SendKeys(ks) => SendInput(LayoutSafe(ks))
