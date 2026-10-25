@@ -779,7 +779,9 @@ RoomOrder(rooms) {
     return order
 }
 
-RoomBefore(x, y) => x.score != y.score ? x.score > y.score : x.rank != y.rank ? x.rank < y.rank : !x.cursed && y.cursed
+; best score first; on a tie your room list decides, then more good rooms after it, then clean before cursed
+RoomBefore(x, y) => x.score != y.score ? x.score > y.score : x.rank != y.rank ? x.rank < y.rank : RoomSpare(x) != RoomSpare(y) ? RoomSpare(x) > RoomSpare(y) : !x.cursed && y.cursed
+RoomSpare(p) => p.HasOwnProp("spare") ? p.spare : 0
 
 ; what one thing is worth: its place on your room list (top = most). A rare chest counts
 ; double (it's what dungeons are farmed for), a curse costs more than a chest and a hoard
