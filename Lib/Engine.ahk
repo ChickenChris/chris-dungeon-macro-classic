@@ -70,7 +70,7 @@ SlotRoom(n, need) {
         need := Min(need, 1 - CountPlaced(n))
     if slotFull.Get(n, -1) = stageStart
         need := 0
-    if mapFull && A_TickCount - mapFull < 30000  ; the map is full right now: try again in a bit
+    if mapFull && A_TickCount - mapFull < 60000  ; the map is full right now: upgrade, try again in a bit
         need := 0
     return Max(0, need)
 }
@@ -3245,13 +3245,18 @@ PlaceRefused(slot) {
         AddLog("The game said: " RegExReplace(Trim(said), "\s+", " "))
     }
     ; a limit for the whole map (some modes, like Fool's Hunt, cap the total): it isn't this unit's
-    ; limit, so no slot gets locked; placing waits 30 s and tries again, in case the cap goes up.
+    ; limit, so no slot gets locked; it upgrades and tries placing again a minute later (room can open up).
     ; Before, it was saved as this unit's limit, even "0" for a slot with none placed
-    if msg = "limit" && (!CountPlaced(slot) || !RegExMatch(said, "i)this\s*unit|of\s*this|of\s*the\s*unit")) {
+    ; "Cannot place more than 20 units! Sell some weaker ones to make room." (Fool's Hunt): summons
+    ; like Elyssia's eels count too, so it can come before your own units reach 20
+    if msg = "limit" && (!CountPlaced(slot) || RegExMatch(said, "i)units\s*!|sell\s*some|make\s*room|weaker")
+        || !RegExMatch(said, "i)this\s*unit|of\s*this|of\s*the\s*unit")) {
         mapFull := A_TickCount
         if toldFull != stageStart {
             toldFull := stageStart
-            AddLog("The game won't take more units right now (" placedUnits.Length " on the map). Trying again every 30 s in case the limit goes up")
+            most := RegExMatch(said, "(\d+)\s*un", &mm) ? mm[1] : ""
+            AddLog("The map is full" (most != "" ? " (the game allows " most " units, summons count too)" : "")
+                . ". Upgrading instead; trying to place again every minute in case room opens up")
         }
         return true
     }
@@ -3283,8 +3288,8 @@ LimitMessage(&txt := "") {
         WinGetClientPos &ox, &oy, , , RBX
         Stale(), Fresh()
         scr := FindText()
-        yy := 120
-        while yy <= 500 {
+        yy := 60                                ; from just under the wave counter, where "Cannot place
+        while yy <= 500 {                       ; more than 20 units!" shows (it was missed from 120 down)
             xx := 150
             while xx <= 650 {
                 col := scr.GetColor(ox + xx, oy + yy, 0)
@@ -3301,11 +3306,11 @@ LimitMessage(&txt := "") {
         return ""
     try {
         WinGetClientPos &ox, &oy, , , RBX
-        txt := OCR.FromRect(ox + 100, oy + 120, 600, 390, OcrLang(), {scale: 2, grayscale: true}).Text
+        txt := OCR.FromRect(ox + 100, oy + 60, 600, 450, OcrLang(), {scale: 2, grayscale: true}).Text
     }
     if RegExMatch(txt, "i)uniq|its kind|others of")
         return "unique"
-    if RegExMatch(txt, "i)cannot|can.t place|more than")
+    if RegExMatch(txt, "i)cannot|can.t place|more than|sell some|make room")
         return "limit"
     return ""
 }
