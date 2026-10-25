@@ -2472,47 +2472,42 @@ BuiltInWalk(mapName) {
 HasBuiltInWalk(mapName) => BuiltInWalks().Has(mapName)
 
 ReleaseKeys() {
-    for k in ["w", "a", "s", "d"]                ; checked by key code (any keyboard layout), let go the same way they went down
-        if GetKeyState("vk" Format("{:02X}", Ord(StrUpper(k))))
-            SendKeys("{" k " up}")
-    if GetKeyState("Space")
-        SendInput "{Space up}"
+    for k in ["w", "a", "s", "d", "Space"]
+        if GetKeyState(k)
+            SendInput "{" k " up}"
 }
 
-; Letters are sent by their key code, not as the letter: with a keyboard layout that has no
-; Latin letters (Russian, for one) Windows typed them as text, and Roblox ignored that. R never
-; upgraded, F never opened the panel, W/A/S/D never walked. "{a down}" -> "{vk41 down}", "r" -> "{vk52}"
-; Only when the letter isn't on the keyboard layout Roblox is using: with an English (or other
-; Latin) layout keys go exactly as they always did (sending every key by code broke walking).
-LayoutSafe(ks) {
-    if !NonLatinLayout()
-        return ks
-    ; key code AND the key's place on the keyboard: Roblox moves by the place (scan code). The key
-    ; code alone made the character stand still (Infinity Castle never walked to its entrance)
-    static sc := Map("a", 0x1E, "b", 0x30, "c", 0x2E, "d", 0x20, "e", 0x12, "f", 0x21, "g", 0x22, "h", 0x23,
-        "i", 0x17, "j", 0x24, "k", 0x25, "l", 0x26, "m", 0x32, "n", 0x31, "o", 0x18, "p", 0x19, "q", 0x10,
-        "r", 0x13, "s", 0x1F, "t", 0x14, "u", 0x16, "v", 0x2F, "w", 0x11, "x", 0x2D, "y", 0x15, "z", 0x2C)
-    ks := RegExReplace(ks, "^([A-Za-z])$", "{$1}")
-    while RegExMatch(ks, "\{([A-Za-z])( down| up)?\}", &m)
-        ks := StrReplace(ks, m[0], "{vk" Format("{:02X}", Ord(StrUpper(m[1]))) "sc" Format("{:03X}", sc[StrLower(m[1])]) m[2] "}")
-    return ks
+; Keys go exactly as they always did (by name). Sending them by key code for non-English
+; keyboards broke walking for everyone. Instead, a Roblox window on a keyboard layout without
+; Latin letters (Russian, Greek...) is switched to English (US) before keys are sent: then R, F,
+; Q and W/A/S/D reach the game as keys again, not as typed text.
+SendKeys(ks) {
+    LatinLayout()
+    SendInput ks
 }
 
-; true when the keyboard layout of Roblox's window has no "a" key (Russian, Greek, ...)
-NonLatinLayout() {
-    static lastAt := 0, res := false
-    if A_TickCount - lastAt < 3000
-        return res
-    lastAt := A_TickCount, res := false
+LatinLayout() {
+    static lastAt := 0, told := false
+    if A_TickCount - lastAt < 5000
+        return
+    lastAt := A_TickCount
     try {
-        tid := DllCall("GetWindowThreadProcessId", "Ptr", WinExist(RBX) || WinExist("A"), "Ptr", 0, "UInt")
+        hwnd := WinExist(RBX)
+        if !hwnd
+            return
+        tid := DllCall("GetWindowThreadProcessId", "Ptr", hwnd, "Ptr", 0, "UInt")
         hkl := DllCall("GetKeyboardLayout", "UInt", tid, "Ptr")
-        res := DllCall("VkKeyScanExW", "UShort", Ord("a"), "Ptr", hkl, "Short") = -1
+        if !hkl || DllCall("VkKeyScanExW", "UShort", Ord("a"), "Ptr", hkl, "Short") != -1
+            return                              ; has an "a" key: nothing to do
+        us := DllCall("LoadKeyboardLayoutW", "Str", "00000409", "UInt", 1, "Ptr")
+        PostMessage 0x50, 0, us, , "ahk_id " hwnd      ; WM_INPUTLANGCHANGEREQUEST: Roblox to English (US)
+        Sleep 100
+        if !told {
+            told := true
+            AddLog("Roblox was on a keyboard layout without English letters, switched it to English (US) so the keys work")
+        }
     }
-    return res
 }
-
-SendKeys(ks) => SendInput(LayoutSafe(ks))
 
 ; ---------- placing ----------
 ; where to try, which spots are taken / failed, and the Placement retries setting
