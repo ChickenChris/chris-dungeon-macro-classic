@@ -1226,35 +1226,55 @@ ShopRowText(y) {
     return txt
 }
 
+; which item a shop row is, from its read text ("" = can't tell). The names are a tiny pixel
+; font the screen reader often gets wrong ("Bow" came out as "goo"), so the description helps.
+ShopRowName(raw) {
+    name := FuzzyPick(raw, cfg["shopRank"])
+    low := StrLower(raw)
+    ; long names wrap onto a second line ("[*] Philosopher's" / "Stone"): a half-read name
+    ; still gives itself away by its first word
+    if name = "" {
+        for kw, full in Map("philos", "Philosophers Stone", "celest", "Celestial Blade", "shimmer", "Shimmering Moon Fragment",
+            "archmage", "Archmage's Hat", "stormbr", "Stormbringer", "headspl", "Headsplitter", "riches", "Mask of Riches",
+            "reaper", "Reaper Scythe", "scyth", "Reaper Scythe", "solar", "Solar Cleaver", "glacial", "Glacial Axe",
+            "mushroom", "Golden Mushroom", "genie", "Genie Lamp", "tome", "Magic Tome", "maul", "Aures Maul",
+            "longb", "Longbow", "iongb", "Longbow")
+            if InStr(low, kw) && IndexOf(cfg["shopRank"], full) {
+                name := full
+                break
+            }
+    }
+    if name = "" {
+        if RegExMatch(low, "\belf\b")
+            name := "Elf Bow"
+        else if RegExMatch(low, "\b[hm]a[gq]e\s*[ce][o0]")       ; "Hage Coe" = Mage Coat
+            name := "Mage Coat"
+        else if RegExMatch(low, "[rg]an[gq]e")                     ; "+N% Range" and no other clue: a bow
+            name := RegExMatch(low, "5\s*0\s*%") ? "Elf Bow" : "Bow"
+        if name != "" && !IndexOf(cfg["shopRank"], name)
+            name := ""
+    }
+    ; short names that are the end of longer ones: the description's % tells them apart
+    if name = "Fish Hook" && RegExMatch(raw, "4\s*0\s*%")
+        name := "Golden Fishhook"
+    else if name = "Bow" && RegExMatch(raw, "5\s*0\s*%")
+        name := "Elf Bow"
+    else if name = "Dagger" && RegExMatch(raw, "i)\b[il1]ce\b|2\s*0\s*%|speed")
+        name := "Ice Dagger"                ; Ice Dagger: -20% enemy speed
+    else if name = "Ice Dagger" && RegExMatch(raw, "1\s*5\s*%|attack") && !RegExMatch(raw, "i)\b[il1]ce\b")
+        name := "Dagger"                    ; Dagger: +15% attack
+    else if name = "Axe" && RegExMatch(raw, "i)g[il1]ac|slow|speed|3\s*0\s*%")
+        name := "Glacial Axe"
+    else if name = "Glacial Axe" && RegExMatch(raw, "i)crit") && !RegExMatch(raw, "i)g[il1]ac")
+        name := "Axe"                       ; Axe: +50% physical crit chance
+    return name
+}
+
 ReadShopRows() {
     rows := []
     for y in [225, 280, 335] {
         raw := ShopRowText(y)
-        name := FuzzyPick(raw, cfg["shopRank"])
-        ; long names wrap onto a second line ("[*] Philosopher's" / "Stone"): a half-read name
-        ; still gives itself away by its first word
-        if name = "" {
-            for kw, full in Map("philos", "Philosophers Stone", "celest", "Celestial Blade", "shimmer", "Shimmering Moon Fragment",
-                "archmage", "Archmage's Hat", "stormbr", "Stormbringer", "headspl", "Headsplitter", "riches", "Mask of Riches")
-                if InStr(StrLower(raw), kw) && IndexOf(cfg["shopRank"], full) {
-                    name := full
-                    break
-                }
-        }
-        ; short names that are the end of longer ones: the description's % tells them apart
-        if name = "Fish Hook" && RegExMatch(raw, "4\s*0\s*%")
-            name := "Golden Fishhook"
-        else if name = "Bow" && RegExMatch(raw, "5\s*0\s*%")
-            name := "Elf Bow"
-        else if name = "Dagger" && RegExMatch(raw, "i)\b[il1]ce\b|2\s*0\s*%|speed")
-            name := "Ice Dagger"                ; Ice Dagger: -20% enemy speed
-        else if name = "Ice Dagger" && RegExMatch(raw, "1\s*5\s*%|attack") && !RegExMatch(raw, "i)\b[il1]ce\b")
-            name := "Dagger"                    ; Dagger: +15% attack
-        else if name = "Axe" && RegExMatch(raw, "i)g[il1]ac|slow|speed|3\s*0\s*%")
-            name := "Glacial Axe"
-        else if name = "Glacial Axe" && RegExMatch(raw, "i)crit") && !RegExMatch(raw, "i)g[il1]ac")
-            name := "Axe"                       ; Axe: +50% physical crit chance
-        rows.Push({y: y, name: name, raw: raw})
+        rows.Push({y: y, name: ShopRowName(raw), raw: raw})
     }
     return rows
 }
@@ -1357,7 +1377,7 @@ FuzzyPick(txt, names) {
                 if cost < low
                     low := cost, lowEnd := tk.last
             }
-            if low > 0.34 {
+            if low > (StrLen(nw) <= 3 ? 0 : 0.34) {  ; 3 letters: exact ("age" in "damage" isn't "Axe")
                 ok := false
                 break
             }
