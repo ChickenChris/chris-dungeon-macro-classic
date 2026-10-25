@@ -1879,6 +1879,7 @@ RoomIsFinal(&at := 0, &total := 0) {
 ; the big blue "<map> / Dungeon Room (Depth N) / Hard" banner at the top-middle when a stage starts
 MapFromBanner() {
     global curDepth
+    depth := "", raw := ""
     for tf in [{scale: 2, grayscale: true}, {scale: 2, grayscale: true, invertcolors: true}] {
         name := MapFromScreenText(150, 85, 500, 150, &depth, &raw, tf)
         if name != "" {
@@ -1908,7 +1909,8 @@ ReadRoomPanel(ex, ey, &depth := "", &raw := "") {
 MapFromScreenText(x, y, w, h, &depth := "", &raw := "", tf := "") {
     global lastMapRaw, icFloor
     static warned := false
-    raw := ""
+    raw := "", depth := ""                      ; always set: a banner without "Depth N" (Fool's Hunt) left
+                                                ; depth unset and stopped the run ("local variable ... line 3130")
     if !WinExist(RBX)
         return ""
     if !IsObject(tf)
