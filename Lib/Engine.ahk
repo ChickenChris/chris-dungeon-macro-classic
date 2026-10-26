@@ -2045,6 +2045,19 @@ MapFromNamePics() {
 
 ; The game is in English, but Windows reads text in the PC's own language: on a Korean PC
 ; "Spirit World" and the yen came out as garbage. Use Windows' English reader when it has one.
+; Windows' own text reader (Windows.Media.Ocr) isn't on every PC: "Class not registered" = it's
+; missing (Windows N without the Media Feature Pack, or a stripped-down "lite" Windows). Everything
+; that reads text then fails: map names, the shop, Teleport to Spawn, curses, chest rewards
+OcrMissing(err) {
+    static told := false
+    if told
+        return
+    told := true
+    AddLog("Windows' text reader doesn't work on this PC (" err.Message "). The macro carries on with pictures only, "
+        . "but map names, the shop, Teleport to Spawn and chest rewards can fail. Fix: Windows Settings > Apps > "
+        . "Optional features > add 'Media Feature Pack' (Windows N), then restart the PC. A 'lite' or debloated Windows can be missing it for good")
+}
+
 OcrLang() {
     static lang := ""
     if lang != ""
@@ -2134,7 +2147,7 @@ MapFromScreenText(x, y, w, h, &depth := "", &raw := "", tf := "") {
     } catch as err {
         if !warned {
             warned := true
-            AddLog("Text reading isn't available (" err.Message "), using pictures only")
+            OcrMissing(err)
         }
         return ""
     }
@@ -2158,7 +2171,7 @@ MapFromLoadingText() {
     } catch as err {
         if !warned {
             warned := true
-            AddLog("Text reading isn't available (" err.Message "), using pictures only")
+            OcrMissing(err)
         }
         return ""
     }

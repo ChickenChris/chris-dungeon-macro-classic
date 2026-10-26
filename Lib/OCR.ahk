@@ -272,7 +272,7 @@ class OCR {
             __OCR.NormalizeCoordinates(this, scale)
     }
 
-    __Delete() => this.ptr ? ObjRelease(this.ptr) : 0
+    __Delete() => this.HasOwnProp("ptr") && this.ptr ? ObjRelease(this.ptr) : 0   ; no reader: no ptr (it logged "no property named ptr")
 
     ; Gets the recognized text.
     Text {

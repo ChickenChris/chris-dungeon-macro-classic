@@ -94,6 +94,10 @@ UnhandledError(err, mode) {
     static lastKey := "", lastAt := 0
     if err is MacroStop
         return 1
+    if InStr(err.File, "OCR.ahk") && InStr(err.Message, "not registered") {   ; Windows' text reader is missing
+        try OcrMissing(err)
+        return mode = "Return" ? -1 : 1
+    }
     key := err.Message "|" err.Line
     if key = lastKey && A_TickCount - lastAt < 60000       ; the same one over and over: log it once a minute
         return mode = "Return" ? -1 : 1
