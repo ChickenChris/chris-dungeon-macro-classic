@@ -1515,8 +1515,8 @@ ReadRewardText() {
         txt := ""
         try {
             WinGetClientPos &ox, &oy, , , RBX
-            txt := OCR.FromRect(ox + 100, oy + 330, 600, 190, OcrLang(), tf).Text
-        }
+            txt := OCR.FromRect(ox + 180, oy + 330, 440, 190, OcrLang(), tf).Text   ; just the middle:
+        }                                       ; name tags of units around it got read into the name
         if IsObject(r := ParseReward(txt))
             return r
     }
@@ -1540,7 +1540,7 @@ ParseReward(txt) {
             break
         }
     if RegExMatch(txt, "i)([A-Za-z][A-Za-z' ]*?(?:\s*\(\s*[A-Za-z][A-Za-z ]*\))?)\s*\(\s*[x×]\s*(\d[\d,. ]*)\)", &m) {
-        name := Trim(RegExReplace(m[1], "\s+", " ")), n := RegExReplace(m[2], "\D")
+        name := RewardName(m[1]), n := RegExReplace(m[2], "\D")
         if name != "" && n != "" && Integer(n) > 0
             return {name: name, n: Integer(n), rarity: rarity}
     }
@@ -1549,11 +1549,36 @@ ParseReward(txt) {
         n := 1
         ; an amount whose bracket got lost in reading: "Star Remnant (x5"
         if RegExMatch(name, "i)^(.*?)\s*\(?\s*[x×]\s*(\d[\d,.]*)\s*\)?\s*$", &mm) && Trim(mm[1]) != ""
-            name := Trim(mm[1]), n := Integer(RegExReplace(mm[2], "\D"))
+            name := RewardName(mm[1]), n := Integer(RegExReplace(mm[2], "\D"))
         if StrLen(name) >= 3 && !InStr(name, "click") && n > 0
             return {name: name, n: n, rarity: rarity}
     }
     return ""
+}
+
+; The reward's real name in what was read. Stray words come BEFORE it (a unit's name tag on the
+; same line: "Abyss Abyss Jelly Gems"), so a known reward is matched against the END of the text,
+; longest names first ("Perfect Stat Cube" before "Stat Cube"). Misreads stack with the right
+; one ("Ab Star Rermant (Limited)", "t (Limited)" -> Star Remnant (Limited)). Something unknown
+; keeps its last few words; a scrap like "hts" gives "" (not counted).
+RewardName(raw) {
+    static known := ["Star Remnant (Limited)", "Perfect Stat Cube", "Trait Crystal", "Cursed Token", "Stat Cube", "Gems"]
+    flat := NormName(raw)
+    if flat = ""
+        return ""
+    for k in known {
+        kf := NormName(k)
+        tail := StrLen(flat) > StrLen(kf) ? SubStr(flat, -StrLen(kf)) : flat
+        if Levenshtein(tail, kf) / StrLen(kf) <= 0.25
+            return k
+    }
+    if InStr(flat, "limited")                   ; only the end was read: the one "(Limited)" reward
+        return "Star Remnant (Limited)"
+    words := StrSplit(Trim(RegExReplace(raw, "[^A-Za-z0-9'() ]+", " ")), " ")
+    clean := ""
+    loop Min(3, words.Length)
+        clean := Trim(words[words.Length - A_Index + 1] " " clean)
+    return StrLen(NormName(clean)) >= 5 ? clean : ""
 }
 
 ; waits up to ms for a reward to show up and returns it ("" if none came)
@@ -1569,8 +1594,9 @@ ReadChestReward(ms := 2500) {
 }
 
 ; one opened chest: every reward it shows (two during a 2x event), then back to the chest screen.
-; A reward counts as new when the text went away and came back, or changed, so a click that
-; didn't go through isn't counted twice
+; A reward counts as new when it's a different one, or when the text was gone for a while (the
+; next reveal). Sparkles hide the text for a moment too: the same reward read again right after
+; that counted twice ("Gems x450" and "hts x450")
 CollectRewards() {
     last := ReadChestReward(2500)
     if !IsObject(last)
@@ -1578,7 +1604,7 @@ CollectRewards() {
     AddLoot(last)
     loop 6 {
         Clk(560, 560)
-        t0 := A_TickCount, gap := false
+        t0 := A_TickCount, gone := 0            ; gone: when the text went away
         loop {
             Wait(150)
             Stale()
@@ -1587,12 +1613,14 @@ CollectRewards() {
             if Det("EndScreen")
                 return ClaimReward()            ; the "max cursed tokens" popup
             r := ReadRewardText()
-            if !IsObject(r)
-                gap := true
-            else if gap || r.name != last.name || r.n != last.n {
+            if !IsObject(r) {
+                if !gone
+                    gone := A_TickCount
+            } else if r.name != last.name || r.n != last.n || (gone && A_TickCount - gone >= 600) {
                 AddLoot(r), last := r
                 break                           ; the next reward: click that one away too
-            }
+            } else
+                gone := 0                       ; the same one, only hidden for a moment
             if A_TickCount - t0 > 3000
                 break                           ; the same one for 3 s: the click didn't take
         }
