@@ -267,7 +267,7 @@ function renderMode() {
   seg($("#segIcDiff"), ["Normal", "Hard"], +S.cfg.icHard ? 1 : 0, (i) => setVal("icHard", i));
   stepper($("#icStop"), +S.cfg.icStopFloors || 0, 0, 500, (v) => setVal("icStopFloors", v));
   stepper($("#foolFreeze"), +S.cfg.foolFreeze || 80, 20, 150, (v) => setVal("foolFreeze", v), 5);
-  stepper($("#foolAccounts"), +S.cfg.foolAccounts || 2, 2, 4, (v) => setVal("foolAccounts", v));
+  stepper($("#foolAccounts"), +S.cfg.foolAccounts || 2, 2, 6, (v) => setVal("foolAccounts", v));
 }
 
 // in or out of Fool's Hunt: its own units and build order come in right away (the macro does the
@@ -563,12 +563,12 @@ function lockPremium() {
   const tag = () => `<span class="prem-tag">${icon("crown")}Premium</span>`;
   $$("[data-premium]").forEach((el) => {
     $$("input, select", el).forEach((x) => { x.tabIndex = -1; x.readOnly = true; });
+    if (!el.dataset.tip) el.dataset.tip = el.dataset.premium + " is in Premium";
     if (el.tagName === "BUTTON" || el.querySelector(".prem-tag")) return;
-    const label = el.matches(".toggle") ? $(":scope > span", el) : $(":scope > .lbl", el);
-    if (label) {                                  // a setting row: the tag goes after its name
-      const small = $(":scope > small", label);
-      small ? small.insertAdjacentHTML("beforebegin", tag()) : label.insertAdjacentHTML("beforeend", tag());
-    } else if (el.matches(".pane")) el.insertAdjacentHTML("beforeend", tag().replace("prem-tag", "prem-tag corner"));
+    const sw = el.matches(".toggle") && $(":scope > .switch", el), label = $(":scope > .lbl", el);
+    if (sw) sw.insertAdjacentHTML("beforebegin", tag());            // a switch: the tag sits just left of it
+    else if (label) label.insertAdjacentHTML("afterend", tag());    // a setting row: after its name
+    else if (el.matches(".pane")) el.insertAdjacentHTML("beforeend", tag().replace("prem-tag", "prem-tag corner"));
     else el.insertAdjacentHTML("afterbegin", tag());
   });
 }
@@ -694,17 +694,18 @@ window.ui = {
     if (!n) return;
     const box = $("#duoViews");
     box.classList.toggle("many", n > 1);
+    box.classList.toggle("n4", n === 4); box.classList.toggle("n5", n >= 5);   // 4-5 alts: smaller, still one row
     // a live view can be dragged onto the big frame to make that alt the main (with 2-3 alts each
     // also gets a button under it; the live picture covers the box itself, so nothing shows inside)
     box.innerHTML = Array.from({ length: n }, (_, i) => i < open
       ? `<div class="duo-cell"><div class="duo-box live" data-i="${i + 1}"><span>${n > 1 ? "Alt " + (i + 1) : "Your alt's Roblox shows here"}</span></div>${
-          n > 1 ? `<button class="btn sm" data-swap="${i + 1}">${icon("arrow-up-down")}Make alt ${i + 1} the main</button>` : ""}</div>`
+          n > 1 ? `<button class="btn sm" data-swap="${i + 1}" title="Make alt ${i + 1} the main">${icon("arrow-up-down")}${n > 3 ? "Make main" : `Make alt ${i + 1} the main`}</button>` : ""}</div>`
       : `<div class="duo-cell"><div class="duo-box empty"><div><h4>Open ${n > 1 ? "alt " + (i + 1) + "'s" : "your alt's"} Roblox</h4>
            <p>Start <code>Tools\\Roblox Multi-Instance</code>, open another Roblox, log in with the alt and join your private server. It shows up here by itself.</p></div></div></div>`).join("");
     box.onclick = (e) => { const b = e.target.closest("[data-swap]"); if (b) send("duoSwap", { i: +b.dataset.swap }); };
     box.onpointerdown = duoDrag;
     $("#duoTitle").textContent = n > 1 ? `Your ${n} alts` : "Your alt";
-    $("#duoInfo [data-cmd=duoSwap]").hidden = n > 1;     // 2-3 alts: each view has its own button
+    $("#duoInfo [data-cmd=duoSwap]").hidden = n > 1;     // 2-5 alts: each view has its own button
     $("#duoAltLine").innerHTML = n > 1 ? "<b>Alts</b> are the live views on the left." : "<b>Alt</b> is the live view on the left.";
   },
   spots(map, list, walkKind, walkText) {

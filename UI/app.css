@@ -124,12 +124,17 @@ html.duo, html.duo body { height: 970px; }
 }
 html.duo #duo { display: flex; }
 #duoViews { display: flex; gap: 12px; flex: none; align-items: flex-start; }
-.duo-box {          /* the macro draws each alt's live picture exactly here: 400 x 300, or 300 x 225 for 2-3 alts */
+.duo-box {          /* the macro draws each alt's live picture exactly here: 400 x 300, 300 x 225 for 2-3 alts, 240 x 180 for 4, 192 x 144 for 5 (DuoRect) */
   position: relative; width: 400px; height: 300px; flex: none;
   display: grid; place-items: center; color: var(--faint); font-size: 12px;
   background: rgba(255, 255, 255, .03);
 }
 #duoViews.many .duo-box { width: 300px; height: 225px; }
+#duoViews.n4 .duo-box { width: 240px; height: 180px; }
+#duoViews.n5 .duo-box { width: 192px; height: 144px; }
+#duoViews.n5 .duo-box.empty { padding: 8px; }
+#duoViews.n5 .duo-box.empty h4 { font-size: 13px; }
+#duoViews.n5 .duo-box.empty p { font-size: 10px; }
 .duo-cell { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
 .duo-box.live { cursor: grab; }
 .duo-box.live.dragging { cursor: grabbing; }
@@ -499,6 +504,10 @@ body.classic .prem-tag {
   color: #fff; background: linear-gradient(135deg, #f9a8d4, #ec4899); box-shadow: 0 0 10px rgba(236, 72, 153, .4); text-shadow: 0 1px 1px rgba(131, 24, 67, .45);
 }
 body.classic .prem-tag svg.i { width: 11px; height: 11px; stroke-width: 2.4; }
+body.classic .toggle > .prem-tag, body.classic .row > .prem-tag { flex: none; margin-left: 0; }
+/* the narrow Dungeon columns: just the crown, so the setting's text keeps its room */
+body.classic .cols .toggle > .prem-tag { font-size: 0; gap: 0; padding: 4px; }
+body.classic .cols .toggle > .prem-tag svg.i { width: 12px; height: 12px; }
 body.classic .prem-tag.corner { position: absolute; top: 12px; right: 14px; margin: 0; z-index: 2; }
 body.classic .row.share > .prem-tag { margin: 0 4px 0 0; }
 body.classic .shop-more > .prem-tag { display: flex; width: fit-content; margin: 10px 0 2px; }
