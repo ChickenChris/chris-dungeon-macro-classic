@@ -183,19 +183,19 @@ Det(name, &x := "", &y := "") {
 ; (a colour filter, HDR, a Roblox mod with other fonts...) and the macro sat on "looking for
 ; something to do" in the lobby. Then the label is read as text instead (at most every 2.5 s).
 LobbyByText(&x := "", &y := "") {
-    static last := -9999, seen := false, told := false
+    static last := -9999, hit := false, told := false
     if A_TickCount - last < 2500 {
-        if seen
+        if hit
             x := 767, y := 522
-        return seen
+        return hit
     }
-    last := A_TickCount, seen := false
+    last := A_TickCount, hit := false
     try {
         WinGetClientPos &ox, &oy, , , RBX
         txt := OCR.FromRect(ox + 728, oy + 500, 72, 40, OcrLang(), {scale: 3, grayscale: true}).Text
-        seen := RegExMatch(txt, "i)\bar[e3c]a[s5]\b") > 0
+        hit := RegExMatch(txt, "i)\bar[e3c]a[s5]\b") > 0
     }
-    if seen {
+    if hit {
         x := 767, y := 522
         if !told {
             told := true
@@ -203,7 +203,7 @@ LobbyByText(&x := "", &y := "") {
             SaveDebugShot("lobby")
         }
     }
-    return seen
+    return hit
 }
 
 ; The "Don't Miss Out!" tournament ad pops up over the right side of the screen. It isn't part
