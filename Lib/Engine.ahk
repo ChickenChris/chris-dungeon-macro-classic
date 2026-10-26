@@ -2461,9 +2461,9 @@ PlayStage() {
         SetupCamera()
         WaitForVote()
         ctx := NewPlaceCtx()
-        if cfg["useBuild"] && cfg["build"].Length
+        if BuildMode()                          ; the build order OR the Units tab, not both
             RunBuildOrder(ctx)
-        if !ctx.over
+        else
             PlaceAll(ctx)
     }
     allPlaced := true                       ; placing is over: upgrades can use the F panel now
@@ -2913,6 +2913,10 @@ PlaceSlot(ctx, n, need) {
 }
 
 ; ---------- build order ----------
+; The build order and the Units tab are two separate ways to play: with the build order on, only
+; its steps place and upgrade (nothing from the Units tab before or after); with it off, the Units
+; tab does everything. (They used to mix: the Units tab filled in the rest after the build order.)
+BuildMode() => cfg["useBuild"] && cfg["build"].Length
 ; steps: {kind: "place"|"upgrade", slot, count, up}   up: 0 = none, N = N times, -1 = to max
 RunBuildOrder(ctx) {
     ctx.build := true
@@ -2946,7 +2950,7 @@ RunBuildOrder(ctx) {
         }
     }
     ctx.build := false
-    AddLog("Build order done")
+    AddLog("Build order done (the Units tab isn't used with the build order on)")
 }
 
 StepText(st) {
@@ -3704,11 +3708,16 @@ UpgradeAndWatch() {
             AddLog("The stage looks over but the end screen wasn't recognised")
             return
         }
-        TopUpUnits()
-        busy := UpgradePass()
-        if !busy {
-            Step("units done, watching the stage")
-            UpgradesDoneHint()
+        if BuildMode() {                       ; the build order did it all: just watch the stage
+            busy := false
+            Step("build order done, watching the stage")
+        } else {
+            TopUpUnits()
+            busy := UpgradePass()
+            if !busy {
+                Step("units done, watching the stage")
+                UpgradesDoneHint()
+            }
         }
         if A_TickCount - lastAfk > 60000 {
             Clk(560, 560)

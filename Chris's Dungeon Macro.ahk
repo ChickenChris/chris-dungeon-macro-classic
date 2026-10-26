@@ -168,6 +168,9 @@ loop 6 {
     SlotDDL("x560 y" (y + 2) " w80", nums, A_Index, "prio", 0)
     SlotDDL("x670 y" (y + 2) " w105", limits, A_Index, "limit", 1)
 }
+MG.SetFont("s9 norm c" CL.warn)
+global unitsNoteV := A("Text", "x205 y352 w570 h18", "The build order is on, so these slots aren't used. Switch it off on the Build order tab to play with them.")
+MG.SetFont("s10 norm c" CL.text)
 Divider(372)
 MG.SetFont("s10 bold c" CL.text)
 A("Text", "x205 y388 w200 h26 +0x200", "Placement pattern")
@@ -191,7 +194,7 @@ MG.SetFont("s10 norm c" CL.text)
 
 ; ---------- Build ----------
 StartPanel("Build")
-Heading("Build order", "Your own plan, run step by step at the start of every stage. The Units tab fills in the rest.")
+Heading("Build order", "Your own plan, run step by step at the start of every stage. While it's on, the Units tab isn't used.")
 global useBuildTog := TogCfg("x205 y86 w570", "Use the build order", "useBuild")
 MG.SetFont("s8 bold c" CL.muted)
 A("Text", "x205 y122 w50 h26 +0x200 Background" CL.line, "    #")
@@ -214,7 +217,7 @@ Btn("x445 y392 w100 h34", "Remove", BuildRemove)
 Btn("x555 y392 w105 h34", "Move up", () => BuildMove(-1))
 Btn("x670 y392 w105 h34", "Move down", () => BuildMove(1))
 MG.SetFont("s9 norm c" CL.muted)
-A("Text", "x205 y438 w570 h110", "Example:  1. Place slot 1 x2, upgrade each 2 times   2. Place slot 6 x1, upgrade each to max   3. Upgrade slot 1 to max.`n`nA step only moves on once it's done, waiting for yen if it needs to (an upgrade stuck for 90s is skipped). After the last step it places whatever the Units tab still asks for, and keeps upgrading by priority. 'To max' in a step means the real max, even past the Until limit on the Units tab.")
+A("Text", "x205 y438 w570 h110", "Example:  1. Place slot 1 x2, upgrade each 2 times   2. Place slot 6 x1, upgrade each to max   3. Upgrade slot 1 to max.`n`nA step only moves on once it's done, waiting for yen if it needs to (an upgrade stuck for 90s is skipped). The build order plays the whole stage by itself: units you don't put in a step aren't placed, and the Units tab isn't used. 'To max' in a step means the unit's real max.")
 MG.SetFont("s10 norm c" CL.text)
 
 ; ---------- Spots ----------
@@ -1204,6 +1207,8 @@ ShowPanel(name, *) {
     }
     if name = "Spots"
         RefreshSpots()
+    if name = "Units"                       ; the build order and the Units tab don't mix: say so
+        unitsNoteV.Visible := BuildMode()
 }
 
 HoverCheck() {
