@@ -40,12 +40,12 @@
   <div id="duoInfo">
     <div class="duo-kicker">Fool's Hunt · Bring own team</div>
     <div class="duo-head"><h3 id="duoTitle">Your alt</h3>
-      <div class="mode-stop" data-tip="How many Roblox accounts play together: your main plus 1 to 3 alts"><small>Accounts</small><div class="stepper" id="foolAccounts"></div></div></div>
+      <div class="mode-stop" data-tip="How many Roblox accounts play together: your main plus 1 to 5 alts"><small>Accounts</small><div class="stepper" id="foolAccounts"></div></div></div>
     <p class="hint">Alts wait behind your main Roblox. The macro brings each one forward when it has to walk to the pad, press Play Here or Replay, then puts your main back.</p>
     <ul>
       <li><b>Main</b> plays in the big frame above.</li>
       <li id="duoAltLine"><b>Alt</b> is the live view on the left.</li>
-      <li>All in the same <b>private server</b>, alts level 15+. Up to 3 alts (4 accounts).</li>
+      <li>All in the same <b>private server</b>, alts level 15+. Up to 5 alts (6 accounts).</li>
     </ul>
     <p class="hint" id="duoSwapHint">Wrong account in the big frame? Stop the macro, then <b>drag an alt's view onto the big frame</b> to make it your main.</p>
     <button class="btn sm" data-cmd="duoSwap"><svg class="i" data-icon="arrow-up-down"></svg>Swap main and alt</button>
@@ -66,7 +66,7 @@
         </div></div>
         <div class="mode-sub" id="foolSub"><div class="mode-sub-in">
           <div class="seg wide" id="segFoolJoin" data-tip="Find Match plays with others and types in the matchmaking number for you. After each round it goes back to the lobby, walks to the pad and finds a new match"></div>
-          <label class="toggle" data-key="foolOwnTeam" style="flex:1;margin:0" data-tip="Keep your own 6 units: Roblox is frozen while each round loads (don't touch the mouse), so you join with your hotbar instead of the event's units. Someone else has to start the round: with Find Match the other players do (no alt needed); with Play Here it's your alt account (level 15+, up to 3 alts) in a second Roblox in your private server (Tools\Roblox Multi-Instance)"><span>Own team</span><i class="switch"></i></label>
+          <label class="toggle" data-key="foolOwnTeam" style="flex:1;margin:0" data-tip="Keep your own 6 units: Roblox is frozen while each round loads (don't touch the mouse), so you join with your hotbar instead of the event's units. Someone else has to start the round: with Find Match the other players do (no alt needed); with Play Here it's your alt account (level 15+, up to 5 alts) in a second Roblox in your private server (Tools\Roblox Multi-Instance)"><span>Own team</span><i class="switch"></i></label>
           <div class="mode-stop" data-tip="How long your main stays frozen while a round loads (seconds). Shorter = you join sooner. Too short and the round hasn't started yet, then you get the event units instead of your own"><small>Freeze (s)</small><div class="stepper" id="foolFreeze"></div></div>
         </div></div>
       </div>
@@ -135,7 +135,7 @@
       <div class="pane fool-note"><b>Fool's Hunt build order.</b> Only used in Fool's Hunt with your own team (up to 20 of a unit per step). Dungeons and Infinity Castle have their own.</div>
       <div class="pane">
         <label class="toggle" data-key="useBuild"><span>Use the build order<small>Plays only these steps. The Units tab isn't used while it's on</small></span><i class="switch"></i></label>
-        <div class="row share" data-premium="Build share codes">
+        <div class="row share">
           <span class="hint">Share it as a short code, for example in Discord</span>
           <button class="btn sm" id="bCopy"><svg class="i" data-icon="copy"></svg>Copy code</button>
           <button class="btn sm" id="bPaste"><svg class="i" data-icon="clipboard-paste"></svg>Paste code</button>

@@ -275,6 +275,8 @@ HandleMessage(msg) {
         case "importPick": ImportPick()
         case "importDo": ImportDo(m.Get("parts", []))
         case "backup": BackupConfig()
+        case "copyText": A_Clipboard := m.Get("text", "")            ; build share codes (free in Classic too)
+        case "pasteBuild": UI("pasteBuild", A_Clipboard)
         case "drag": DragWindow()
         case "min": MG.Minimize()
         case "close": SaveConfig(), ExitApp()
