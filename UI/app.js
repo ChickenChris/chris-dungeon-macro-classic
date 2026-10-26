@@ -60,7 +60,7 @@ document.addEventListener("click", (e) => {
 $("#title").addEventListener("mousedown", (e) => {
   if (e.button === 0 && !e.target.closest("button")) send("drag");
 });
-document.addEventListener("contextmenu", (e) => { if (!e.target.closest("input")) e.preventDefault(); });
+document.addEventListener("contextmenu", (e) => { if (!e.target.closest("input, textarea")) e.preventDefault(); });
 
 // ---------------------------------------------------------------- small controls
 function setVal(key, value) {
@@ -742,7 +742,13 @@ window.ui = {
   },
   pasteBuild(text) {
     const steps = /aa build/i.test(text || "") ? parseBuildCode(text) : [];
-    if (!steps.length) return toast('Copy a build code first. It starts with "AA build:"', "bad");
+    // no code on the clipboard (or the macro couldn't read it on this PC): a box to paste it into
+    if (!steps.length) return modal("Paste a build code", `<p class="sub">Paste the code here with Ctrl+V. It starts with "AA build:"</p>
+      <textarea id="codeIn" spellcheck="false" placeholder="AA build: P1x2u2 P6x1umax"></textarea>`, "Next", (m) => {
+        const t = $("#codeIn", m).value;
+        if (!parseBuildCode(t).length) { toast('That isn\'t a build code. It starts with "AA build:"', "bad"); return false; }
+        setTimeout(() => ui.pasteBuild(/aa build/i.test(t) ? t : "AA build: " + t), 0);
+      }), setTimeout(() => $("#codeIn")?.focus(), 30);
     const list = steps.map((st, i) => `<div class="item sm"><span class="num">${i + 1}</span><span class="txt">${esc(stepText(st))}</span></div>`).join("");
     const mine = S.cfg.build.length;
     modal("Use this build order?", `<p class="sub">${mine ? `It replaces your ${mine} step${mine === 1 ? "" : "s"}.` : "Your build order is empty."}</p><div class="list scroll" style="max-height:250px">${list}</div>`, "Use it", () => {

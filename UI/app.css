@@ -479,6 +479,9 @@ body[data-run="stopping"] .dot { background: var(--bad); }
 #modal .dialog h3 { font: 600 17px "Outfit", sans-serif; margin-bottom: 2px; }
 #modal .list { gap: 2px; }
 #modal .toggle { padding: 4px 2px; }
+#modal textarea { width: 100%; height: 90px; resize: none; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line);
+  background: rgba(0, 0, 0, .35); color: var(--cloud); font: 12px/1.5 "JetBrains Mono", monospace; user-select: text; }
+#modal textarea:focus { outline: none; border-color: var(--acc); }
 
 /* ---------- shop list ---------- */
 .item.tall { height: 42px; }
