@@ -734,7 +734,7 @@ window.ui = {
   },
   importAsk(from, parts) {
     const rows = parts.map((p) => `<label class="toggle" data-id="${p.id}"><span>${esc(p.label)}<small>${esc(p.detail)}</small></span><i class="switch ${p.on ? "on" : ""}"></i></label>`).join("");
-    modal("Import settings", `<p class="sub">From ${esc(from)}. Your current settings are replaced for what you pick.</p><div class="list">${rows}</div>`, "Import", (m) => {
+    modal("Import settings", `<p class="sub">From ${esc(from)}. Your current settings are replaced for what you pick.</p><div class="list scroll" style="max-height:400px">${rows}</div>`, "Import", (m) => {
       const picked = $$(".toggle", m).filter((t) => $(".switch", t).classList.contains("on")).map((t) => t.dataset.id);
       if (!picked.length) { toast("Pick at least one thing to import", "bad"); return false; }
       send("importDo", { parts: picked });
