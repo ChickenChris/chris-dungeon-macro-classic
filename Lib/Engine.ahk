@@ -2658,12 +2658,14 @@ WaitForVote() {
 ; ---------- walking to a spot after teleporting ----------
 ; a route is "key+ms,key-ms,..."  (+ = press, - = release, ms since start)
 WalkRoute(mapName) {
-    route := cfg["walks"].Has(mapName) ? cfg["walks"][mapName] : BuiltInWalk(mapName)
+    key := PlaceKey(mapName)
+    ; Fool's Hunt spawns you elsewhere on a map than its dungeon: only a walk recorded there
+    route := cfg["walks"].Has(key) ? cfg["walks"][key] : key = mapName ? BuiltInWalk(mapName) : ""
     if route = ""
         return
     Step("walking to the spot")
     PlayRoute(route)
-    AddLog("Walked to the " mapName " spot")
+    AddLog("Walked to the " key " spot")
 }
 
 PlayRoute(route) {
@@ -3066,8 +3068,8 @@ UpgradeGroup(units, times) {
 ; (nearest the middle first) so there's always somewhere new to try
 PlacementPoints() {
     pts := []
-    if cfg["useSpots"] && cfg["spots"].Has(curMap)
-        for p in cfg["spots"][curMap]
+    if cfg["useSpots"] && cfg["spots"].Has(PlaceKey(curMap))
+        for p in cfg["spots"][PlaceKey(curMap)]
             pts.Push(p)
     for p in PatternPoints(cfg["pattern"])
         pts.Push(p)
@@ -4523,6 +4525,7 @@ PixelIs(x, y, color) {
 FoolRandom() => false
 FoolTick() => 0
 FoolWaitHook() => 0
+PlaceKey(mapName) => mapName           ; Premium: Fool's Hunt keeps its own spots and walks
 RelinkRoblox() => 0                 ; Premium: finds the main's new window after a reopen
 VoteOnScreen() => false              ; Premium: a Fool's Hunt card vote is up
 ClearVote() => 0
