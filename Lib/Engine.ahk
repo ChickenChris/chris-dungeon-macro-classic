@@ -34,6 +34,7 @@ global pauseTotal := 0         ; ms spent paused (keeps walk timing right)
 global pausedAt := 0           ; when the current pause started
 global stageActive := false
 global stageStart := 0
+global walkedHere := false     ; walked to the map's spot this stage (PlaceSlot: back to spawn if nothing fits)
 global bossDone := false
 global chestsDone := false      ; this dungeon's saved chests have been opened
 global curMap := "Unknown"
@@ -2458,6 +2459,7 @@ PlayStage() {
         stageStart := A_TickCount
         lastResult := ""
         placedUnits := [], allPlaced := false, slotPrice := Map()
+        global walkedHere := false
         SetupCamera()
         WaitForVote()
         ctx := NewPlaceCtx()
@@ -2666,6 +2668,7 @@ WalkRoute(mapName) {
         return
     Step("walking to the spot")
     PlayRoute(route)
+    global walkedHere := true                   ; PlaceSlot goes back to spawn if nothing fits there
     AddLog("Walked to the " key " spot")
 }
 
@@ -2883,6 +2886,16 @@ PlaceSlot(ctx, n, need) {
         }
         if !attempts && got < need
             ctx.fails := Map()                 ; every spot is used or failed twice: give them another go
+        ; walked to the map's spot and not one unit fits anywhere: the walk went off, or it isn't the
+        ; map it was taken for (a Fool's Hunt loading screen once said Mountain Temple on another
+        ; map, and it walked out to where nothing can be placed). Back to spawn, place from there
+        if got < need && !placedUnits.Length && walkedHere && attempts >= lv[1] && !ctx.HasOwnProp("respawned") {
+            ctx.respawned := true
+            AddLog("Nothing could be placed after walking to the " curMap " spot (wrong map, or the walk went off). Back to spawn, placing from there")
+            GoToSpot(curMap, false, true)
+            ctx.fails := Map(), ctx.used := Map(), ctx.cursor := 1
+            continue
+        }
         if got < need {
             stuck := got = before ? stuck + 1 : 0
             ; with some already down, a few empty rounds usually means the game's limit for this unit
