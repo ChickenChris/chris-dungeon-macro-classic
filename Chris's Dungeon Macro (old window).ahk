@@ -1348,6 +1348,12 @@ LoadConfig() {
         if list.Length
             cfg["spots"][name] := list
     }
+    ; Premium's Fool's Hunt keeps its own spots and walks ("Navy Bay (Fool's Hunt)"). Settings
+    ; imported or copied from Premium bring them along: Classic has no Fool's Hunt, so leave them out
+    for list in [cfg["spots"], cfg["walks"]]
+        for name in [list*]
+            if InStr(name, "(Fool's Hunt)")
+                list.Delete(name)
 }
 
 SaveConfig(*) {
