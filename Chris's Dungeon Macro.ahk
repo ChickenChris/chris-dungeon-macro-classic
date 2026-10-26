@@ -381,6 +381,14 @@ SetTimer UpdateHoleHint, 2000
 if WinExist(RBX)
     FixWindow()
 UpdateHoleHint()
+; Update.bat can't replace itself while it runs (Windows reads it line by line), so updates leave
+; it out. The newest one comes along as Lib\Update.bat.new and is put in place here, while it isn't
+; running. (The old one had the download inside the .bat, which one antivirus flagged.)
+try {
+    newBat := A_ScriptDir "\Lib\Update.bat.new", oldBat := A_ScriptDir "\Update.bat"
+    if FileExist(newBat) && (!FileExist(oldBat) || FileRead(newBat) !== FileRead(oldBat))
+        FileCopy newBat, oldBat, true
+}
 AddLog("Ready. Press F2 to start.")
 AddLog("Game settings needed: 'Show Upgrade UI on left' ON, and the upgrade menu must pop up when you place a unit (setting 'Disable Auto-Open Upgrade UI').")
 if !WinExist(RBX)
