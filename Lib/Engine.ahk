@@ -1495,53 +1495,127 @@ OpenChestSlot(x, y) {
         ; still on the chest screen after a moment = this chest is empty
         if !WaitFor(() => !Det("Chest"), 1500)
             break
-        ReadChestReward()                       ; what it gave, before it's clicked away
-        ClaimReward()
+        CollectRewards()                        ; what it gave (read before it's clicked away)
         opened++
     }
     return opened
 }
 
 ; ---------- chest rewards ----------
-; After a chest opens, the reward shows big in the middle with its name and amount under it:
-; "Star Remnant (Limited) (x2)", "Gems (x150)", "Stat Cube (x3)", then its rarity. It's read
-; before being clicked away, added up for the session (the Dashboard) and logged.
+; After a chest opens, the reward shows big in the middle with its name under it and the rarity
+; under that: "Star Remnant (Limited) (x2)" / "Mythic", "Gems (x150)" / "Common", or a unit with
+; no amount: "Snow Reaper (War)" / "Secret". During a 2x event one chest shows two rewards, one
+; after the other. They're read before being clicked away, added up for the session (the
+; Dashboard) and logged; a Secret unit also gets a popup and a webhook message.
 global chestLoot := Map()       ; reward name -> how many since Start
 
-ReadChestReward() {
-    t0 := A_TickCount
-    while A_TickCount - t0 < 2500 {             ; the name comes up after a short reveal
-        for tf in [{scale: 2, grayscale: true}, {scale: 2, grayscale: true, invertcolors: true}] {
-            txt := ""
-            try {
-                WinGetClientPos &ox, &oy, , , RBX
-                txt := OCR.FromRect(ox + 100, oy + 330, 600, 190, OcrLang(), tf).Text
-            }
-            if RegExMatch(txt, "i)([A-Za-z][A-Za-z' ]*?(?:\s*\(\s*[A-Za-z][A-Za-z ]*\))?)\s*\(\s*[x×]\s*(\d[\d,. ]*)\)", &m) {
-                name := Trim(RegExReplace(m[1], "\s+", " "))
-                n := RegExReplace(m[2], "\D")
-                if name != "" && n != "" && Integer(n) > 0 {
-                    AddLoot(name, Integer(n))
-                    return true
-                }
-            }
+; one look at the reward text: {name, n, rarity} or "" when there's none on screen
+ReadRewardText() {
+    for tf in [{scale: 2, grayscale: true}, {scale: 2, grayscale: true, invertcolors: true}] {
+        txt := ""
+        try {
+            WinGetClientPos &ox, &oy, , , RBX
+            txt := OCR.FromRect(ox + 100, oy + 330, 600, 190, OcrLang(), tf).Text
         }
-        Wait(250)
+        if IsObject(r := ParseReward(txt))
+            return r
     }
-    return false
+    return ""
+}
+
+; the reward in the read text: "Name (x5)" / "Name (Limited) (x5)", or a unit (no amount) as the
+; line right above its rarity ("Snow Reaper (War)" / "Secret")
+ParseReward(txt) {
+    static rarities := "i)^\W*([s5]ecr[e3]t|myth[il1]c|legendary|ep[il1]c|rare|uncommon|common|exclusive|celestial|divine)\b"
+    if Trim(txt) = ""
+        return ""
+    lines := []
+    for ln in StrSplit(txt, "`n", "`r")
+        if Trim(ln) != ""
+            lines.Push(Trim(ln))
+    rarity := "", at := 0
+    for i, ln in lines
+        if RegExMatch(ln, rarities, &rm) {
+            rarity := StrTitle(RegExReplace(RegExReplace(RegExReplace(rm[1], "^5", "s"), "3", "e"), "[1l](?=c)", "i")), at := i
+            break
+        }
+    if RegExMatch(txt, "i)([A-Za-z][A-Za-z' ]*?(?:\s*\(\s*[A-Za-z][A-Za-z ]*\))?)\s*\(\s*[x×]\s*(\d[\d,. ]*)\)", &m) {
+        name := Trim(RegExReplace(m[1], "\s+", " ")), n := RegExReplace(m[2], "\D")
+        if name != "" && n != "" && Integer(n) > 0
+            return {name: name, n: Integer(n), rarity: rarity}
+    }
+    if at > 1 {
+        name := Trim(RegExReplace(lines[at - 1], "[^A-Za-z0-9'(),. ]"))
+        n := 1
+        ; an amount whose bracket got lost in reading: "Star Remnant (x5"
+        if RegExMatch(name, "i)^(.*?)\s*\(?\s*[x×]\s*(\d[\d,.]*)\s*\)?\s*$", &mm) && Trim(mm[1]) != ""
+            name := Trim(mm[1]), n := Integer(RegExReplace(mm[2], "\D"))
+        if StrLen(name) >= 3 && !InStr(name, "click") && n > 0
+            return {name: name, n: n, rarity: rarity}
+    }
+    return ""
+}
+
+; waits up to ms for a reward to show up and returns it ("" if none came)
+ReadChestReward(ms := 2500) {
+    t0 := A_TickCount
+    loop {
+        if IsObject(r := ReadRewardText())
+            return r
+        if A_TickCount - t0 > ms
+            return ""
+        Wait(200)
+    }
+}
+
+; one opened chest: every reward it shows (two during a 2x event), then back to the chest screen.
+; A reward counts as new when the text went away and came back, or changed, so a click that
+; didn't go through isn't counted twice
+CollectRewards() {
+    last := ReadChestReward(2500)
+    if !IsObject(last)
+        return ClaimReward()                    ; nothing readable: just click through as before
+    AddLoot(last)
+    loop 6 {
+        Clk(560, 560)
+        t0 := A_TickCount, gap := false
+        loop {
+            Wait(150)
+            Stale()
+            if Det("Chest")
+                return true                     ; back on the chest screen
+            if Det("EndScreen")
+                return ClaimReward()            ; the "max cursed tokens" popup
+            r := ReadRewardText()
+            if !IsObject(r)
+                gap := true
+            else if gap || r.name != last.name || r.n != last.n {
+                AddLoot(r), last := r
+                break                           ; the next reward: click that one away too
+            }
+            if A_TickCount - t0 > 3000
+                break                           ; the same one for 3 s: the click didn't take
+        }
+    }
+    return ClaimReward()
 }
 
 ; adds a reward to the session totals (a slightly misread name joins the one it's close to)
-AddLoot(name, n) {
+AddLoot(r) {
     global chestLoot
-    key := name, norm := NormName(name)
+    key := r.name, norm := NormName(r.name)
     for k in chestLoot
         if NormName(k) = norm || Levenshtein(NormName(k), norm) <= 2 {
             key := k
             break
         }
-    chestLoot[key] := chestLoot.Get(key, 0) + n
-    AddLog("Chest: " key " x" n)
+    chestLoot[key] := chestLoot.Get(key, 0) + r.n
+    AddLog("Chest: " key " x" r.n (r.rarity != "" ? "  (" r.rarity ")" : ""))
+    if r.rarity = "Secret" && r.n = 1 {
+        AddLog("*** SECRET UNIT: " key " ***")
+        Notify("Secret unit: " key "!")
+        SendWebhook("Secret unit!", "**" key "** dropped from a chest", 0xF59E0B)
+    }
     LootChanged()
 }
 
