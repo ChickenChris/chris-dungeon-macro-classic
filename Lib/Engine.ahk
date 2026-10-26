@@ -4114,9 +4114,9 @@ IsDisconnected() {
 }
 
 ; returns true if it had to reconnect
-CheckConnection() {
+CheckConnection(force := false) {
     global stageActive
-    if WinExist(RBX) && !IsDisconnected()
+    if !force && WinExist(RBX) && !IsDisconnected()
         return false
     AddLog(WinExist(RBX) ? "Disconnected! Reconnecting..." : "Roblox is closed, reopening it...")
     SendWebhook("Disconnected", "Trying to reconnect.`n" Summary(), 0xF59E0B)
@@ -4126,6 +4126,7 @@ CheckConnection() {
         Wait(15000)
         t0 := A_TickCount
         while A_TickCount - t0 < 150000 {
+            RelinkRoblox()                      ; Premium: the reopened main has a new window
             if WinExist(RBX) {
                 FixWindow()
                 try WinActivate RBX
@@ -4146,13 +4147,27 @@ CheckConnection() {
 }
 
 ; closes Roblox and opens it again (lands in the lobby), then waits there like a reconnect
+; Roblox doesn't always close when asked (it can hang on the way out or ask first): the reconnect
+; then saw it still open, did nothing, and the macro sat silent for hours. So a Roblox that's still
+; there after 10 s is force-closed (only that window's own process: alts keep running), and Roblox
+; is always opened again afterwards.
 RejoinToLobby() {
     global stageActive
     stageActive := false
+    pid := 0
+    try pid := WinGetPID(RBX)
     try WinClose RBX
-    try WinWaitClose RBX, , 10
+    closed := false
+    try closed := WinWaitClose(RBX, , 10)
+    if !closed && pid && ProcessExist(pid) {
+        AddLog("Roblox didn't close by itself, closing it")
+        try ProcessClose pid
+        try ProcessWaitClose pid, 10
+    }
     Wait(2000)
-    CheckConnection()                           ; Roblox is closed: opens it and waits for the lobby
+    if WinExist(RBX) && pid && WinGetPID(RBX) = pid
+        AddLog("Roblox still won't close. Reopening it anyway")
+    CheckConnection(true)                       ; opens Roblox and waits for the lobby
 }
 
 Launch() {
@@ -4350,6 +4365,7 @@ PixelIs(x, y, color) {
 FoolRandom() => false
 FoolTick() => 0
 FoolWaitHook() => 0
+RelinkRoblox() => 0                 ; Premium: finds the main's new window after a reopen
 VoteOnScreen() => false              ; Premium: a Fool's Hunt card vote is up
 ClearVote() => 0
 global foolVotes := 0              ; Premium counts its Fool's Hunt card votes (none here)
