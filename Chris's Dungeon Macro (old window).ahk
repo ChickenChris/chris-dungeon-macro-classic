@@ -414,7 +414,7 @@ F4::TogglePause()
 ;  Start / stop / pause
 ; =====================================================================
 StartMacro(*) {
-    global running, paused, chestLoot
+    global running, paused, chestLoot, dungeonLoot
     if running || manualRun
         return
     if !WinExist(RBX) {
@@ -425,7 +425,7 @@ StartMacro(*) {
     running := true, paused := false
     stat.runs := 0, stat.wins := 0, stat.losses := 0, stat.rooms := 0, stat.chests := 0, stat.dungeons := 0
     stat.startTick := A_TickCount, stat.pause0 := pauseTotal
-    chestLoot := Map()
+    chestLoot := Map(), dungeonLoot := Map()
     UpdateStats(), LootChanged()
     SetStatus("Running", CL.greenHi)
     SetTimer ClockTick, 1000

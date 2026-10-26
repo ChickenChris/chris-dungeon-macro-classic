@@ -1512,6 +1512,7 @@ OpenChestSlot(x, y) {
 ; after the other. They're read before being clicked away, added up for the session (the
 ; Dashboard) and logged; a Secret unit also gets a popup and a webhook message.
 global chestLoot := Map()       ; reward name -> how many since Start
+global dungeonLoot := Map()     ; the same for the dungeon being played (sent with "Dungeon cleared")
 
 ; one look at the reward text: {name, n, rarity} or "" when there's none on screen
 ReadRewardText() {
@@ -1642,6 +1643,7 @@ AddLoot(r) {
             break
         }
     chestLoot[key] := chestLoot.Get(key, 0) + r.n
+    dungeonLoot[key] := dungeonLoot.Get(key, 0) + r.n
     AddLog("Chest: " key " x" r.n (r.rarity != "" ? "  (" r.rarity ")" : ""))
     if r.rarity = "Secret" && r.n = 1 {
         AddLog("*** SECRET UNIT: " key " ***")
@@ -1653,9 +1655,25 @@ AddLoot(r) {
 }
 
 ; the session totals, most first: [[name, count], ...]
-LootList() {
+; "Gems x1,200 · Trait Crystal x3 · ..." (most first), cut to fit a Discord field
+LootText(loot) {
+    if !loot.Count
+        return "Nothing from chests"
+    out := ""
+    for e in LootList(loot) {
+        part := e[1] " x" RegExReplace(e[2], "\G\d+?(?=(\d{3})+$)", "$0,")
+        if StrLen(out) + StrLen(part) > 1000
+            return out " · ..."
+        out .= (out = "" ? "" : " · ") part
+    }
+    return out
+}
+
+LootList(loot := "") {
+    if !IsObject(loot)
+        loot := chestLoot
     out := []
-    for name, n in chestLoot {
+    for name, n in loot {
         i := out.Length + 1
         while i > 1 && out[i - 1][2] < n
             i--
@@ -1795,7 +1813,10 @@ HandleDungeonPopups() {
             stat.dungeons++
             UpdateStats()
             AddLog("Dungeon cleared!")
-            SendWebhook("Dungeon cleared", Summary(), 0x22C55E)
+            ; what the chests gave: this dungeon, and everything since Start
+            SendWebhook("Dungeon cleared", Summary(), 0x22C55E,
+                [["Rewards this dungeon", LootText(dungeonLoot)], ["Since Start", LootText(chestLoot)]])
+            global dungeonLoot := Map()
         }
         lastCleared := A_TickCount, cancels := 0
         chestsDone := false, bossDone := false

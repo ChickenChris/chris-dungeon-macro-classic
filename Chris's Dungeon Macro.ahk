@@ -479,7 +479,7 @@ Notify(msg, kind := "") => UI("toast", msg, kind)
 ;  Start / stop / pause
 ; =====================================================================
 StartMacro(*) {
-    global running, paused, chestLoot
+    global running, paused, chestLoot, dungeonLoot
     if running || manualRun
         return
     if !WinExist(RBX) {
@@ -490,7 +490,7 @@ StartMacro(*) {
     running := true, paused := false
     stat.runs := 0, stat.wins := 0, stat.losses := 0, stat.rooms := 0, stat.chests := 0, stat.dungeons := 0
     stat.startTick := A_TickCount, stat.pause0 := pauseTotal
-    chestLoot := Map()
+    chestLoot := Map(), dungeonLoot := Map()
     UpdateStats(), LootChanged()
     SetRun("running")
     SetTimer ClockTick, 1000
