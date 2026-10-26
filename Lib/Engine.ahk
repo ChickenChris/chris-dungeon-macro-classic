@@ -1643,6 +1643,7 @@ AddLoot(r) {
         AddLog("*** SECRET UNIT: " key " ***")
         Notify("Secret unit: " key "!")
         SendWebhook("Secret unit!", "**" key "** dropped from a chest", 0xF59E0B)
+        ShowcaseDrop(key, "chest")              ; Premium: posted in Chris's Discord (Settings)
     }
     LootChanged()
 }
@@ -4525,7 +4526,8 @@ PixelIs(x, y, color) {
 FoolRandom() => false
 FoolTick() => 0
 FoolWaitHook() => 0
-PlaceKey(mapName) => mapName           ; Premium: Fool's Hunt keeps its own spots and walks
+PlaceKey(mapName) => mapName
+ShowcaseDrop(unit, kind := "chest") => 0    ; Premium: posts a Secret unit in Chris's Discord           ; Premium: Fool's Hunt keeps its own spots and walks
 RelinkRoblox() => 0                 ; Premium: finds the main's new window after a reopen
 VoteOnScreen() => false              ; Premium: a Fool's Hunt card vote is up
 ClearVote() => 0
