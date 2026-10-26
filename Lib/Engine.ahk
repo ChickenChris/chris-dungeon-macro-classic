@@ -3102,6 +3102,36 @@ PlaceSlot(ctx, n, need) {
     return newUnits
 }
 
+; the middle of the picture as a few numbers: tells whether the character / camera is moving
+SceneSig() {
+    sig := []
+    try {
+        WinGetClientPos &ox, &oy, , , RBX
+        Stale(), Fresh()
+        scr := FindText()
+        y := 110
+        while y <= 450 {
+            x := 160
+            while x <= 640 {
+                c := scr.GetColor(ox + x, oy + y, 0)
+                sig.Push(((c >> 16) & 0xFF) + ((c >> 8) & 0xFF) + (c & 0xFF))
+                x += 40
+            }
+            y += 40
+        }
+    }
+    return sig
+}
+
+SigDiff(a, b) {
+    if !a.Length || a.Length != b.Length
+        return 999
+    d := 0
+    for i, v in a
+        d += Abs(v - b[i])
+    return d / a.Length / 3
+}
+
 ; remembers where a slot landed on this map (this session), so next stage tries there first
 LearnSpot(n, p) {
     list := goodSpots.Has(CapKey(n)) ? goodSpots[CapKey(n)] : (goodSpots[CapKey(n)] := [])
