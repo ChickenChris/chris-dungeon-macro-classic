@@ -2740,7 +2740,11 @@ SetMoveMode(want) {
             val := MoveModeValue(rowY)
         }
         ; still in Click to Move: a file says so, so it's put back even after a stop or a closed macro
-        try want != "default" && ok ? FileOpen(MOVE_FLAG, "w").Close() : FileDelete(MOVE_FLAG)
+        if want != "default" && ok {
+            try FileOpen(MOVE_FLAG, "w").Close()
+        } else {
+            try FileDelete(MOVE_FLAG)
+        }
     } finally
         CloseEscMenu()
     return ok
