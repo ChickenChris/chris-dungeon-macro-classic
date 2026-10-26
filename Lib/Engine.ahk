@@ -169,7 +169,7 @@ Det(name, &x := "", &y := "") {
     o := DetDefs()[name]
     a := o.area
     if !FT(&x, &y, a[1], a[2], a[3], a[4], o.err, o.err, o.pats)
-        return false
+        return name = "Lobby" && LobbyByText(&x, &y)
     if !OnAd(x, y, &b)
         return true
     ; it found the tournament ad: look again above and left of it
@@ -177,6 +177,33 @@ Det(name, &x := "", &y := "") {
         if r[3] > r[1] + 4 && r[4] > r[2] + 4 && FT(&x, &y, r[1], r[2], r[3], r[4], o.err, o.err, o.pats) && !OnAd(x, y)
             return true
     return false
+}
+
+; The lobby is found by a picture of the "Areas" button's label. On some PCs it never matches
+; (a colour filter, HDR, a Roblox mod with other fonts...) and the macro sat on "looking for
+; something to do" in the lobby. Then the label is read as text instead (at most every 2.5 s).
+LobbyByText(&x := "", &y := "") {
+    static last := -9999, seen := false, told := false
+    if A_TickCount - last < 2500 {
+        if seen
+            x := 767, y := 522
+        return seen
+    }
+    last := A_TickCount, seen := false
+    try {
+        WinGetClientPos &ox, &oy, , , RBX
+        txt := OCR.FromRect(ox + 728, oy + 500, 72, 40, OcrLang(), {scale: 3, grayscale: true}).Text
+        seen := RegExMatch(txt, "i)\bar[e3c]a[s5]\b") > 0
+    }
+    if seen {
+        x := 767, y := 522
+        if !told {
+            told := true
+            AddLog("Found the lobby by its text (its picture doesn't match on this PC)")
+            SaveDebugShot("lobby")
+        }
+    }
+    return seen
 }
 
 ; The "Don't Miss Out!" tournament ad pops up over the right side of the screen. It isn't part
