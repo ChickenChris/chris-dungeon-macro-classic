@@ -3446,8 +3446,15 @@ TryPlace(x, y, slot) {
 ; The game refused the unit with a red message: remember the limit so the macro stops trying.
 PlaceRefused(slot) {
     global mapFull
-    static toldMsg := false, toldFull := -1
+    static toldMsg := false, toldFull := -1, lastAt := 0, lastSlot := 0
     msg := LimitMessage(&said)
+    if msg = ""
+        return false
+    ; the red text stays up for a few seconds: seen right after another slot's refusal, it's that
+    ; old message, not this slot's (it gave every next slot a limit of 0, one second each)
+    if slot != lastSlot && A_TickCount - lastAt < 4000
+        return false
+    lastAt := A_TickCount, lastSlot := slot
     if msg = "limit" && !toldMsg {
         toldMsg := true
         AddLog("The game said: " RegExReplace(Trim(said), "\s+", " "))
@@ -3459,7 +3466,10 @@ PlaceRefused(slot) {
     ; like Elyssia's eels count too, so it can come before your own units reach 20
     ; only a clear "of this unit" is that unit's limit (it stops the slot for the map); anything
     ; else counts as the map being full, which just waits a minute and tries again
-    thisUnit := RegExMatch(said, "i)th[il1]s\s*un[il1]t|of\s*th[il1]s|of\s*the\s*un")
+    ; the number tells them apart too: a unit's limit is small (3 of this unit), the map's is 20
+    most := RegExMatch(said, "i)th[ae]n\s*(\d[\dOo]?)", &mm) ? Integer(RegExReplace(mm[1], "[Oo]", "0")) : 0
+    mapWords := RegExMatch(said, "i)sell|weaker|make\s*r|r[o0][o0]m\b|un[il1]ts")
+    thisUnit := !mapWords && (RegExMatch(said, "i)th[il1]s\s*un[il1]t|of\s*th[il1]s|of\s*the\s*un") || most && most < 10)
     if msg = "limit" && !thisUnit {
         mapFull := A_TickCount
         if toldFull != stageStart {
@@ -3482,9 +3492,21 @@ PlaceRefused(slot) {
         return true
     }
     if msg = "limit" {
-        slotCap[CapKey(slot)] := CountPlaced(slot)
-        slotFull[slot] := stageStart
-        AddLog("Slot " slot ": the game allows only " CountPlaced(slot) " of this unit, placing no more")
+        ; "more than 3 of this unit" with fewer counted: the rest were placed, but their menu didn't
+        ; show in time, so the macro didn't see it. The game's number is the real limit (it was
+        ; saved as 0 for the map before, and nothing of that slot was placed there again)
+        have := CountPlaced(slot)
+        if most > have {
+            slotCap[CapKey(slot)] := most
+            AddLog("Slot " slot ": the game allows " most " of this unit. " most - have " of them got placed without the macro seeing it"
+                . " (the unit's menu didn't show in time): set Placement speed slower in Settings")
+        } else if have {
+            slotCap[CapKey(slot)] := have
+            AddLog("Slot " slot ": the game allows only " have " of this unit, placing no more")
+        } else
+            AddLog("Slot " slot ": the game says no more of this unit, but none were seen being placed. "
+                . "Placing it again next stage (if this keeps happening: Placement speed slower in Settings)")
+        slotFull[slot] := stageStart              ; no more of it this stage either way
         return true
     }
     return false
