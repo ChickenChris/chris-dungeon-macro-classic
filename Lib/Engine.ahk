@@ -3441,6 +3441,10 @@ NearUnit(x, y, r) {
 TryPlace(x, y, slot) {
     global autoOpenSeen, autoOpenOff, clickOpened
     ClearVote()                             ; Fool's Hunt: a card vote first (a long run of tries let it run out)
+    if VoteOnScreen() {                     ; still up: placing clicks would land on the cards
+        Wait(500)                           ; (one picked Enemy Health and never confirmed it)
+        return false
+    }
     ClosePanel()                            ; the unit panel covers the right side of the map
     if UnitMenuOpen() {                     ; an open menu would look like this placement worked
         Clk(325, 185)
