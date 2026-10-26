@@ -212,7 +212,7 @@ OnWebMessage(sender, args) {
     ; Only the long jobs are queued (they'd hold up the page otherwise). Everything else runs
     ; straight away, because a paused script doesn't run queued jobs: queuing the window
     ; buttons, Import, Open folder and so on would make them do nothing while paused.
-    if RegExMatch(msg, '^\{"cmd":"(start|spotPick|recordWalk|testWalk)"')
+    if RegExMatch(msg, '^\{"cmd":"(start|spotPick|recordWalk|pickWalk|testWalk)"')
         SetTimer HandleMessage.Bind(msg), -1
     else
         HandleMessage(msg)
@@ -260,6 +260,7 @@ HandleMessage(msg) {
         case "spotMove": SpotMove(mp, m.Get("from", 0), m.Get("to", 0))
         case "spotClear": SpotClear(mp)
         case "recordWalk": RecordWalk(mp)
+        case "pickWalk": PickWalk(mp)
         case "testWalk": TestWalk(mp)
         case "clearWalk": ClearWalk(mp)
         case "start": StartMacro()
@@ -596,7 +597,9 @@ SendSpots(name) {
     for p in SpotsOf(name)
         pts.Push([p.x, p.y])
     key := PlaceKey(name)
-    if cfg["walks"].Has(key) {
+    if cfg["walks"].Has(key) && RegExMatch(cfg["walks"][key], "^click:(\d+),(\d+)", &cm) {
+        kind := "recorded", text := "Walks by clicking (Click to Move) to x " cm[1] ", y " cm[2] ". Roblox finds the way"
+    } else if cfg["walks"].Has(key) {
         parts := StrSplit(cfg["walks"][key], ",")
         secs := RegExMatch(parts[parts.Length], "(\d+)$", &m) ? m[1] / 1000 : 0
         kind := "recorded", text := "Your recorded walk: " parts.Length // 2 " key presses, " Round(secs, 1) " seconds"
@@ -715,6 +718,34 @@ RecordWalk(name) {
         ToolTip()
         AddLog("Recording stopped: " err.Message)
     }
+    ReleaseKeys()
+    manualRun := false
+    SendSpots(name)
+}
+
+; Click to Move walk: teleport to spawn like a recorded walk, then one click where the character
+; should end up. Roblox's own pathfinding gets there around fences (keys got stuck on Snowy Town's)
+PickWalk(name) {
+    global manualRun, cancelManual
+    if running || manualRun
+        return
+    if name = "" || name = "Unknown"
+        return Notify("Pick the map first")
+    if !WinExist(RBX)
+        return Notify("Open Roblox and load into " name " first")
+    manualRun := true, cancelManual := false
+    try {
+        FocusRoblox()
+        GoToSpot(name, false, true)             ; spawn and the usual camera, like when it plays
+        AddLog("Pick where to walk on " name ": click the spot in Roblox (Esc cancels)")
+        if p := PickPoint() {
+            cfg["walks"][PlaceKey(name)] := "click:" p.x "," p.y
+            SaveConfig()
+            AddLog("Saved a Click to Move walk for " PlaceKey(name))
+            Notify("Walk saved: it clicks there with Click to Move", "good")
+        }
+    } catch as err
+        AddLog("Picking the walk stopped: " err.Message)
     ReleaseKeys()
     manualRun := false
     SendSpots(name)

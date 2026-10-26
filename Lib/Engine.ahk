@@ -35,6 +35,7 @@ global pausedAt := 0           ; when the current pause started
 global stageActive := false
 global stageStart := 0
 global walkedHere := false     ; walked to the map's spot this stage (PlaceSlot: back to spawn if nothing fits)
+global MOVE_FLAG := A_ScriptDir "\Settings\click_to_move_on"   ; Roblox left in Click to Move (ClickWalk)
 global bossDone := false
 global chestsDone := false      ; this dungeon's saved chests have been opened
 global curMap := "Unknown"
@@ -2495,6 +2496,10 @@ FollowCamera() {
 
 SetupCamera() {
     Step("getting ready")
+    if FileExist(MOVE_FLAG) {                  ; a Click to Move walk was cut off: clicks would walk the character
+        AddLog("Roblox's Movement Mode was left on Click to Move, setting it back")
+        SetMoveMode("default")
+    }
     Keys("{Tab}")                      ; close the player list
     Wait(600)
     Clk(569, 72), Wait(300)
@@ -2669,9 +2674,149 @@ WalkRoute(mapName) {
     if route = ""
         return
     Step("walking to the spot")
-    PlayRoute(route)
+    if RegExMatch(route, "^click:(\d+),(\d+)", &cm)
+        ClickWalk(Integer(cm[1]), Integer(cm[2]))
+    else
+        PlayRoute(route)
     global walkedHere := true                   ; PlaceSlot goes back to spawn if nothing fits there
     AddLog("Walked to the " key " spot")
+}
+
+; ---------- Click to Move walks ----------
+; A walk can be one click instead of recorded keys ("click:x,y", picked on the Spots page): Roblox's
+; Movement Mode (Esc > Settings) is set to Click to Move just for the walk, the character finds its
+; own way there (around Snowy Town's fences, where W A S D got stuck), and it's set back afterwards.
+; Click to Move can't stay on: every click the macro makes would walk the character, and the camera
+; follows it. The menu is found by its text (Windows' text reader), not by fixed spots.
+ClickWalk(x, y) {
+    if !SetMoveMode("click") {
+        AddLog("Couldn't switch Roblox's Movement Mode to Click to Move (Esc > Settings), so no walk this time")
+        return false
+    }
+    Step("walking there (Click to Move)")
+    moved := false
+    for btn in ["Left", "Right"] {              ; Roblox walks on a left click; right as a fallback
+        sig0 := SceneSig()
+        MouseMove x, y
+        Sleep 120
+        Clk(x, y, btn)
+        Wait(1200)
+        if SigDiff(SceneSig(), sig0) >= 8 {     ; the camera follows the character: the picture moves
+            moved := true
+            break
+        }
+    }
+    if moved {                                  ; walk until the picture stops changing
+        t0 := A_TickCount, still := 0, sig := SceneSig()
+        while A_TickCount - t0 < 25000 && still < 4 {
+            Wait(300)
+            now := SceneSig()
+            still := SigDiff(now, sig) < 6 ? still + 1 : 0, sig := now
+        }
+    } else
+        AddLog("Click to Move: the character didn't move from the click")
+    if !SetMoveMode("default")
+        AddLog("Couldn't set Roblox's Movement Mode back. Set it to Default (Keyboard) yourself in Esc > Settings, or clicks will walk your character")
+    return moved
+}
+
+; sets Roblox's Movement Mode (Esc > Settings) to the option containing `want` ("click", "default")
+; and closes the menu again. True when it got there
+SetMoveMode(want) {
+    ok := false
+    try {
+        if !MoveModeRow(&rowY, &val)
+            return false
+        loop 4 {
+            if InStr(val, want) {
+                ok := true
+                break
+            }
+            ; the arrow at the right end of the row cycles Default (Keyboard) > Keyboard + Mouse > Click to Move
+            MouseMove 762, rowY
+            Sleep 120
+            Clk(768, rowY)
+            Wait(500)
+            val := MoveModeValue(rowY)
+        }
+        ; still in Click to Move: a file says so, so it's put back even after a stop or a closed macro
+        try want != "default" && ok ? FileOpen(MOVE_FLAG, "w").Close() : FileDelete(MOVE_FLAG)
+    } finally
+        CloseEscMenu()
+    return ok
+}
+
+; opens Esc > Settings and scrolls to "Movement Mode". rowY: the row's height in the game, val: its option
+MoveModeRow(&rowY, &val) {
+    WinGetClientPos &ox, &oy, &cw, &ch, RBX
+    if !EscMenuUp() {
+        Keys("{Esc}")
+        Wait(900)
+    }
+    settingsClicked := false, scrolled := 0
+    loop 12 {
+        r := 0
+        try r := OCR.FromRect(ox, oy, cw, ch, OcrLang(), {scale: 1.5, grayscale: true})
+        if !IsObject(r)
+            return false
+        for line in r.Lines
+            if RegExMatch(line.Text, "i)m[o0]vement\s*m[o0]de") && line.y > 100 {
+                rowY := line.y + line.h // 2
+                val := MoveModeValue(rowY)
+                return val != ""
+            }
+        if !settingsClicked {                   ; the menu opens on People: the Settings tab next to it
+            for w in r.Words
+                if w.Text = "Settings" && w.y < 140 {
+                    MouseMove w.x + w.w // 2, w.y + w.h // 2
+                    Sleep 150
+                    Clk(w.x + w.w // 2, w.y + w.h // 2)
+                    Wait(900)
+                    settingsClicked := true
+                    continue 2
+                }
+        }
+        if scrolled >= 40
+            break
+        MouseMove cw // 2, ch // 2              ; down the list a few notches at a time
+        loop 5 {
+            Send "{WheelDown}"
+            Sleep 40
+        }
+        scrolled += 5
+        Wait(500)
+    }
+    SaveDebugShot("move_mode")
+    AddLog("Couldn't find Movement Mode in Roblox's settings menu. Send Logs\move_mode_....bmp in Discord")
+    return false
+}
+
+MoveModeValue(rowY) {
+    try {
+        WinGetClientPos &ox, &oy, , , RBX
+        t := OCR.FromRect(ox + 360, oy + rowY - 15, 370, 30, OcrLang(), {scale: 2, grayscale: true}).Text
+        return StrLower(Trim(RegExReplace(t, "\s+", " ")))
+    }
+    return ""
+}
+
+; Roblox's Esc menu: its Resume / Leave buttons along the bottom
+EscMenuUp() {
+    try {
+        WinGetClientPos &ox, &oy, &cw, &ch, RBX
+        t := OCR.FromRect(ox, oy + ch - 90, cw, 90, OcrLang(), {scale: 1.5, grayscale: true}).Text
+        return RegExMatch(t, "i)resume") && RegExMatch(t, "i)leave")
+    }
+    return false
+}
+
+CloseEscMenu() {
+    loop 3 {
+        if !EscMenuUp()
+            return
+        Keys("{Esc}")
+        Wait(700)
+    }
 }
 
 PlayRoute(route) {

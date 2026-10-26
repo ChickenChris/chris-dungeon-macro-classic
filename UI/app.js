@@ -52,7 +52,7 @@ document.addEventListener("click", (e) => {
   const b = e.target.closest("[data-cmd]");
   if (!b) return;
   const cmd = b.dataset.cmd;
-  if (["spotPick", "spotClear", "recordWalk", "testWalk", "clearWalk"].includes(cmd)) send(cmd, { map: spotMap });
+  if (["spotPick", "spotClear", "recordWalk", "pickWalk", "testWalk", "clearWalk"].includes(cmd)) send(cmd, { map: spotMap });
   else send(cmd);
 });
 
