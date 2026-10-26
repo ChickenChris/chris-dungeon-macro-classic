@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Chris's Dungeon Macro</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body data-run="idle">
+<video id="bgv" muted loop autoplay playsinline disablepictureinpicture></video>
+<img id="bg" alt="">
+<canvas id="bgFreeze"></canvas>
+<div id="shade"></div>
+
+<header id="title">
+  <div class="brand"><div class="moon"></div><b>Chris's Dungeon Macro</b><span id="ver"></span></div>
+  <div id="pill"><i></i><span id="pillText">Idle</span></div>
+  <div class="spacer"></div>
+  <div class="keys">
+    <button class="key" data-cmd="fix"><kbd>F1</kbd>Snap Roblox</button>
+    <button class="key" data-cmd="start"><kbd>F2</kbd>Start</button>
+    <button class="key" data-cmd="stop"><kbd>F3</kbd>Stop</button>
+    <button class="key" data-cmd="pause"><kbd>F4</kbd>Pause</button>
+  </div>
+  <button class="winbtn" data-cmd="min" title="Minimize"><svg class="i" data-icon="minus"></svg></button>
+  <button class="winbtn close" data-cmd="close" title="Close"><svg class="i" data-icon="x"></svg></button>
+</header>
+
+<div id="frame">
+  <div id="holeHint">
+    <div>
+      <h2>Open Roblox to begin</h2>
+      <p>Join Anime Adventures, then press F1 and the game snaps into this frame.</p>
+      <button class="btn acc big" data-cmd="fix"><svg class="i" data-icon="maximize"></svg>Snap Roblox in</button>
+    </div>
+  </div>
+</div>
+
+<section id="duo" aria-label="Your alt's Roblox">
+  <div id="duoViews"><div class="duo-box"><span>Your alt's Roblox shows here</span></div></div>
+  <div id="duoInfo">
+    <div class="duo-kicker">Fool's Hunt · Bring own team</div>
+    <div class="duo-head"><h3 id="duoTitle">Your alt</h3>
+      <div class="mode-stop" data-tip="How many Roblox accounts play together: your main plus 1 to 3 alts"><small>Accounts</small><div class="stepper" id="foolAccounts"></div></div></div>
+    <p class="hint">Alts wait behind your main Roblox. The macro brings each one forward when it has to walk to the pad, press Play Here or Replay, then puts your main back.</p>
+    <ul>
+      <li><b>Main</b> plays in the big frame above.</li>
+      <li id="duoAltLine"><b>Alt</b> is the live view on the left.</li>
+      <li>All in the same <b>private server</b>, alts level 15+. Up to 3 alts (4 accounts).</li>
+    </ul>
+    <p class="hint" id="duoSwapHint">Wrong account in the big frame? Stop the macro, then <b>drag an alt's view onto the big frame</b> to make it your main.</p>
+    <button class="btn sm" data-cmd="duoSwap"><svg class="i" data-icon="arrow-up-down"></svg>Swap main and alt</button>
+  </div>
+</section>
+
+<main id="side">
+  <nav id="rail"></nav>
+  <div id="pages">
+
+    <!-- Dashboard -->
+    <section class="page" id="p-dash">
+      <div class="pane modebar">
+        <div class="mode-row"><span>Mode</span><div class="seg wide" id="segModeHome"></div></div>
+        <div class="mode-sub" id="modeSub"><div class="mode-sub-in">
+          <div class="seg wide" id="segIcDiff"></div>
+          <div class="mode-stop" data-tip="Floors cleared before it stops (0 = keep climbing)"><small>Stop after</small><div class="stepper" id="icStop"></div></div>
+        </div></div>
+        <div class="mode-sub" id="foolSub"><div class="mode-sub-in">
+          <div class="seg wide" id="segFoolJoin" data-tip="Find Match plays with others and types in the matchmaking number for you. After each round it goes back to the lobby, walks to the pad and finds a new match"></div>
+          <label class="toggle" data-key="foolOwnTeam" style="flex:1;margin:0" data-tip="Keep your own 6 units: Roblox is frozen while each round loads (don't touch the mouse), so you join with your hotbar instead of the event's units. Someone else has to start the round: with Find Match the other players do (no alt needed); with Play Here it's your alt account (level 15+, up to 3 alts) in a second Roblox in your private server (Tools\Roblox Multi-Instance)"><span>Own team</span><i class="switch"></i></label>
+          <div class="mode-stop" data-tip="How long your main stays frozen while a round loads (seconds). Shorter = you join sooner. Too short and the round hasn't started yet, then you get the event units instead of your own"><small>Freeze (s)</small><div class="stepper" id="foolFreeze"></div></div>
+        </div></div>
+      </div>
+
+      <div class="pane hero">
+        <div class="hero-text">
+          <h2><i class="dot"></i><span id="heroTitle">Ready to farm</span></h2>
+          <p id="heroStep">Start in the lobby, on the dungeon map or mid-stage. It works out where it is.</p>
+          <p class="muted" id="heroTime"></p>
+        </div>
+        <div class="controls">
+          <button class="btn go" data-cmd="start"><svg class="i" data-icon="play"></svg>Start farming</button>
+          <div>
+            <button class="btn" data-cmd="pause"><svg class="i" data-icon="pause"></svg>Pause</button>
+            <button class="btn stop" data-cmd="stop"><svg class="i" data-icon="square"></svg>Stop</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="pane">
+        <div class="trail-head">
+          <h3 id="mapName">No map yet</h3>
+          <span id="mapNote">The map shows up once a room loads</span>
+          <div class="depth" id="depthText"></div>
+        </div>
+        <div class="progress"><div class="bar" id="trail"><div class="bar-fill" id="trailFill"></div></div><span class="boss" title="Boss room"><svg class="i" data-icon="skull"></svg></span></div>
+      </div>
+
+      <div class="stats">
+        <div class="pane stat"><b id="sRuns">0</b><span>Stages</span></div>
+        <div class="pane stat good"><b id="sRate">–</b><span>Win rate</span></div>
+        <div class="pane stat"><b id="sRooms">0</b><span>Rooms</span></div>
+        <div class="pane stat"><b id="sChests">0</b><span>Chests</span></div>
+        <div class="pane stat"><b id="sClears">0</b><span>Dungeons</span></div>
+        <div class="pane stat"><b id="sHour">–</b><span>Per hour</span></div>
+      </div>
+
+      <div class="pane loot" data-tip="What your chests gave since you pressed Start">
+        <span class="loot-h"><svg class="i" data-icon="box"></svg>Chest rewards</span>
+        <div id="loot"><span class="loot-none">Nothing yet. What your chests give shows up here</span></div>
+      </div>
+
+      <div class="pane log">
+        <h3>Activity <small id="logCount"></small></h3>
+        <div id="log"></div>
+      </div>
+    </section>
+
+    <!-- Units -->
+    <section class="page" id="p-units">
+      <div class="head"><h1>Units</h1><p>Your six hotbar slots. Spots are tried until a unit lands, so any map works.</p></div>
+      <div class="pane fool-note"><b>Fool's Hunt units.</b> These are only for Fool's Hunt with your own team: up to 20 of a unit (the game allows 20 units in total). Dungeons and Infinity Castle keep their own setup, switch the mode on the Dashboard to edit those.</div>
+      <div class="pane build-note"><span><b>The build order is on.</b> It does all the placing and upgrading by itself, so this tab isn't used. Switch the build order off on its page to play with these slots instead.</span><button class="btn sm" id="unitsUnlock">Edit anyway</button></div>
+      <div class="slots" id="slots"></div>
+      <div class="pane">
+        <div class="row"><div class="lbl">Where to try first<small>The shape it tries spots in around the middle</small></div><div class="seg" id="segPattern"></div></div>
+        <div class="row"><div class="lbl">Placement retries<small>How long it keeps looking for open ground</small></div><div class="seg" id="segRetries"></div></div>
+        <label class="toggle" data-key="saveForTop"><span>Save yen for the top priority<small>Other units wait until the first one is upgraded</small></span><i class="switch"></i></label>
+        <label class="toggle" data-key="autoAbility"><span>Turn on auto-abilities</span><i class="switch"></i></label>
+      </div>
+    </section>
+
+    <!-- Build order -->
+    <section class="page" id="p-build">
+      <div class="head"><h1>Build order</h1><p>Your own opening, played step by step at the start of every stage.</p></div>
+      <div class="pane fool-note"><b>Fool's Hunt build order.</b> Only used in Fool's Hunt with your own team (up to 20 of a unit per step). Dungeons and Infinity Castle have their own.</div>
+      <div class="pane">
+        <label class="toggle" data-key="useBuild"><span>Use the build order<small>Plays only these steps. The Units tab isn't used while it's on</small></span><i class="switch"></i></label>
+        <div class="row share" data-premium="Build share codes">
+          <span class="hint">Share it as a short code, for example in Discord</span>
+          <button class="btn sm" id="bCopy"><svg class="i" data-icon="copy"></svg>Copy code</button>
+          <button class="btn sm" id="bPaste"><svg class="i" data-icon="clipboard-paste"></svg>Paste code</button>
+        </div>
+      </div>
+      <div class="pane" style="flex:1;min-height:0;display:flex;flex-direction:column">
+        <div class="list scroll" id="steps" style="flex:1;min-height:0"></div>
+        <div class="builder" style="margin-top:10px">
+          <div class="seg" id="bKind"></div>
+          <select id="bSlot"></select>
+          <span class="muted" id="bX">×</span>
+          <select id="bCount"></select>
+          <select id="bUp" style="flex:1"></select>
+          <button class="btn acc" id="bAdd"><svg class="i" data-icon="plus"></svg>Add step</button>
+        </div>
+      </div>
+      <p class="hint">Each step finishes before the next one starts, waiting for yen if it has to. “To max” means the unit’s real max. Units you don’t put in a step aren’t placed.</p>
+    </section>
+
+    <!-- Spots -->
+    <section class="page" id="p-spots">
+      <div class="head"><h1>Spots</h1><p>Optional places to try first on a map. The pattern fills in the rest.</p></div>
+      <div class="pane fool-note"><b>Fool's Hunt spots and walks.</b> You spawn somewhere else on a map in Fool's Hunt than in its dungeon, so it has its own (no walk until you record one). Switch the mode on the Dashboard to edit the dungeon ones.</div>
+      <div class="pane">
+        <div class="row" style="margin-bottom:8px">
+          <select id="spotMap" style="flex:1"></select>
+          <label class="toggle" data-key="useSpots" style="flex:none"><span>Use my spots</span><i class="switch"></i></label>
+        </div>
+        <div class="list scroll" id="spotList" style="max-height:150px"></div>
+        <div class="row" style="margin-top:10px">
+          <button class="btn acc" data-cmd="spotPick"><svg class="i" data-icon="crosshair"></svg>Pick a spot</button>
+          <span class="hint" style="flex:1">Click open ground in Roblox. Esc cancels.</span>
+          <button class="btn" data-cmd="spotClear"><svg class="i" data-icon="trash-2"></svg>Clear map</button>
+        </div>
+      </div>
+      <div class="pane">
+        <h3>Walk after teleporting</h3>
+        <p class="sub">Where your character walks on this map before placing</p>
+        <div class="walk" id="walkInfo"><svg class="i" data-icon="footprints"></svg><span></span></div>
+        <div class="row">
+          <button class="btn acc" data-cmd="recordWalk"><svg class="i" data-icon="footprints"></svg>Record walk</button>
+          <button class="btn" data-cmd="testWalk"><svg class="i" data-icon="circle-play"></svg>Test</button>
+          <button class="btn" data-cmd="clearWalk"><svg class="i" data-icon="trash-2"></svg>Clear</button>
+        </div>
+        <p class="hint" style="margin-top:8px">Recording teleports you to spawn. Walk there with W A S D without turning the camera, then press F6.</p>
+      </div>
+    </section>
+
+    <!-- Dungeon -->
+    <section class="page" id="p-dungeon">
+      <div class="head"><h1>Dungeon</h1><p>Which rooms to head for, which curses to dodge, and what to do at shrines.</p></div>
+      <div class="cols">
+        <div class="pane">
+          <h3>Room priority</h3>
+          <p class="sub">First choice at the top</p>
+          <div id="route"></div>
+          <div style="margin-top:6px">
+            <label class="toggle" data-key="lookAhead" data-premium="Room look-ahead"><span>Look one room ahead<small>Counts what each room leads to, so Hoard then Chest beats Shop then Hoard</small></span><i class="switch"></i></label>
+            <label class="toggle" data-key="saveChests"><span>Save chests for after the boss</span><i class="switch"></i></label>
+            <label class="toggle" data-key="stopAfterDefeat"><span>Stop after a defeat</span><i class="switch"></i></label>
+          </div>
+        </div>
+        <div class="pane">
+          <h3>Curses, worst first</h3>
+          <p class="sub">Curses stay until the dungeon is cleared. If every room is cursed it takes the mildest</p>
+          <div class="list" id="curses"></div>
+          <div class="row" style="margin-top:6px"><div class="lbl">Avoid the top<small>How many curses from the top of this list it never walks into</small></div><div class="stepper" id="skipWorst"></div></div>
+        </div>
+      </div>
+      <div class="pane">
+        <h3>Turn down shrines</h3>
+        <p class="sub">Highlighted shrines are denied, the rest are accepted</p>
+        <div class="chips" id="shrines"></div>
+      </div>
+      <div class="pane">
+        <h3>Shop</h3>
+        <p class="sub">What to buy with dungeon coins, best first. Drag to change the order, switch off what you don't want.</p>
+        <label class="toggle" data-key="buyShop"><span>Buy from shops</span><i class="switch"></i></label>
+        <div class="shop-more" data-premium="Choosing shop items">
+        <div class="row"><div class="lbl">Only go to a shop with<small>Coins you need before a shop room beats the others</small></div><div class="seg" id="segShopMin"></div></div>
+        <div class="row"><div class="lbl">My units deal<small>Damage items of the other type are skipped</small></div><div class="seg" id="segDmg"></div></div>
+        <div class="list scroll" id="shopList" style="max-height:230px;margin-top:6px"></div>
+        <label class="toggle" data-key="shopUnknown" style="margin-top:6px"><span>Also buy items it can't read<small>Off: it only buys items it recognises, so coins never go on something you switched off</small></span><i class="switch"></i></label>
+        </div>
+      </div>
+      <div class="pane" data-premium="Fool's Hunt">
+        <h3>Fool's Hunt cards</h3>
+        <p class="sub">When "Choose a card!" shows up it votes for the highest card here. Drag to change the order. Enemy cards make the round harder but give more AprilCoins</p>
+        <div class="list scroll" id="foolCards" style="max-height:230px"></div>
+      </div>
+    </section>
+
+    <!-- Settings -->
+    <section class="page" id="p-settings">
+      <div class="head"><h1>Settings</h1><p>Everything saves as you change it.</p></div>
+      <div class="pane">
+        <div class="row"><div class="lbl">Placement speed<small>How long to wait for a unit to land before trying the next spot</small></div><select id="speed"></select></div>
+        <label class="toggle" data-key="zoom"><span>Zoom the camera out at the start of each stage</span><i class="switch"></i></label>
+        <label class="toggle" data-key="tpSpawn"><span>Teleport to spawn at the start of each stage</span><i class="switch"></i></label>
+        <label class="toggle" data-key="fixOnStart"><span>Snap Roblox into the frame when farming starts</span><i class="switch"></i></label>
+      </div>
+      <div class="pane">
+        <h3>Discord notifications</h3>
+        <p class="sub">Get pinged after clears and disconnects. Paste a channel webhook link.</p>
+        <div class="row"><input type="text" id="webhook" placeholder="https://discord.com/api/webhooks/…" style="flex:1"><button class="btn" data-cmd="testHook"><svg class="i" data-icon="send"></svg>Send test</button></div>
+        <label class="toggle" data-key="hookRuns"><span>Also message after every stage</span><i class="switch"></i></label>
+        <label class="toggle" data-key="showcase" data-premium="The Discord showcase" data-tip="A Secret unit from a chest is posted with a screenshot in the showcase channel on Chris's Discord"><span>Show my Secret units in Chris's Discord</span><i class="switch"></i></label>
+        <div class="row" data-premium="The Discord showcase"><span class="lbl" style="flex:none">Name shown there</span><input type="text" id="showcaseName" maxlength="32" placeholder="Someone" style="flex:1"></div>
+        <div class="row" data-premium="The Discord showcase" data-tip="To be tagged in the post. In Discord: Settings > Advanced > Developer Mode on, then right-click your name > Copy User ID"><span class="lbl" style="flex:none">Your Discord ID (to be tagged)</span><input type="text" id="showcaseDiscord" maxlength="20" placeholder="e.g. 123456789012345678" style="flex:1"></div>
+      </div>
+      <div class="pane">
+        <h3>Private server</h3>
+        <p class="sub">Used to rejoin after a disconnect. Leave it empty to join a public server.</p>
+        <input type="text" id="psLink" placeholder="https://www.roblox.com/share?code=…" style="width:100%">
+      </div>
+      <div class="pane">
+        <h3>Settings and files</h3>
+        <p class="sub">Bring settings over from an older version or a friend's macro, or keep a copy of yours</p>
+        <div class="row">
+          <button class="btn acc" data-cmd="importPick"><svg class="i" data-icon="file-input"></svg>Import…</button>
+          <button class="btn" data-cmd="backup"><svg class="i" data-icon="save"></svg>Save a backup…</button>
+          <span class="spacer"></span>
+          <button class="btn sq" data-cmd="openFolder" title="Open the macro folder" aria-label="Open the macro folder"><svg class="i" data-icon="folder-open"></svg></button>
+          <button class="btn sq" data-cmd="openLog" title="Open the full log" aria-label="Open the full log"><svg class="i" data-icon="file-text"></svg></button>
+          <button class="btn sq" data-cmd="shot" title="Save a screenshot of the game" aria-label="Save a screenshot of the game"><svg class="i" data-icon="camera"></svg></button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Look -->
+    <section class="page" id="p-look">
+      <div class="head"><h1>Look</h1><p>Make it yours. Changes show right away.</p></div>
+      <div class="pane">
+        <h3>Accent</h3>
+        <p class="sub">Buttons, highlights and the dungeon path</p>
+        <div class="swatches" id="swatches"></div>
+      </div>
+      <div class="pane">
+        <h3>Background</h3>
+        <p class="sub" id="bgName">Sakura</p>
+        <div class="row"><div class="lbl">Brightness</div><input type="range" id="bgOpacity" min="0" max="100"></div>
+        <div class="row"><div class="lbl">Blur</div><input type="range" id="bgBlur" min="0" max="12"></div>
+        <div class="row"><div class="lbl">Panel glass<small>Lower shows more of the background through the panels</small></div><input type="range" id="glass" min="35" max="95"></div>
+        <label class="toggle" data-key="bgAnimate"><span>Animate<small>Turn off to keep a still frame and save a little power</small></span><i class="switch"></i></label>
+        <div class="row" style="margin-top:6px">
+          <button class="btn acc" data-cmd="chooseGif"><svg class="i" data-icon="image"></svg>Choose a video, GIF or picture</button>
+          <button class="btn" data-cmd="resetGif">Use the default</button>
+        </div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<div id="toasts"></div>
+<script src="icons.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
