@@ -140,8 +140,9 @@ global statsV := A("Text", "x205 y180 w570", "")
 MG.SetFont("s10 norm c" CL.muted)
 global mapV := A("Text", "x205 y202 w570", "Map:  -")
 global stepV := A("Text", "x205 y224 w570", "Step:  waiting to start")
+global lootV := A("Text", "x205 y246 w570", "Chest rewards:  nothing yet")     ; what chests gave since Start
 MG.SetFont("s9 norm c" CL.muted, "Consolas")
-global logV := A("Text", "x205 y252 w570 h196 Background" CL.card, "")
+global logV := A("Text", "x205 y270 w570 h178 Background" CL.card, "")
 MG.SetFont("s10 norm c" CL.text, "Segoe UI")
 Btn("x205 y462 w280 h48", "▶    START    (F2)", StartMacro, CL.green, CL.greenHi)
 Btn("x495 y462 w135 h48", "❚❚   PAUSE", TogglePause)
@@ -410,7 +411,7 @@ F4::TogglePause()
 ;  Start / stop / pause
 ; =====================================================================
 StartMacro(*) {
-    global running, paused
+    global running, paused, chestLoot
     if running || manualRun
         return
     if !WinExist(RBX) {
@@ -421,7 +422,8 @@ StartMacro(*) {
     running := true, paused := false
     stat.runs := 0, stat.wins := 0, stat.losses := 0, stat.rooms := 0, stat.chests := 0, stat.dungeons := 0
     stat.startTick := A_TickCount, stat.pause0 := pauseTotal
-    UpdateStats()
+    chestLoot := Map()
+    UpdateStats(), LootChanged()
     SetStatus("Running", CL.greenHi)
     SetTimer ClockTick, 1000
     AddLog("Macro started (v" APP_VER ")")
@@ -485,7 +487,7 @@ FixWindowNow(*) {
 AddLog(msg) {
     static lines := []
     lines.Push(FormatTime(, "HH:mm:ss") "   " msg)
-    if lines.Length > 11
+    if lines.Length > 10                    ; (one line less since the chest rewards line)
         lines.RemoveAt(1)
     out := "`n"
     for l in lines
@@ -529,6 +531,14 @@ UpdateStats() {
         statsV.Value := "Wins " stat.wins "   ·   Losses " stat.losses "   ·   Rooms " stat.rooms
             . "   ·   Chests " stat.chests "   ·   Cleared " stat.dungeons "   ·   " perHour " runs/hour"
     }
+}
+
+; chest rewards since Start, most first (the engine reads them when a chest opens)
+LootChanged() {
+    txt := ""
+    for e in LootList()
+        txt .= (txt = "" ? "" : "   ·   ") e[1] " x" e[2]
+    try lootV.Value := "Chest rewards:  " (txt = "" ? "nothing yet" : txt)
 }
 
 UpdateMapLabel() {

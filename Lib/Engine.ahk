@@ -1495,10 +1495,66 @@ OpenChestSlot(x, y) {
         ; still on the chest screen after a moment = this chest is empty
         if !WaitFor(() => !Det("Chest"), 1500)
             break
+        ReadChestReward()                       ; what it gave, before it's clicked away
         ClaimReward()
         opened++
     }
     return opened
+}
+
+; ---------- chest rewards ----------
+; After a chest opens, the reward shows big in the middle with its name and amount under it:
+; "Star Remnant (Limited) (x2)", "Gems (x150)", "Stat Cube (x3)", then its rarity. It's read
+; before being clicked away, added up for the session (the Dashboard) and logged.
+global chestLoot := Map()       ; reward name -> how many since Start
+
+ReadChestReward() {
+    t0 := A_TickCount
+    while A_TickCount - t0 < 2500 {             ; the name comes up after a short reveal
+        for tf in [{scale: 2, grayscale: true}, {scale: 2, grayscale: true, invertcolors: true}] {
+            txt := ""
+            try {
+                WinGetClientPos &ox, &oy, , , RBX
+                txt := OCR.FromRect(ox + 100, oy + 330, 600, 190, OcrLang(), tf).Text
+            }
+            if RegExMatch(txt, "i)([A-Za-z][A-Za-z' ]*?(?:\s*\(\s*[A-Za-z][A-Za-z ]*\))?)\s*\(\s*[x×]\s*(\d[\d,. ]*)\)", &m) {
+                name := Trim(RegExReplace(m[1], "\s+", " "))
+                n := RegExReplace(m[2], "\D")
+                if name != "" && n != "" && Integer(n) > 0 {
+                    AddLoot(name, Integer(n))
+                    return true
+                }
+            }
+        }
+        Wait(250)
+    }
+    return false
+}
+
+; adds a reward to the session totals (a slightly misread name joins the one it's close to)
+AddLoot(name, n) {
+    global chestLoot
+    key := name, norm := NormName(name)
+    for k in chestLoot
+        if NormName(k) = norm || Levenshtein(NormName(k), norm) <= 2 {
+            key := k
+            break
+        }
+    chestLoot[key] := chestLoot.Get(key, 0) + n
+    AddLog("Chest: " key " x" n)
+    LootChanged()
+}
+
+; the session totals, most first: [[name, count], ...]
+LootList() {
+    out := []
+    for name, n in chestLoot {
+        i := out.Length + 1
+        while i > 1 && out[i - 1][2] < n
+            i--
+        out.InsertAt(i, [name, n])
+    }
+    return out
 }
 
 ClaimReward() {
