@@ -4692,10 +4692,14 @@ MultipartBody(boundary, payload, file) {
 }
 
 ; saves just Roblox's game area (not the macro) as a PNG
-CaptureGamePng(file) {
+; (x, y, w, h: only that part of the game, e.g. the middle where a reward is revealed)
+CaptureGamePng(file, x := 0, y := 0, w := 0, h := 0) {
     try {
         WinGetClientPos &ox, &oy, &cw, &ch, RBX
-        w := Min(cw, 800), h := Min(ch, 600)
+        if w > 0 && h > 0
+            ox += x, oy += y, w := Min(w, cw - x), h := Min(h, ch - y)
+        else
+            w := Min(cw, 800), h := Min(ch, 600)
         if w < 50 || h < 50
             return false
         sdc := DllCall("GetDC", "Ptr", 0, "Ptr")
