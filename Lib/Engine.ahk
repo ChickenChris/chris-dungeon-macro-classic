@@ -53,6 +53,7 @@ global closeStreak := 0       ; times in a row the room picker had no Enter butt
 global slotStops := Map()       ; "slot|map" -> how many it managed before giving up last time
 global slotPrice := Map()       ; slot -> its price in the unit bar (this stage)
 global slotCap := Map()         ; "slot|map" -> the most that fit on that map, once it's been seen twice
+global goodSpots := Map()       ; "slot|map" -> spots where that slot landed before (tried first next time)
 ; (per map: a cramped map used to cap a slot for every later map, so later rooms were played
 ; with fewer units until the macro was restarted)
 CapKey(n) => n "|" curMap
@@ -274,6 +275,7 @@ EngineRun() {
     global running, idleSince, slotStops, slotCap, slotOne, slotFull, autoOpenSeen, autoOpenOff, clickOpened
     errors := 0
     idleSince := 0
+    global goodSpots := Map()
     slotStops := Map(), slotCap := Map(), slotOne := Map(), slotFull := Map(), autoOpenSeen := false, autoOpenOff := false, clickOpened := 0
     loop {
         try {
@@ -2858,6 +2860,31 @@ PlaceSlot(ctx, n, need) {
         }
         greySince := 0
         before := got, misses := 0, tried := 0, attempts := 0
+        ; spots where this slot landed before on this map, first: a unit that only goes on hills
+        ; spent ages on ground spots every stage, now only the first time
+        for p in goodSpots.Get(CapKey(n), []).Clone() {
+            if got >= need
+                break
+            key := p.x "," p.y
+            if ctx.used.Has(key) || ctx.fails.Get(key "|" n, 0) || NextToUnit(p.x, p.y)
+                continue
+            if StageOver() {
+                ctx.over := true
+                return newUnits
+            }
+            Step("placing slot " n "  (" got "/" need ", where it went last time)")
+            if TryPlace(p.x, p.y, n) {
+                ctx.used[key] := true
+                got++
+                u := {x: p.x, y: p.y, slot: n, maxed: false, capped: false, dx: 0, dy: -3, misses: 0, lost: false}
+                placedUnits.Push(u), newUnits.Push(u)
+                AddLog("Placed slot " n "  (" got "/" need ")")
+            } else {
+                ctx.fails[key "|" n] := 1
+                if !SlotRoom(n, 1)
+                    return newUnits
+            }
+        }
         while got < need && misses < lv[1] && tried < pts.Length {
             p := pts[ctx.cursor], key := p.x "," p.y
             ctx.cursor := Mod(ctx.cursor, pts.Length) + 1
@@ -2874,6 +2901,7 @@ PlaceSlot(ctx, n, need) {
                 ctx.used[key] := true
                 misses := 0
                 got++
+                LearnSpot(n, p)
                 u := {x: p.x, y: p.y, slot: n, maxed: false, capped: false, dx: 0, dy: -3, misses: 0, lost: false}
                 placedUnits.Push(u), newUnits.Push(u)
                 AddLog("Placed slot " n "  (" got "/" need ")")
@@ -2923,6 +2951,17 @@ PlaceSlot(ctx, n, need) {
         }
     }
     return newUnits
+}
+
+; remembers where a slot landed on this map (this session), so next stage tries there first
+LearnSpot(n, p) {
+    list := goodSpots.Has(CapKey(n)) ? goodSpots[CapKey(n)] : (goodSpots[CapKey(n)] := [])
+    for q in list
+        if q.x = p.x && q.y = p.y
+            return
+    list.Push({x: p.x, y: p.y})
+    if list.Length > 20
+        list.RemoveAt(1)
 }
 
 ; ---------- build order ----------
@@ -3401,6 +3440,7 @@ NearUnit(x, y, r) {
 
 TryPlace(x, y, slot) {
     global autoOpenSeen, autoOpenOff, clickOpened
+    ClearVote()                             ; Fool's Hunt: a card vote first (a long run of tries let it run out)
     ClosePanel()                            ; the unit panel covers the right side of the map
     if UnitMenuOpen() {                     ; an open menu would look like this placement worked
         Clk(325, 185)
