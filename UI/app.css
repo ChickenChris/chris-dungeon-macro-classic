@@ -561,3 +561,6 @@ body.fool-units .teambar { display: none; }
 body.build-full #p-build > :not(#stepPane) { display: none; }
 body.build-full #stepPane { flex: 1; }
 body.build-full #steps .item { padding-top: 9px; padding-bottom: 9px; font-size: 14px; }
+#steps .item.abil { border-left: 2px solid var(--warn); }
+#steps .item.abil .num .i { width: 13px; height: 13px; color: var(--warn); }
+#steps .item .txt small { display: block; color: var(--mist); font-size: 11px; }

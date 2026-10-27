@@ -130,16 +130,7 @@
         <div class="row"><div class="lbl">Where to try first<small>The shape it tries spots in around the middle</small></div><div class="seg" id="segPattern"></div></div>
         <div class="row"><div class="lbl">Placement retries<small>How long it keeps looking for open ground</small></div><div class="seg" id="segRetries"></div></div>
         <label class="toggle" data-key="saveForTop"><span>Save yen for the top priority<small>Other units wait until the first one is upgraded</small></span><i class="switch"></i></label>
-        <label class="toggle" data-key="autoAbility"><span>Turn on auto-abilities</span><i class="switch"></i></label>
-      </div>
-      <div class="pane" data-premium="Timed abilities">
-        <div class="lbl abil-h">Timed abilities<small>Uses a unit's ability once a wave starts instead of Auto, for abilities that are wasted on Auto (like Rukia's). Those slots keep Auto off.</small></div>
-        <div class="list" id="abilList" style="margin:8px 0"></div>
-        <div class="builder abil-b">
-          <span class="muted">Wave</span><input type="number" id="aWave" min="1" max="999" value="10" style="width:64px">
-          <select id="aSlot"></select><select id="aCount"></select><select id="aEvery"></select>
-          <button class="btn acc" id="aAdd"><svg class="i" data-icon="plus"></svg>Add</button>
-        </div>
+        <label class="toggle" data-key="autoAbility"><span>Turn on auto-abilities<small>Slots with an Ability step in the build order keep Auto off</small></span><i class="switch"></i></label>
       </div>
     </section>
 
@@ -165,6 +156,7 @@
         <div class="list scroll" id="steps" style="flex:1;min-height:0"></div>
         <div class="builder" style="margin-top:10px">
           <div class="seg" id="bKind"></div>
+          <span class="muted abil-only">Wave</span><input type="number" class="abil-only" id="bWave" min="1" max="999" value="10" style="width:64px" title="The wave its ability is used at">
           <select id="bSlot"></select>
           <span class="muted" id="bX">×</span>
           <select id="bCount"></select>
@@ -172,7 +164,7 @@
           <button class="btn acc" id="bAdd"><svg class="i" data-icon="plus"></svg>Add step</button>
         </div>
       </div>
-      <p class="hint">Each step finishes before the next one starts, waiting for yen if it has to. “To max” means the unit’s real max. Units you don’t put in a step aren’t placed.</p>
+      <p class="hint">Each step finishes before the next one starts, waiting for yen if it has to. “To max” means the unit’s real max. Units you don’t put in a step aren’t placed. <b>Ability</b> steps don’t wait their turn: they fire when their wave starts, even with the build order off.</p>
     </section>
 
     <!-- Spots -->
