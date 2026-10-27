@@ -43,9 +43,9 @@ global CURSES := ["Flying", "Wind", "Money", "Health", "Exploding", "Shielding",
 global ROOM_KEYS := ["Rare_Chest", "Chest", "Hoard", "Shop", "Shrine", "Boss", "None"]
 global ROOM_NAMES := ["Rare chest", "Chest", "Hoard", "Shop", "Shrine", "Boss", "(nothing)"]
 global RETRIES := ["Few (quick)", "Normal", "Many", "Max (keeps trying)"]
-global UP_NAMES := ["no upgrades", "upgrade them 1 time", "upgrade them 2 times", "upgrade them 3 times",
-    "upgrade them 4 times", "upgrade them 5 times", "upgrade them 6 times", "upgrade them 7 times",
-    "upgrade them 8 times", "upgrade them 9 times", "upgrade them 10 times", "upgrade them to max"]
+global UP_NAMES := ["no upgrades", "upgrade each 1 time", "upgrade each 2 times", "upgrade each 3 times",
+    "upgrade each 4 times", "upgrade each 5 times", "upgrade each 6 times", "upgrade each 7 times",
+    "upgrade each 8 times", "upgrade each 9 times", "upgrade each 10 times", "upgrade each to max"]
 global UP_VALUES := [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, -1]
 global PATTERNS := ["Spiral", "Circle", "Grid", "Random"]
 global TOLS := ["Strict (exact match)", "Normal (5% off is fine)", "Loose (10% off is fine)"]

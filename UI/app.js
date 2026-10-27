@@ -196,9 +196,8 @@ function renderUnits() {
 
 function stepText(st) {
   const up = st.up < 0 ? "to max" : st.up + (st.up == 1 ? " time" : " times");
-  const units = (n) => n + " new slot " + st.slot + (n == 1 ? " unit" : " units");
-  if (st.kind === "place") return `Place ${units(st.count)}` + (st.up == 0 ? "" : `, upgrade ${st.count == 1 ? "it" : "them"} ${up}`);
-  return `Upgrade all slot ${st.slot} units ${up}`;
+  if (st.kind === "place") return `Place slot ${st.slot} ×${st.count}` + (st.up == 0 ? "" : `, upgrade each ${up}`);
+  return `Upgrade slot ${st.slot} ${up}`;
 }
 
 function renderBuild() {
@@ -209,7 +208,7 @@ function renderBuild() {
     <div class="item drag" data-i="${i}"><span class="grip">${icon("grip-vertical")}</span><span class="num">${i + 1}</span><span class="txt">${esc(stepText(st))}</span>
       <span class="acts"><button class="del" data-a="del" aria-label="Remove">${icon("x")}</button></span>
     </div>`).join("")
-    : '<div class="empty">No steps yet. Add the first one below, like "Place 2 new slot 1 units, upgrade them 2 times".</div>';
+    : '<div class="empty">No steps yet. Add the first one below, like "Place slot 1 ×2, upgrade each 2 times".</div>';
   // a build order that never upgrades: its units stay at level 1 for the whole round
   if (list.length && !list.some((st) => st.up)) el.innerHTML += '<div class="empty warn">Nothing gets upgraded with these steps. To upgrade units you already placed, add an <b>Upgrade</b> step.</div>';
   el.onclick = (e) => {
@@ -524,7 +523,7 @@ function renderAll() {
   renderDungeon(); renderSettings(); renderLook(); applyLook();
 }
 
-// "AA build: P1x2u2 P6x1umax U5u2"  =  place slot 1 x2 upgrade them 2 times, place slot 6 x1 to max, upgrade slot 5 twice
+// "AA build: P1x2u2 P6x1umax U5u2"  =  place slot 1 x2 upgrade each 2 times, place slot 6 x1 to max, upgrade slot 5 twice
 function buildCode(list) {
   const up = (n) => (n < 0 ? "max" : n);
   return "AA build: " + list.map((st) => st.kind === "place"
@@ -789,7 +788,7 @@ if (!host) setTimeout(() => window.ui.init(window.DEMO || {
   version: "3.0", maps: ["Ant Kingdom", "Snowy Town", "Unknown"], patterns: ["Spiral", "Circle", "Grid", "Random"],
   roomKeys: ["Rare_Chest", "Chest", "Hoard", "Shop", "Shrine", "Boss", "None"], roomNames: ["Rare chest", "Chest", "Hoard", "Shop", "Shrine", "Boss", "(nothing)"],
   curses: ["Flying", "Wind", "Money", "Health", "Exploding", "Shielding", "Regen"], speeds: ["Super fast (1s)", "Fast (1.5s)"],
-  upNames: ["no upgrades", "upgrade them 1 time", "upgrade them to max"], upValues: [0, 1, -1], hasRoblox: false,
+  upNames: ["no upgrades", "upgrade each 1 time", "upgrade each to max"], upValues: [0, 1, -1], hasRoblox: false,
   cfg: { slots: Array.from({ length: 6 }, (_, i) => ({ on: i < 5 ? 1 : 0, count: 2, prio: i + 1, up: 1, limit: 0 })), pattern: "Spiral", retries: 3,
     build: [], route: ["Rare_Chest", "Chest", "Shop", "Hoard", "Shrine", "Boss"], curseRank: ["Flying", "Money", "Health", "Shielding", "Regen", "Wind", "Exploding"],
     foolMatch: 0, foolOwnTeam: 0, foolFreeze: 80, foolAccounts: 2, foolCards: ["shield", "regen", "health", "speed", "yen", "range", "cooldown", "attack", "explosive", "resistant", "spellproof", "plated", "boss"], skipWorst: 5, denyShrine: { Burst: 0, Armor: 0, Chaos: 1, Vamparism: 0, Frenzy: 0 }, placeSpeed: 1, accent: "Crimson", bgOpacity: 70, bgBlur: 0, glass: 60, bgAnimate: 1 },

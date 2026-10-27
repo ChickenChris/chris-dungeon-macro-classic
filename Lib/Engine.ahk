@@ -3244,8 +3244,8 @@ RunBuildOrder(ctx) {
 StepText(st) {
     up := st.up < 0 ? "to max" : st.up " time" (st.up = 1 ? "" : "s")
     if st.kind = "place"
-        return "Place " st.count " new slot " st.slot (st.count = 1 ? " unit" : " units") (st.up = 0 ? "" : ", upgrade " (st.count = 1 ? "it " : "them ") up)
-    return "Upgrade all slot " st.slot " units " up
+        return "Place slot " st.slot " x" st.count (st.up = 0 ? "" : ", upgrade each " up)
+    return "Upgrade slot " st.slot " " up
 }
 
 ; how far each unit of an upgrade step got, for the log: "2 of 3 units reached 6 (1 can't be found)"
