@@ -132,6 +132,15 @@
         <label class="toggle" data-key="saveForTop"><span>Save yen for the top priority<small>Other units wait until the first one is upgraded</small></span><i class="switch"></i></label>
         <label class="toggle" data-key="autoAbility"><span>Turn on auto-abilities</span><i class="switch"></i></label>
       </div>
+      <div class="pane" data-premium="Timed abilities">
+        <div class="lbl abil-h">Timed abilities<small>Uses a unit's ability once a wave starts instead of Auto, for abilities that are wasted on Auto (like Rukia's). Those slots keep Auto off.</small></div>
+        <div class="list" id="abilList" style="margin:8px 0"></div>
+        <div class="builder abil-b">
+          <span class="muted">Wave</span><input type="number" id="aWave" min="1" max="999" value="10" style="width:64px">
+          <select id="aSlot"></select><select id="aCount"></select><select id="aEvery"></select>
+          <button class="btn acc" id="aAdd"><svg class="i" data-icon="plus"></svg>Add</button>
+        </div>
+      </div>
     </section>
 
     <!-- Build order -->

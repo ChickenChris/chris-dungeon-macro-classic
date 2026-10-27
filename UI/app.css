@@ -274,14 +274,14 @@ body.build-on:not(.units-unlocked) #slots { opacity: .38; filter: grayscale(.6);
 .stepper button svg.i { width: 13px; height: 13px; }
 .stepper b { min-width: 22px; text-align: center; font: 600 13px "Outfit", sans-serif; }
 
-select, input[type=text] {
+select, input[type=text], input[type=number] {
   height: 30px; padding: 0 10px; border-radius: 7px; outline: 0;
   background: rgba(0, 0, 0, .28); border: 1px solid var(--line);
 }
 select { padding-right: 6px; }
-select:hover, input[type=text]:hover { border-color: var(--line-hi); }
-select:focus, input[type=text]:focus { border-color: var(--acc); }
-input[type=text] { user-select: text; }
+select:hover, input[type=text]:hover, input[type=number]:hover { border-color: var(--line-hi); }
+select:focus, input[type=text]:focus, input[type=number]:focus { border-color: var(--acc); }
+input[type=text], input[type=number] { user-select: text; }
 option { background: #141417; }
 
 .seg { display: inline-flex; padding: 2px; border-radius: 8px; background: rgba(0, 0, 0, .28); border: 1px solid var(--line); }
@@ -541,3 +541,10 @@ body.fool-units .teambar { display: none; }
 .teamrow select { width: auto; min-width: 0; }
 .teamrow .btn .i { width: 13px; height: 13px; }
 .teambar .hint { margin: 0; }
+.tdel { display: inline-grid; place-items: center; width: 16px; height: 16px; margin-right: -6px; border-radius: 4px; color: var(--faint); }
+.tdel:hover { color: var(--bad); background: rgba(251, 113, 133, .12); }
+.tdel .i { width: 11px; height: 11px; }
+.abil-b { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.abil-b select { width: auto; }
+.abil-h { display: block; }
+.abil-h small { display: block; color: var(--mist); font-size: 11px; font-weight: 400; margin-top: 2px; }

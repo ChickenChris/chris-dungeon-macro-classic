@@ -204,11 +204,13 @@ function renderTeams() {
   const act = +T.active || 1, cur = T.list[act - 1] || T.list[0];
   const tabs = T.list.map((t, i) => `<button class="tteam ${i + 1 === act ? "on" : ""}" data-t="${i + 1}" title="${t.element ? esc(t.element) + " team" : "No element picked"}">`
       + (t.element ? `<i class="edot" style="--ec:${EL_COLORS[t.element] || "#aaa"}"></i>` : "") + esc(t.name)
-      + (i + 1 === +T.def ? `<span class="tdef">${icon("star")}</span>` : "") + "</button>").join("")
+      + (i + 1 === +T.def ? `<span class="tdef">${icon("star")}</span>` : "")
+      + (i ? `<span class="tdel" data-del="${i + 1}" title="Remove ${esc(t.name)}">${icon("x")}</span>` : "") + "</button>").join("")
     + (T.list.length < 8 ? `<button class="tteam add" data-t="add" aria-label="Add a team" title="Add a team">${icon("plus")}</button>` : "");
   $$(".teamtabs").forEach((el) => {
     el.innerHTML = tabs;
     el.onclick = (e) => {
+      const d = e.target.closest("[data-del]"); if (d) return send("teamDel", { i: +d.dataset.del });
       const b = e.target.closest("[data-t]"); if (!b) return;
       if (b.dataset.t === "add") send("teamAdd"); else if (+b.dataset.t !== act) send("team", { i: +b.dataset.t });
     };
@@ -229,6 +231,33 @@ function renderTeams() {
     const b = e.target.closest("button[data-k]"); if (!b) return;
     if (b.dataset.k === "default") send("teamSet", { i: act, key: "default", value: 1 });
     else if (b.dataset.k === "del") send("teamDel", { i: act });
+  };
+}
+
+// Timed abilities (Premium): [{wave, slot, count (0 = all), every (0 = once)}]
+function abilText(r) {
+  return `Wave ${r.wave}: slot ${r.slot}'s ability, ${+r.count ? r.count + (r.count == 1 ? " unit" : " units") : "all units"}`
+    + (+r.every ? `, again every ${r.every} wave${r.every == 1 ? "" : "s"}` : ", once");
+}
+function renderAbil() {
+  const list = S.cfg.abilRules || (S.cfg.abilRules = []);
+  const el = $("#abilList"); if (!el) return;
+  el.innerHTML = list.length ? list.map((r, i) => `<div class="item" data-i="${i}"><span class="num">${i + 1}</span><span class="txt">${esc(abilText(r))}</span>
+      <span class="acts"><button class="del" data-a="del" aria-label="Remove">${icon("x")}</button></span></div>`).join("")
+    : '<div class="empty">No timed abilities. Add one below, like "Wave 13: slot 3\'s ability, 1 unit".</div>';
+  el.onclick = (e) => {
+    const b = e.target.closest("button[data-a]"); if (!b) return;
+    list.splice(+b.closest(".item").dataset.i, 1); send("abilRules", { list }); renderAbil();
+  };
+  $("#aSlot").innerHTML = options([1, 2, 3, 4, 5, 6].map((n) => "Slot " + n), 0);
+  $("#aCount").innerHTML = options(["All units", ...[1, 2, 3, 4, 5, 6].map((n) => n + (n == 1 ? " unit" : " units"))], 1);
+  $("#aEvery").innerHTML = options(["Once", ...[1, 2, 3, 4, 5, 6, 8, 10, 15, 20].map((n) => "Again every " + n + (n == 1 ? " wave" : " waves"))], 0);
+  $("#aAdd").onclick = () => {
+    const ev = [0, 1, 2, 3, 4, 5, 6, 8, 10, 15, 20][+$("#aEvery").value];
+    const w = Math.max(1, Math.min(999, Math.round(+$("#aWave").value || 0)));
+    if (list.length >= 12) return toast("12 timed abilities is the most", "bad");
+    list.push({ wave: w, slot: +$("#aSlot").value + 1, count: +$("#aCount").value, every: ev });
+    send("abilRules", { list }); renderAbil();
   };
 }
 
@@ -557,7 +586,7 @@ function toast(msg, kind = "") {
 // ---------------------------------------------------------------- sharing
 function renderAll() {
   spotMap = S.maps.includes(S.cfg.lastSpotMap) ? S.cfg.lastSpotMap : S.maps[0];
-  bindToggles(); renderTeams(); renderUnits(); renderBuild(); initBuilder(); renderSpotsPage();
+  bindToggles(); renderTeams(); renderAbil(); renderUnits(); renderBuild(); initBuilder(); renderSpotsPage();
   renderDungeon(); renderSettings(); renderLook(); applyLook();
 }
 
