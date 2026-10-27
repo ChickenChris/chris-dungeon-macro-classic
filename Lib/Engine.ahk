@@ -3233,13 +3233,19 @@ RunBuildOrder(ctx) {
     }
     ctx.build := false
     AddLog("Build order done (the Units tab isn't used with the build order on)")
+    ups := 0
+    for st in cfg["build"]
+        ups += st.up != 0
+    if !ups
+        AddLog("Your build order doesn't upgrade anything, so your units stay at level 1. To upgrade units you "
+            . "already placed, add an Upgrade step (Build order: switch Place to Upgrade)")
 }
 
 StepText(st) {
     up := st.up < 0 ? "to max" : st.up " time" (st.up = 1 ? "" : "s")
     if st.kind = "place"
-        return "Place slot " st.slot " x" st.count (st.up = 0 ? "" : ", upgrade each " up)
-    return "Upgrade slot " st.slot " " up
+        return "Place " st.count " new slot " st.slot (st.count = 1 ? " unit" : " units") (st.up = 0 ? "" : ", upgrade " (st.count = 1 ? "it " : "them ") up)
+    return "Upgrade all slot " st.slot " units " up
 }
 
 ; how far each unit of an upgrade step got, for the log: "2 of 3 units reached 6 (1 can't be found)"

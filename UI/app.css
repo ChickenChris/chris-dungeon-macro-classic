@@ -523,3 +523,4 @@ body.classic [data-premium] .toggle > span { color: var(--faint); }
 body.classic [data-premium] small { color: color-mix(in srgb, var(--faint) 80%, transparent); }
 body.classic .seg button[data-premium] { color: var(--faint); display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
 body.classic .seg button[data-premium] svg.i { width: 12px; height: 12px; color: #f472b6; }
+.empty.warn { margin-top: 8px; color: var(--warn); border-color: rgba(252, 211, 77, .4); }
