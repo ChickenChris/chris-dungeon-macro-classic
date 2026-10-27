@@ -4584,7 +4584,13 @@ CheckConnection(force := false) {
     SendWebhook("Disconnected", "Trying to reconnect.`n" Summary(), 0xF59E0B)
     stageActive := false
     loop 5 {
-        Launch()
+        if A_Index > 1 && WinExist(RBX) {       ; still not the lobby: maybe another game opened
+            AddLog("Roblox didn't get to the Anime Adventures lobby (another game, or stuck loading). Closing it and trying again"
+                . (Trim(cfg["psLink"]) != "" ? ". Check your private server link in Settings: it has to be an Anime Adventures server" : ""))
+            SaveDebugShot("wrong_game")
+            CloseRoblox()
+        }
+        Launch(A_Index)
         Wait(15000)
         t0 := A_TickCount
         while A_TickCount - t0 < 150000 {
@@ -4632,16 +4638,37 @@ RejoinToLobby() {
     CheckConnection(true)                       ; opens Roblox and waits for the lobby
 }
 
-Launch() {
+; Opens Anime Adventures: your private server link, else a public server. The old "roblox://placeID="
+; link opened a completely different game for some players after a disconnect (Roblox now wants
+; "placeId", or its newer experiences/start link): every other try uses the other format
+Launch(try_ := 1) {
     link := Trim(cfg["psLink"])
     try {
         if link != ""
             Run link
+        else if Mod(try_, 2)
+            Run "roblox://experiences/start?placeId=" AA_PLACE_ID
         else
-            Run "roblox://placeID=" AA_PLACE_ID
+            Run "roblox://placeId=" AA_PLACE_ID
     } catch as err {
         AddLog("Couldn't open Roblox: " err.Message)
     }
+}
+
+; closes the Roblox that's open (its own process too if it hangs), e.g. a game that isn't Anime Adventures
+CloseRoblox() {
+    if !WinExist(RBX)
+        return
+    pid := 0
+    try pid := WinGetPID(RBX)
+    try WinClose RBX
+    closed := false
+    try closed := WinWaitClose(RBX, , 10)
+    if !closed && pid && ProcessExist(pid) {
+        try ProcessClose pid
+        try ProcessWaitClose pid, 10
+    }
+    Wait(2000)
 }
 
 ; =====================================================================
