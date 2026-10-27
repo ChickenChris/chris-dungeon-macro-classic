@@ -248,6 +248,31 @@ function renderTeams() {
 // Ability steps (Premium): {kind: "ability", slot, units (0 = all), wave, every (0 = once)}
 const EVERY = [0, 1, 2, 3, 4, 5, 6, 8, 10, 15, 20];
 const isMoveStep = (st) => st.kind !== "ability";
+// the Units page's Timed abilities box: the build order's Ability steps, edited from there too
+function renderAbil() {
+  const el = $("#abilList"); if (!el) return;
+  const list = S.cfg.build, idx = list.map((st, i) => st.kind === "ability" ? i : -1).filter((i) => i >= 0);
+  el.innerHTML = idx.length ? idx.map((i) => `<div class="item abil" data-i="${i}"><span class="num">${icon("zap")}</span><span class="txt">${esc(stepText(list[i]))}</span>
+      <span class="acts"><button class="del" data-a="del" aria-label="Remove">${icon("x")}</button></span></div>`).join("")
+    : '<div class="empty">No timed abilities yet. Add one below, like "Wave 13: slot 3\'s ability, 1 unit".</div>';
+  el.onclick = (e) => {
+    const b = e.target.closest("button[data-a]"); if (!b) return;
+    list.splice(+b.closest(".item").dataset.i, 1); send("build", { steps: list }); renderBuild();
+  };
+  if (!$("#aSlot").options.length) {
+    $("#aSlot").innerHTML = options([1, 2, 3, 4, 5, 6].map((n) => "Slot " + n), 0);
+    $("#aCount").innerHTML = options(["all units", ...[1, 2, 3, 4, 5, 6].map((n) => n + (n == 1 ? " unit" : " units"))], 1);
+    $("#aEvery").innerHTML = options(EVERY.map((n) => n ? "again every " + n + (n == 1 ? " wave" : " waves") : "once"), 0);
+  }
+  $("#aAdd").onclick = () => {
+    if (isClassic()) return toast("Timed abilities are a Premium feature. Premium is in the Chris Macros Discord", "bad");
+    if (!$("#aWave").value) return toast("Pick the wave", "bad");
+    const w = Math.max(1, Math.min(999, Math.round(+$("#aWave").value)));
+    list.push({ kind: "ability", slot: +$("#aSlot").value + 1, count: 1, up: 0, units: +$("#aCount").value, wave: w, every: EVERY[+$("#aEvery").value] });
+    send("build", { steps: list }); renderBuild();
+  };
+}
+
 function stepText(st) {
   if (st.kind === "ability")
     return `Wave ${st.wave}: slot ${st.slot}'s ability, ${+st.units ? st.units + (st.units == 1 ? " unit" : " units") : "all units"}`
@@ -277,6 +302,7 @@ function renderBuild() {
     send("build", { steps: list }); renderBuild();
   };
   sortable(el, (from, to) => { list.splice(to, 0, list.splice(from, 1)[0]); send("build", { steps: list }); renderBuild(); });
+  renderAbil();
 }
 
 let bKind = 0;
