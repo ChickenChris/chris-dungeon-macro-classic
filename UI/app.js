@@ -215,10 +215,10 @@ function renderTeams() {
       if (b.dataset.t === "add") send("teamAdd"); else if (+b.dataset.t !== act) send("team", { i: +b.dataset.t });
     };
   });
-  const row = $(".teamrow");
-  if (!row) return;
   const games = Array.from({ length: 10 }, (_, i) => "Game team " + (i + 1));
+  $$(".teamrow").forEach((row) => {
   row.innerHTML = `
+    <input type="text" class="tname" maxlength="20" value="${esc(cur.name)}" title="The team's name" aria-label="Team name">
     <span class="lbl">Element</span><select data-k="element">${options(["None", ...els], cur.element ? els.indexOf(cur.element) + 1 : 0)}</select>
     <span class="lbl" title="Its row in Units &gt; Teams in the game">Loads</span><select data-k="game">${options(games, (+cur.game || 1) - 1)}</select>
     <button class="btn sm ${act === +T.def ? "acc" : ""}" data-k="default" title="Used when a room boosts none of your teams' elements">${icon("star")}${act === +T.def ? "Default" : "Make default"}</button>
@@ -232,6 +232,11 @@ function renderTeams() {
     if (b.dataset.k === "default") send("teamSet", { i: act, key: "default", value: 1 });
     else if (b.dataset.k === "del") send("teamDel", { i: act });
   };
+  const nm = $(".tname", row);
+  const saveName = () => { const v = nm.value.trim(); if (v && v !== cur.name) send("teamSet", { i: act, key: "name", value: v }); else nm.value = cur.name; };
+  nm.onchange = saveName;
+  nm.onkeydown = (e) => { if (e.key === "Enter") nm.blur(); else if (e.key === "Escape") { nm.value = cur.name; nm.blur(); } };
+  });
 }
 
 // Timed abilities (Premium): [{wave, slot, count (0 = all), every (0 = once)}]

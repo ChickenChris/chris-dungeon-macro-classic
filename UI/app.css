@@ -548,3 +548,4 @@ body.fool-units .teambar { display: none; }
 .abil-b select { width: auto; }
 .abil-h { display: block; }
 .abil-h small { display: block; color: var(--mist); font-size: 11px; font-weight: 400; margin-top: 2px; }
+.teamrow .tname { width: 130px; }
