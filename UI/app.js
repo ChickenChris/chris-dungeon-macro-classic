@@ -519,7 +519,15 @@ function renderCurses() {
   sortable($("#curses"), (from, to) => { rank.splice(to, 0, rank.splice(from, 1)[0]); send("curses", { list: rank }); renderCurses(); });
 }
 
+// the Keyboard setting: [value, what the dropdown shows]
+const KEYBOARDS = [["Auto", "Auto (detect it)"], ["QWERTY", "QWERTY (English and most others)"], ["AZERTY", "AZERTY (French, Belgian)"],
+  ["QWERTZ", "QWERTZ (German, Swiss, Czech...)"], ["Non-Latin", "Russian, Greek, other non-Latin"]];
 function renderSettings() {
+  const kb = $("#kbSel");
+  if (kb) {
+    kb.innerHTML = options(KEYBOARDS.map((k) => k[1]), Math.max(0, KEYBOARDS.findIndex((k) => k[0] === (S.cfg.keyboard || "Auto"))));
+    kb.onchange = () => setVal("keyboard", KEYBOARDS[+kb.value][0]);
+  }
   $("#speed").innerHTML = options(S.speeds, S.cfg.placeSpeed - 1);
   $("#speed").onchange = (e) => setVal("placeSpeed", +e.target.value + 1);
   for (const id of ["webhook", "psLink", "showcaseName", "showcaseDiscord"]) {

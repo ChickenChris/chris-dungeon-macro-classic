@@ -3036,9 +3036,9 @@ ReleaseKeys() {
 ;    and W/A/S/D did nothing; by key code they worked on Kirito's Russian keyboard. (Key codes
 ;    for everyone broke walking on English keyboards, so they're only used there.)
 SendKeys(ks) {
-    ; "AZERTY keyboard" (Settings): this player's Roblox walks with Z Q S D. W opened the emote wheel on
+    ; Keyboard "AZERTY" (Settings): this player's Roblox walks with Z Q S D. W opened the emote wheel on
     ; Simon's PC whatever layout Windows was on, so walks (recorded as W A S D) press Z and Q instead
-    if cfg.Has("azerty") && cfg["azerty"]
+    if KbMode() = "AZERTY"
         ks := RegExReplace(RegExReplace(ks, "i)\{w( down| up)?\}", "{z$1}"), "i)\{a( down| up)?\}", "{q$1}")
     if NonLatinLayout() {
         ks := RegExReplace(ks, "^([A-Za-z])$", "{$1}")
@@ -3049,8 +3049,14 @@ SendKeys(ks) {
 }
 
 ; true when the keyboard layout of Roblox's window has no "a" key (Russian, Greek, ...)
+; the Keyboard setting (Settings page): Auto (the macro looks at the layout), QWERTY, AZERTY, QWERTZ,
+; Non-Latin (Russian, Greek ...: keys by key code)
+KbMode() => cfg.Has("keyboard") ? cfg["keyboard"] : "Auto"
+
 NonLatinLayout() {
     static lastAt := 0, res := false, told := false
+    if KbMode() != "Auto"
+        return KbMode() = "Non-Latin"
     if A_TickCount - lastAt < 3000
         return res
     lastAt := A_TickCount, res := false
