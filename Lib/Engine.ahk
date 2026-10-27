@@ -2723,6 +2723,11 @@ WalkRoute(mapName) {
 ; Click to Move can't stay on: every click the macro makes would walk the character, and the camera
 ; follows it. The menu is found by its text (Windows' text reader), not by fixed spots.
 ClickWalk(x, y) {
+    if FileExist(MOVE_FLAG) && !SetMoveMode("default") {
+        AddLog("Roblox's Movement Mode is still on Click to Move and couldn't be set back, so no Click to Move walk. "
+            . "Set it to Default (Keyboard) yourself: Esc > Settings > Movement Mode")
+        return false
+    }
     if !SetMoveMode("click") {
         AddLog("Couldn't switch Roblox's Movement Mode to Click to Move (Esc > Settings), so no walk this time")
         return false
@@ -2749,8 +2754,12 @@ ClickWalk(x, y) {
         }
     } else
         AddLog("Click to Move: the character didn't move from the click")
-    if !SetMoveMode("default")
-        AddLog("Couldn't set Roblox's Movement Mode back. Set it to Default (Keyboard) yourself in Esc > Settings, or clicks will walk your character")
+    if !SetMoveMode("default") && !SetMoveMode("default") {
+        AddLog("Couldn't set Roblox's Movement Mode back to Default. Set it yourself: Esc > Settings > Movement Mode > Default (Keyboard). "
+            . "Until then every click walks your character. It tries again at the next stage")
+        Notify("Set Roblox's Movement Mode back to Default (Keyboard)")
+        SendWebhook("Movement Mode stuck on Click to Move", "Esc > Settings > Movement Mode > Default (Keyboard). The macro tries again each stage.", 0xF59E0B)
+    }
     return moved
 }
 
@@ -2766,6 +2775,12 @@ SetMoveMode(want) {
                 ok := true
                 break
             }
+            ; only click on while the option can be read: blind clicks could stop on Click to Move
+            if !RegExMatch(val, "i)default|keyboard|click") {
+                SaveDebugShot("move_mode")
+                AddLog("Couldn't read Roblox's Movement Mode option (read: '" val "'), leaving it as it is")
+                break
+            }
             ; the arrow at the right end of the row cycles Default (Keyboard) > Keyboard + Mouse > Click to Move
             MouseMove 762, rowY
             Sleep 120
@@ -2774,9 +2789,11 @@ SetMoveMode(want) {
             val := MoveModeValue(rowY)
         }
         ; still in Click to Move: a file says so, so it's put back even after a stop or a closed macro
+        ; a failed switch back must keep it (it deleted it: Roblox stayed on Click to Move for every
+        ; map after, where each click of the macro walks the character and the camera follows)
         if want != "default" && ok {
             try FileOpen(MOVE_FLAG, "w").Close()
-        } else {
+        } else if want = "default" && ok {
             try FileDelete(MOVE_FLAG)
         }
     } finally
