@@ -3023,7 +3023,7 @@ BuiltInWalk(mapName) {
 HasBuiltInWalk(mapName) => BuiltInWalks().Has(mapName)
 
 ReleaseKeys() {
-    for k in ["w", "a", "s", "d"]                ; checked by key code: a Russian layout has no "w" key name
+    for k in ["w", "a", "s", "d", "z", "q"]      ; checked by key code: a Russian layout has no "w" key name (z, q: AZERTY walking)
         if GetKeyState("vk" Format("{:02X}", Ord(StrUpper(k))))
             SendKeys("{" k " up}")
     if GetKeyState("Space")
@@ -3036,6 +3036,10 @@ ReleaseKeys() {
 ;    and W/A/S/D did nothing; by key code they worked on Kirito's Russian keyboard. (Key codes
 ;    for everyone broke walking on English keyboards, so they're only used there.)
 SendKeys(ks) {
+    ; "AZERTY keyboard" (Settings): this player's Roblox walks with Z Q S D. W opened the emote wheel on
+    ; Simon's PC whatever layout Windows was on, so walks (recorded as W A S D) press Z and Q instead
+    if cfg.Has("azerty") && cfg["azerty"]
+        ks := RegExReplace(RegExReplace(ks, "i)\{w( down| up)?\}", "{z$1}"), "i)\{a( down| up)?\}", "{q$1}")
     if NonLatinLayout() {
         ks := RegExReplace(ks, "^([A-Za-z])$", "{$1}")
         while RegExMatch(ks, "\{([A-Za-z])( down| up)?\}", &m)

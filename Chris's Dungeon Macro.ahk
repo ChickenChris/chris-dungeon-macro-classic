@@ -796,12 +796,14 @@ RecordWalk(name) {
     if !WinExist(RBX)
         return Notify("Open Roblox and load into " name " first")
     manualRun := true, cancelManual := false
-    keysWatched := ["w", "a", "s", "d", "Space"]
+    ; AZERTY (Settings): the player walks with Z Q S D; saved as W A S D like every walk (z -> w, q -> a)
+    az := cfg.Has("azerty") && cfg["azerty"]
+    keysWatched := az ? ["z", "q", "s", "d", "Space"] : ["w", "a", "s", "d", "Space"]
     try {
         AddLog("Recording a walk for " name)
         FocusRoblox()
         GoToSpot(name, false, true)
-        ToolTip("RECORDING  -  walk to the spot with W A S D`nPress F6 when you're there   (F3 cancels)", 10, 10)
+        ToolTip("RECORDING  -  walk to the spot with " (az ? "Z Q S D" : "W A S D") "`nPress F6 when you're there   (F3 cancels)", 10, 10)
         events := [], down := Map(), t0 := A_TickCount, result := ""
         for k in keysWatched
             down[k] := false
@@ -817,7 +819,7 @@ RecordWalk(name) {
                 st := GetKeyState(StrLen(k) = 1 ? "vk" Format("{:02X}", Ord(StrUpper(k))) : k, "P")   ; by key code: any keyboard layout
                 if st != down[k] {
                     down[k] := st
-                    events.Push({k: k, d: st, t: now})
+                    events.Push({k: az && k = "z" ? "w" : az && k = "q" ? "a" : k, d: st, t: now})
                 }
             }
             Sleep 10
@@ -826,7 +828,7 @@ RecordWalk(name) {
         now := A_TickCount - t0
         for k in keysWatched
             if down[k]
-                events.Push({k: k, d: false, t: now})
+                events.Push({k: az && k = "z" ? "w" : az && k = "q" ? "a" : k, d: false, t: now})
         if result != "ok" {
             AddLog("Walk recording cancelled")
         } else if !events.Length {
@@ -1205,7 +1207,7 @@ DefaultConfig() {
         "denyAllShrines", 0, "denyUnknownShrine", 1, "stopAfterDefeat", 0,
         "placeSpeed", 1, "webhook", "", "hookRuns", 1, "psLink", "", "fixOnStart", 1, "tolerance", 2, "retries", 3, "useBuild", 0,
         "bgStrength", 3, "bgGif", "", "accent", "Crimson",
-        "bgOpacity", 70, "bgBlur", 0, "glass", 60, "bgAnimate", 1, "bgFile", "", "bgName", "", "lastSpotMap", "", "elemTeams", 0, "team", 1, "teamDefault", 1, "teams", [],
+        "bgOpacity", 70, "bgBlur", 0, "glass", 60, "bgAnimate", 1, "bgFile", "", "bgName", "", "lastSpotMap", "", "elemTeams", 0, "azerty", 0, "team", 1, "teamDefault", 1, "teams", [],
         "route", ["Rare_Chest", "Chest", "Shop", "Hoard", "Shrine", "Boss"],
         "avoid", Map("Flying", 1, "Wind", 0, "Money", 1, "Health", 1, "Exploding", 0, "Shielding", 1, "Regen", 1),
         "curseRank", ["Flying", "Money", "Health", "Shielding", "Regen", "Wind", "Exploding"], "skipWorst", 5,
@@ -1337,7 +1339,7 @@ class IniDoc {
 
 ScalarKeys() => ["pattern", "useSpots", "saveForTop", "autoAbility", "zoom", "tpSpawn", "saveChests", "buyShop",
     "denyAllShrines", "denyUnknownShrine", "stopAfterDefeat", "placeSpeed", "webhook", "hookRuns", "psLink", "fixOnStart", "tolerance", "skipWorst", "retries", "useBuild",
-    "bgStrength", "bgGif", "accent", "bgOpacity", "bgBlur", "glass", "bgAnimate", "bgFile", "bgName", "lastSpotMap", "elemTeams"]
+    "bgStrength", "bgGif", "accent", "bgOpacity", "bgBlur", "glass", "bgAnimate", "bgFile", "bgName", "lastSpotMap", "elemTeams", "azerty"]
 
 ; Fool's Hunt cards (Premium): only shown, locked, on the Dungeon page
 FOOL_CARDS() => ["shield", "regen", "health", "speed", "yen", "range", "cooldown", "attack", "explosive", "resistant", "spellproof", "plated", "boss"]
