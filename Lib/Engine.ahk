@@ -4002,6 +4002,7 @@ UpgradeAndWatch() {
         }
         if BuildMode() {                       ; the build order did it all: just watch the stage
             busy := false
+            AbilityPass()
             Step("build order done, watching the stage")
         } else {
             TopUpUnits()
@@ -4250,8 +4251,36 @@ AtUpgradeLevel(level) {
 }
 
 CheckAbility() {
-    if cfg["autoAbility"] && Det("AutoOff")
+    if cfg["autoAbility"] && Det("AutoOff") {
         Clk(373, 237)
+        return true
+    }
+    return false
+}
+
+; Build order on: after the last step the macro only watches, so no unit's menu was opened again and
+; an ability that shows up later (or a unit without an upgrade step) never got Auto switched on.
+; Every 90 s each placed unit's menu is opened once more to check (3 times per unit at most)
+AbilityPass() {
+    static lastAt := 0
+    if !cfg["autoAbility"] || A_TickCount - lastAt < 90000
+        return
+    lastAt := A_TickCount
+    for u in placedUnits.Clone() {
+        if u.lost || (u.HasOwnProp("abilityChecks") && u.abilityChecks >= 3) || StageOver()
+            continue
+        u.abilityChecks := (u.HasOwnProp("abilityChecks") ? u.abilityChecks : 0) + 1
+        Step("checking slot " u.slot "'s ability")
+        if OpenUnit(u) {
+            Wait(300)
+            if CheckAbility() {
+                u.abilityChecks := 3
+                AddLog("Slot " u.slot ": ability switched to Auto")
+            }
+            Clk(325, 185)                       ; close the unit menu
+            Wait(200)
+        }
+    }
 }
 
 StageOver() {
