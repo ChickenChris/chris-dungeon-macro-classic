@@ -2621,6 +2621,13 @@ ZoomCameraNow() {
 
 TeleportToSpawn() {
     Step("teleporting to spawn")
+    ; still on a loading screen ("Travelling to... Neo-Tokyo"): there's no settings menu to open yet
+    ; (a no_spawn picture showed exactly that). Wait for it to go, up to 25 s
+    if LoadingScreenUp() {
+        Step("waiting for the loading screen")
+        WaitFor(() => !LoadingScreenUp(), 25000, 1000)
+        Wait(1500)
+    }
     found := false
     loop 2 {                                       ; second go reopens the menu
         Clk(26, 570)                               ; settings gear
@@ -2673,6 +2680,15 @@ TeleportToSpawn() {
     if !found
         AddLog("Couldn't find Teleport to Spawn in the game's settings. Send Logs\no_spawn_....bmp in Discord so it can be fixed. (Settings tab: 'Teleport to spawn' can be turned off meanwhile)")
     return found
+}
+
+; "Travelling to..." / "Traveling to..." at the top left of a loading screen
+LoadingScreenUp() {
+    try {
+        WinGetClientPos &ox, &oy, , , RBX
+        return RegExMatch(OCR.FromRect(ox + 10, oy + 30, 280, 45, OcrLang(), {scale: 2, grayscale: true}).Text, "i)trav+el")
+    }
+    return false
 }
 
 ; The Teleport to Spawn picture is matched loosely (20%), and on some players' settings lists
