@@ -552,3 +552,5 @@ body.fool-units .teambar { display: none; }
 .eico { display: inline-grid; place-items: center; color: var(--ec); filter: drop-shadow(0 0 4px color-mix(in srgb, var(--ec) 55%, transparent)); }
 .eico .i { width: 14px; height: 14px; }
 .tteam .eico .i { width: 13px; height: 13px; }
+.eimg { width: 16px; height: 16px; flex: none; }
+.teamrow .eimg { width: 18px; height: 18px; }

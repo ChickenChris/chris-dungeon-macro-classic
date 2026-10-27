@@ -199,7 +199,11 @@ function renderUnits() {
 // order. The macro sends {list: [{name, element, game}], active, def}; Classic has none (one locked tab)
 const EL_COLORS = { Fire: "#ff9a1f", Aqua: "#1aa7fb", Storm: "#b9e6fe", Air: "#7dfc9a", Rose: "#ffade3", Dark: "#8f8fd6", Light: "#f9f2a0" };
 const EL_ICONS = { Fire: "flame", Aqua: "droplet", Storm: "snowflake", Air: "wind", Rose: "flower", Dark: "moon", Light: "sun" };
-const elIcon = (el) => `<span class="eico" style="--ec:${EL_COLORS[el] || "#aaa"}">${icon(EL_ICONS[el] || "sparkles")}</span>`;
+// the game's own element symbols (cut from Anime Adventures' element list; Gomu, the game's owner, OK'd
+// using them in the macro). An unknown element falls back to a drawn icon in its colour
+const elIcon = (el) => EL_ICONS[el]
+  ? `<img class="eimg" src="img/elements/${el}.png" alt="${el}" draggable="false">`
+  : `<span class="eico" style="--ec:#aaa">${icon("sparkles")}</span>`;
 function renderTeams() {
   const T = S.teams || { list: [{ name: "Team 1", element: "", game: 1 }], active: 1, def: 1 };
   const els = S.elements || Object.keys(EL_COLORS);
