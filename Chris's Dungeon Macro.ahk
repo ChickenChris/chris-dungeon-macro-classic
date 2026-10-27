@@ -258,6 +258,7 @@ HandleMessage(msg) {
             if cfg["denyShrine"].Has(name)
                 cfg["denyShrine"][name] := m.Get("value", 0) ? 1 : 0, SaveConfig()
         case "build": SetBuild(m.Get("steps", []))
+        case "jsError": AddLog("The window had a problem drawing part of a page (" SubStr(m.Get("msg", ""), 1, 120) "). Send this line in Discord")
         case "spots": SendSpots(mp)
         case "spotPick": SpotPick(mp)
         case "spotEdit": SpotEdit(mp, m.Get("i", 0), m.Get("a", ""))

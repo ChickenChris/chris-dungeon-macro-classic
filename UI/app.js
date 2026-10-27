@@ -631,8 +631,11 @@ function toast(msg, kind = "") {
 // ---------------------------------------------------------------- sharing
 function renderAll() {
   spotMap = S.maps.includes(S.cfg.lastSpotMap) ? S.cfg.lastSpotMap : S.maps[0];
-  bindToggles(); renderTeams(); renderUnits(); renderBuild(); initBuilder(); renderSpotsPage();
-  renderDungeon(); renderSettings(); renderLook(); applyLook();
+  // each part on its own: one that fails (a new feature meeting settings it didn't expect) can't take
+  // the rest of the page down with it (an empty team list once left no Mode buttons and no slots)
+  for (const f of [bindToggles, renderTeams, renderUnits, renderBuild, initBuilder, renderSpotsPage, renderDungeon, renderSettings, renderLook, applyLook]) {
+    try { f(); } catch (e) { console.error(e); send("jsError", { msg: (f.name || "?") + ": " + (e && e.message || e) }); }
+  }
 }
 
 // "AA build: P1x2u2 P6x1umax U5u2"  =  place slot 1 x2 upgrade each 2 times, place slot 6 x1 to max, upgrade slot 5 twice
