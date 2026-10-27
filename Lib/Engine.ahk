@@ -2641,16 +2641,19 @@ TeleportToSpawn() {
         Wait(350)
         Clk(400, 215)                              ; mouse over the list so the wheel scrolls it
         Wait(200)
+        MenuMouseOff()
         found := SpawnFound(&fx, &fy) || (Wait(300), SpawnFound(&fx, &fy))
         if !found {
             ; the menu remembers how far it was scrolled: go to the top first,
             ; then step down one notch at a time until the button shows up
             ; (some players have more settings, so it keeps going until the list stops moving)
+            MouseMove 400, 215
             loop 30 {
                 Keys("{WheelUp 1}")
                 Sleep 40
             }
-            Wait(500)
+            MenuMouseOff()
+            MenuSettle()
             ; one notch at a time, and the list slides for a moment after each one: let it
             ; settle before looking (looking mid-slide missed the button or matched a wrong row)
             ; Down, then (if it slipped through) back up: one notch moves the list ~4 rows, and on
@@ -2662,8 +2665,10 @@ TeleportToSpawn() {
                 loop 45 {
                     if found := SpawnFound(&fx, &fy)
                         break
+                    MouseMove 400, 215             ; the wheel only scrolls the list with the mouse over it
                     Keys(dir)
-                    Wait(350)
+                    MenuMouseOff()
+                    MenuSettle()
                     now := MenuSig()
                     same := now = sig ? same + 1 : 0, sig := now
                     if same >= 3                   ; reached the end of the list
@@ -2716,6 +2721,29 @@ SpawnFound(&fx, &fy) {
         return true
     o := DetDefs()["Spawn"], a := o.area
     return FT(&fx, &fy, a[1], a[2], a[3], a[4], 0.06, 0.06, o.pats) ? true : false
+}
+
+; The mouse pointer sat on the list's top row while the macro looked for the Teleport row (it has to be
+; over the list for the wheel). On mmanimals' PC the row stopped right there, under the pointer, so
+; neither the picture nor the text reader saw it (his video: the row fully on screen, then scrolled
+; past). Now the pointer goes off the menu before every look
+MenuMouseOff() {
+    MouseMove 700, 560
+    Sleep 60
+}
+
+; the list slides for a while after a wheel notch (longer on a slow PC: his video showed rows doubled
+; mid-slide 350 ms after the notch): wait until two looks in a row match, up to about 1.5 s
+MenuSettle() {
+    Wait(250)
+    prev := MenuSig()
+    loop 8 {
+        Wait(150)
+        now := MenuSig()
+        if now = prev
+            return
+        prev := now
+    }
 }
 
 ; a rough fingerprint of the settings list, to tell when scrolling stops moving it
