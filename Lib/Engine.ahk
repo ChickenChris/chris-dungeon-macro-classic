@@ -2527,10 +2527,13 @@ PlayStage() {
         lastResult := ""
         placedUnits := [], allPlaced := false, slotPrice := Map()
         global walkedHere := false
+        ; the team for this room's boosted element, FIRST: units can only be changed before the game
+        ; starts ("You can change your units before the game starts!"). After the teleport, the walk and
+        ; the start vote the Units window no longer opened with K (Jbenz's first try)
+        if ElemTeamsOn()
+            PickRoomTeam()
         SetupCamera()
         WaitForVote()
-        if ElemTeamsOn()
-            PickRoomTeam()                      ; the team for this room's boosted element
         ctx := NewPlaceCtx()
         if BuildMode()                          ; the build order OR the Units tab, not both
             RunBuildOrder(ctx)
