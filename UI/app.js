@@ -246,7 +246,8 @@ function renderTeams() {
 }
 
 // Ability steps (Premium): {kind: "ability", slot, units (0 = all), wave, every (0 = once)}
-const EVERY = [0, 1, 2, 3, 4, 5, 6, 8, 10, 15, 20];
+const EVERY = [0, 1, 2, 3, 4, 5, 6, 8, 10, 15, 20, -1];     // -1: switch the ability to Auto at that wave
+const everyName = (n) => n < 0 ? "turn on Auto" : n ? "again every " + n + (n == 1 ? " wave" : " waves") : "once";
 const isMoveStep = (st) => st.kind !== "ability";
 // the Units page's Timed abilities box: the build order's Ability steps, edited from there too
 function renderAbil() {
@@ -262,7 +263,7 @@ function renderAbil() {
   if (!$("#aSlot").options.length) {
     $("#aSlot").innerHTML = options([1, 2, 3, 4, 5, 6].map((n) => "Slot " + n), 0);
     $("#aCount").innerHTML = options(["all units", ...[1, 2, 3, 4, 5, 6].map((n) => n + (n == 1 ? " unit" : " units"))], 1);
-    $("#aEvery").innerHTML = options(EVERY.map((n) => n ? "again every " + n + (n == 1 ? " wave" : " waves") : "once"), 0);
+    $("#aEvery").innerHTML = options(EVERY.map(everyName), 0);
   }
   $("#aAdd").onclick = () => {
     if (isClassic()) return toast("Timed abilities are a Premium feature. Premium is in the Chris Macros Discord", "bad");
@@ -276,7 +277,7 @@ function renderAbil() {
 function stepText(st) {
   if (st.kind === "ability")
     return `Wave ${st.wave}: slot ${st.slot}'s ability, ${+st.units ? st.units + (st.units == 1 ? " unit" : " units") : "all units"}`
-      + (+st.every ? `, again every ${st.every} wave${st.every == 1 ? "" : "s"}` : ", once");
+      + (+st.every < 0 ? ", switched to Auto from then" : +st.every ? `, again every ${st.every} wave${st.every == 1 ? "" : "s"}` : ", once");
   const up = st.up < 0 ? "to max" : st.up + (st.up == 1 ? " time" : " times");
   if (st.kind === "place") return `Place slot ${st.slot} ×${st.count}` + (st.up == 0 ? "" : `, upgrade each ${up}`);
   const n = +st.units || 0;
@@ -351,7 +352,7 @@ function builderState() {
   $("#bX").style.display = bKind ? "none" : "";
   $$(".abil-only").forEach((e) => e.style.display = bKind === 2 ? "" : "none");
   const max = S.maxCount || 6;
-  $("#bUp").innerHTML = bKind === 2 ? options(EVERY.map((n) => n ? "again every " + n + (n == 1 ? " wave" : " waves") : "once"), 0) : options(S.upNames, 0);
+  $("#bUp").innerHTML = bKind === 2 ? options(EVERY.map(everyName), 0) : options(S.upNames, 0);
   $("#bCount").innerHTML = bKind
     ? options(["all units", ...Array.from({ length: max }, (_, i) => (i + 1) + (i ? " units" : " unit"))], 0)
     : options(Array.from({ length: max }, (_, i) => String(i + 1)), 0);
@@ -638,17 +639,17 @@ function renderAll() {
 function buildCode(list) {
   const up = (n) => (n < 0 ? "max" : n);
   return "AA build: " + list.map((st) => st.kind === "ability"
-    ? `A${st.slot}w${st.wave}` + (+st.units ? "n" + st.units : "") + (+st.every ? "e" + st.every : "")
+    ? `A${st.slot}w${st.wave}` + (+st.units ? "n" + st.units : "") + (+st.every < 0 ? "a" : +st.every ? "e" + st.every : "")
     : st.kind === "place"
     ? `P${st.slot}x${st.count}` + (st.up ? "u" + up(st.up) : "")
     : `U${st.slot}` + (+st.units ? "n" + st.units : "") + `u${up(st.up)}`).join(" ");
 }
 function parseBuildCode(text) {
   const out = [];
-  const mv = /^([PU])([1-6])(?:x(\d{1,2}))?(?:n(\d{1,2}))?(?:u(max|\d{1,2}))?$/i, ab = /^A([1-6])w(\d{1,3})(?:n(\d{1,2}))?(?:e(\d{1,2}))?$/i;
+  const mv = /^([PU])([1-6])(?:x(\d{1,2}))?(?:n(\d{1,2}))?(?:u(max|\d{1,2}))?$/i, ab = /^A([1-6])w(\d{1,3})(?:n(\d{1,2}))?(?:e(\d{1,2})|(a))?$/i;
   for (const tok of String(text).split(/[\s,]+/)) {
     let m;
-    if ((m = ab.exec(tok))) { out.push({ kind: "ability", slot: +m[1], count: 1, up: 0, wave: Math.max(1, +m[2]), units: Math.min(20, +m[3] || 0), every: Math.min(50, +m[4] || 0) }); continue; }
+    if ((m = ab.exec(tok))) { out.push({ kind: "ability", slot: +m[1], count: 1, up: 0, wave: Math.max(1, +m[2]), units: Math.min(20, +m[3] || 0), every: m[5] ? -1 : Math.min(50, +m[4] || 0) }); continue; }
     if (!(m = mv.exec(tok))) continue;
     const kind = m[1].toUpperCase() === "P" ? "place" : "upgrade";
     const up = m[5] ? (m[5].toLowerCase() === "max" ? -1 : Math.min(10, +m[5])) : 0;
