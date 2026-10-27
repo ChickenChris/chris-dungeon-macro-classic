@@ -653,6 +653,8 @@ ChooseRoom(rooms) {
             continue
         bad := 0
         if r.kind = "Cursed" {
+            if !curseOf.Has(r.i) && r.HasOwnProp("curseIcon") && r.curseIcon != ""
+                curseOf[r.i] := r.curseIcon         ; read from its box already, no click needed
             if !curseOf.Has(r.i) {
                 Clk(r.a.cx, r.a.cy)
                 Wait(400)
@@ -698,7 +700,7 @@ TryRoom(r, prio, unsafe, curseOf, nextKind := "") {
     global bossDone
     static shots := 0
     ; the curse icon on the room box, read before the click opens the panel over things
-    iconCurse := r.kind != "Boss" ? CurseIcon(r) : ""
+    iconCurse := r.HasOwnProp("curseIcon") && r.curseIcon != "" ? r.curseIcon : r.kind != "Boss" ? CurseIcon(r) : ""
     if iconCurse != "" && r.kind != "Cursed" {
         r.kind := "Cursed"
         AddLog("Room " r.i ": its box shows the curse of " iconCurse " (the border didn't)")
@@ -787,14 +789,30 @@ RoomOrder(rooms) {
     for pk in picks
         for thing in pk.has
             pk.score += ThingValue(thing, shopOk)
+    ; every room's curse, read from the icon on its box before anything is clicked, and scored with
+    ; your curse list: a curse you skip makes the room worth nothing (it's only taken when nothing
+    ; else is left), one you don't skip keeps its worth, and on a tie the milder curse goes first.
+    ; (It used to be read only once it was that room's turn, so the log just said "Curse")
+    for pk in picks {
+        pk.curse := "", pk.bad := 0
+        if pk.r.kind = "Boss"
+            continue
+        c := CurseIcon(pk.r)
+        pk.r.curseIcon := c
+        if c = "" && !pk.cursed
+            continue
+        pk.cursed := true, pk.curse := c, pk.bad := CurseBadness(c), pk.r.kind := "Cursed"
+        if c != "" && AvoidCurse(c)
+            pk.score := -99, pk.skip := true
+    }
     ; one line with how every room was valued, so each pick can be checked straight from the log
     ; (worth = its place on your room list, rare chest double; a shop without enough coins = 0)
     sum := ""
     for pk in picks {
-        what := pk.cursed ? "Curse" : ""
+        what := !pk.cursed ? "" : pk.HasOwnProp("curse") && pk.curse != "" ? "Curse of " pk.curse : "Curse (which one isn't known yet)"
         for t in pk.has
             what .= (what = "" ? "" : "+") RoomLabel(t)
-        sum .= (sum = "" ? "" : "  |  ") "[" (what = "" ? "nothing on your list" : what) "] = " pk.score
+        sum .= (sum = "" ? "" : "  |  ") "[" (what = "" ? "nothing on your list" : what) "] = " (pk.HasOwnProp("skip") ? "skipped, you avoid " pk.curse : pk.score)
     }
     if sum != ""
         AddLog("Rooms: " sum)
@@ -811,7 +829,8 @@ RoomOrder(rooms) {
 }
 
 ; best score first; on a tie your room list decides, then more good rooms after it, then clean before cursed
-RoomBefore(x, y) => x.score != y.score ? x.score > y.score : x.rank != y.rank ? x.rank < y.rank : RoomSpare(x) != RoomSpare(y) ? RoomSpare(x) > RoomSpare(y) : !x.cursed && y.cursed
+RoomBefore(x, y) => x.score != y.score ? x.score > y.score : x.rank != y.rank ? x.rank < y.rank : RoomSpare(x) != RoomSpare(y) ? RoomSpare(x) > RoomSpare(y) : x.cursed != y.cursed ? !x.cursed : RoomBad(x) < RoomBad(y)
+RoomBad(p) => p.HasOwnProp("bad") ? p.bad : 0
 RoomSpare(p) => p.HasOwnProp("spare") ? p.spare : 0
 
 ; what one thing is worth: its place on your room list (top = most). A rare chest counts
