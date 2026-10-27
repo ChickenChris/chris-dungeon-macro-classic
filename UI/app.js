@@ -205,7 +205,7 @@ const elIcon = (el) => EL_ICONS[el]
   ? `<img class="eimg" src="img/elements/${el}.png" alt="${el}" draggable="false">`
   : `<span class="eico" style="--ec:#aaa">${icon("sparkles")}</span>`;
 function renderTeams() {
-  const T = S.teams || { list: [{ name: "Team 1", element: "", game: 1 }], active: 1, def: 1 };
+  const T = S.teams && S.teams.list && S.teams.list.length ? S.teams : { list: [{ name: "Team 1", element: "", game: 1 }], active: 1, def: 1 };
   const els = S.elements || Object.keys(EL_COLORS);
   const act = +T.active || 1, cur = T.list[act - 1] || T.list[0];
   const tabs = T.list.map((t, i) => `<button class="tteam ${i + 1 === act ? "on" : ""}" data-t="${i + 1}" title="${t.element ? esc(t.element) + " team" : "No element picked"}">`
