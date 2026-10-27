@@ -524,3 +524,20 @@ body.classic [data-premium] small { color: color-mix(in srgb, var(--faint) 80%, 
 body.classic .seg button[data-premium] { color: var(--faint); display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
 body.classic .seg button[data-premium] svg.i { width: 12px; height: 12px; color: #f472b6; }
 .empty.warn { margin-top: 8px; color: var(--warn); border-color: rgba(252, 211, 77, .4); }
+
+/* Element teams: tabs on the Units and Build order pages (not in Fool's Hunt, which has its own set) */
+.teambar { display: flex; flex-direction: column; gap: 8px; }
+body.fool-units .teambar { display: none; }
+.teamtabs { display: flex; flex-wrap: wrap; gap: 6px; }
+.tteam { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--line); background: rgba(0, 0, 0, .25); color: var(--mist); font-size: 12px; }
+.tteam:hover { color: var(--cloud); border-color: var(--line-hi); }
+.tteam.on { color: var(--acc); border-color: color-mix(in srgb, var(--acc) 55%, transparent); background: color-mix(in srgb, var(--acc) 14%, transparent); }
+.tteam.add { padding: 0 8px; }
+.tteam .i { width: 13px; height: 13px; }
+.tdef .i { width: 11px; height: 11px; fill: currentColor; }
+.edot { width: 9px; height: 9px; border-radius: 50%; background: var(--ec); box-shadow: 0 0 6px var(--ec); }
+.teamrow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.teamrow .lbl { flex: none; color: var(--mist); font-size: 12px; }
+.teamrow select { width: auto; min-width: 0; }
+.teamrow .btn .i { width: 13px; height: 13px; }
+.teambar .hint { margin: 0; }

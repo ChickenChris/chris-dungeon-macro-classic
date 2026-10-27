@@ -194,6 +194,44 @@ function renderUnits() {
   seg($("#segRetries"), ["Few", "Normal", "Many", "Max"], S.cfg.retries - 1, (i) => setVal("retries", i + 1));
 }
 
+// ---------------------------------------------------------------- Element teams (Premium)
+// A team per element: tabs on the Units and Build order pages, each team with its own units and build
+// order. The macro sends {list: [{name, element, game}], active, def}; Classic has none (one locked tab)
+const EL_COLORS = { Fire: "#ff9a1f", Aqua: "#1aa7fb", Storm: "#b9e6fe", Air: "#7dfc9a", Rose: "#ffade3", Dark: "#8f8fd6", Light: "#f9f2a0" };
+function renderTeams() {
+  const T = S.teams || { list: [{ name: "Team 1", element: "", game: 1 }], active: 1, def: 1 };
+  const els = S.elements || Object.keys(EL_COLORS);
+  const act = +T.active || 1, cur = T.list[act - 1] || T.list[0];
+  const tabs = T.list.map((t, i) => `<button class="tteam ${i + 1 === act ? "on" : ""}" data-t="${i + 1}" title="${t.element ? esc(t.element) + " team" : "No element picked"}">`
+      + (t.element ? `<i class="edot" style="--ec:${EL_COLORS[t.element] || "#aaa"}"></i>` : "") + esc(t.name)
+      + (i + 1 === +T.def ? `<span class="tdef">${icon("star")}</span>` : "") + "</button>").join("")
+    + (T.list.length < 8 ? `<button class="tteam add" data-t="add" aria-label="Add a team" title="Add a team">${icon("plus")}</button>` : "");
+  $$(".teamtabs").forEach((el) => {
+    el.innerHTML = tabs;
+    el.onclick = (e) => {
+      const b = e.target.closest("[data-t]"); if (!b) return;
+      if (b.dataset.t === "add") send("teamAdd"); else if (+b.dataset.t !== act) send("team", { i: +b.dataset.t });
+    };
+  });
+  const row = $(".teamrow");
+  if (!row) return;
+  const games = Array.from({ length: 10 }, (_, i) => "Game team " + (i + 1));
+  row.innerHTML = `
+    <span class="lbl">Element</span><select data-k="element">${options(["None", ...els], cur.element ? els.indexOf(cur.element) + 1 : 0)}</select>
+    <span class="lbl" title="Its row in Units &gt; Teams in the game">Loads</span><select data-k="game">${options(games, (+cur.game || 1) - 1)}</select>
+    <button class="btn sm ${act === +T.def ? "acc" : ""}" data-k="default" title="Used when a room boosts none of your teams' elements">${icon("star")}${act === +T.def ? "Default" : "Make default"}</button>
+    ${act > 1 ? `<button class="btn sm" data-k="del" title="Remove this team">${icon("trash-2")}</button>` : ""}`;
+  $$("select", row).forEach((sel) => sel.onchange = () => {
+    const k = sel.dataset.k, v = k === "element" ? (+sel.value ? els[+sel.value - 1] : "") : +sel.value + 1;
+    send("teamSet", { i: act, key: k, value: v });
+  });
+  row.onclick = (e) => {
+    const b = e.target.closest("button[data-k]"); if (!b) return;
+    if (b.dataset.k === "default") send("teamSet", { i: act, key: "default", value: 1 });
+    else if (b.dataset.k === "del") send("teamDel", { i: act });
+  };
+}
+
 function stepText(st) {
   const up = st.up < 0 ? "to max" : st.up + (st.up == 1 ? " time" : " times");
   if (st.kind === "place") return `Place slot ${st.slot} ×${st.count}` + (st.up == 0 ? "" : `, upgrade each ${up}`);
@@ -519,7 +557,7 @@ function toast(msg, kind = "") {
 // ---------------------------------------------------------------- sharing
 function renderAll() {
   spotMap = S.maps.includes(S.cfg.lastSpotMap) ? S.cfg.lastSpotMap : S.maps[0];
-  bindToggles(); renderUnits(); renderBuild(); initBuilder(); renderSpotsPage();
+  bindToggles(); renderTeams(); renderUnits(); renderBuild(); initBuilder(); renderSpotsPage();
   renderDungeon(); renderSettings(); renderLook(); applyLook();
 }
 
@@ -706,6 +744,7 @@ window.ui = {
     $("#bCount").innerHTML = options(Array.from({ length: S.maxCount }, (_, i) => String(i + 1)), Math.min(keep, S.maxCount - 1));
     renderUnits(); renderBuild();
   },
+  teams(info) { S.teams = info; renderTeams(); },
   duo(n, open) {
     n = +n || 0; open = +open || 0;
     document.documentElement.classList.toggle("duo", n > 0);
