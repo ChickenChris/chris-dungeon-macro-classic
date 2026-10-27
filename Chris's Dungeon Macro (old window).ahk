@@ -962,7 +962,7 @@ LoadShippedWalks() {
     for line in StrSplit(sec, "`n", "`r")
         if (eq := InStr(line, "=")) && SubStr(line, eq + 1) != "" && !cfg["walks"].Has(SubStr(line, 1, eq - 1))
             cfg["walks"][SubStr(line, 1, eq - 1)] := SubStr(line, eq + 1)
-    ; a shipped walk that was replaced: players still on the old one get the new one (it was saved
+    ; a shipped walk that was replaced: players still on an old one get the new one (it was saved
     ; into their settings, so a new default alone never reached them). Their own recordings stay
     try sec := IniRead(file, "OldWalks")
     catch
@@ -970,9 +970,10 @@ LoadShippedWalks() {
     for line in StrSplit(sec, "`n", "`r") {
         if !(eq := InStr(line, "="))
             continue
-        name := SubStr(line, 1, eq - 1), old := SubStr(line, eq + 1)
-        if cfg["walks"].Has(name) && cfg["walks"][name] == old && (now := IniRead(file, "Walks", name, "")) != ""
-            cfg["walks"][name] := now
+        name := SubStr(line, 1, eq - 1)
+        for old in StrSplit(SubStr(line, eq + 1), "|")     ; several old walks: "route1|route2"
+            if cfg["walks"].Has(name) && cfg["walks"][name] == old && (now := IniRead(file, "Walks", name, "")) != ""
+                cfg["walks"][name] := now
     }
     try sec := IniRead(file, "Spots")
     catch
