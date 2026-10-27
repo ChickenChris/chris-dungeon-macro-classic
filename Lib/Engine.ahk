@@ -3371,6 +3371,22 @@ ReadRoomBoosts() {
             }
             roomBoosts.Push({el: el, pct: pct})
         }
+        ; a % that wasn't read on its own (Storm's pale text, on Jbenz's PC): the whole row read at once
+        ; gives the numbers left to right ("266% 202% 231%"), one per chip
+        miss := false
+        for b in roomBoosts
+            miss := miss || b.pct < 0
+        if miss && roomBoosts.Length {
+            row := ""
+            try row := OCR.FromRect(ox + x0 - 4, oy + y0 - 4, x1 - x0 + 8, y1 - y0 + 8, OcrLang(), {scale: 3, grayscale: true}).Text
+            nums := [], pos := 1
+            row := StrReplace(StrReplace(row, "O", "0"), "o", "0")
+            while pos := RegExMatch(row, "(\d{2,4})\s*%", &m, pos)
+                nums.Push(Integer(m[1])), pos += m.Len
+            if nums.Length = roomBoosts.Length
+                for i, b in roomBoosts
+                    b.pct := b.pct < 0 ? nums[i] : b.pct
+        }
     }
     txt := ""
     for b in roomBoosts
@@ -3447,17 +3463,29 @@ PickRoomTeam() {
 LoadGameTeam(n) {
     static isGreen := (r, g, b) => g > 150 && r < 130 && b < 130 && g > r + 50
     ReleaseKeys()
-    loop 2 {                                    ; K opens the Units window (a second try if it didn't)
+    ; K opens the Units window: its green Teams button where it was measured, or the word "Teams"
+    ; anywhere in the middle (in a stage the window can sit elsewhere than in the lobby). 4 s, 2 tries
+    tx := 397, ty := 222, open := false
+    loop 2 {
         Keys("k")
-        if WaitFor(() => ColorShare(372, 215, 422, 229, isGreen) >= 0.3, 2500, 150)
-            break
-        if A_Index = 2 {
-            AddLog("Teams: the Units window didn't open with K")
-            return false
+        t0 := A_TickCount
+        while !open && A_TickCount - t0 < 4000 {
+            if ColorShare(372, 215, 422, 229, isGreen) >= 0.3
+                open := true
+            else if OcrFindWord(100, 70, 600, 380, "i)^teams?$", &tx, &ty)
+                open := true
+            else
+                Wait(300)
         }
+        if open
+            break
     }
-    Clk(397, 222)                               ; Teams
-    if !WaitFor(() => ColorShare(548, 224, 584, 238, isGreen) >= 0.3, 2500, 150) {
+    if !open {
+        AddLog("Teams: the Units window didn't open with K")
+        return false
+    }
+    Clk(tx, ty)                                 ; Teams
+    if !WaitFor(() => ColorShare(548, 224, 584, 238, isGreen) >= 0.3 || OcrFindWord(100, 60, 600, 440, "i)switch|^load$", &lx, &ly), 3500, 200) {
         AddLog("Teams: the Switch Team list didn't open")
         CloseTeamWindows()
         return false
