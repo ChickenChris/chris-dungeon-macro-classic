@@ -57,7 +57,7 @@ global slotCap := Map()         ; "slot|map" -> the most that fit on that map, o
 global goodSpots := Map()       ; "slot|map" -> spots where that slot landed before (tried first next time)
 ; (per map: a cramped map used to cap a slot for every later map, so later rooms were played
 ; with fewer units until the macro was restarted)
-CapKey(n) => n "|" curMap
+CapKey(n) => n "|" curMap (ElemTeamsOn() ? "|" cfg["team"] : "")    ; with Element teams a slot holds another unit per team
 global slotOne := Map()         ; slot -> true: a unique unit, the game allows one of it
 global autoOpenSeen := false   ; a menu has opened by itself after placing (the game setting is right)
 global autoOpenOff := false    ; menus only open when the new unit is clicked (setting is wrong)
@@ -276,7 +276,7 @@ EngineRun() {
     global running, idleSince, slotStops, slotCap, slotOne, slotFull, autoOpenSeen, autoOpenOff, clickOpened
     errors := 0
     idleSince := 0
-    global goodSpots := Map()
+    global goodSpots := Map(), teamLoaded := 0  ; which team the game has isn't known at Start
     slotStops := Map(), slotCap := Map(), slotOne := Map(), slotFull := Map(), autoOpenSeen := false, autoOpenOff := false, clickOpened := 0
     loop {
         try {
@@ -637,6 +637,7 @@ ScanRooms() {
 }
 
 ChooseRoom(rooms) {
+    global roomBoosts := []
     Step("choosing a room")
     ; shops / shrines / chests can pop up a moment after the map appears
     if WaitFor(() => SpecialScreen(), 1200)
@@ -671,6 +672,8 @@ ChooseRoom(rooms) {
         c := curseOf.Has(best.i) ? curseOf[best.i] : ""
         AddLog("No preferred room left, taking the least bad one" (c != "" ? " (curse of " c ")" : ""))
         OpenRoom(best)
+        if ElemTeamsOn()
+            ReadRoomBoosts()
         EnterRoom()
         return
     }
@@ -706,6 +709,8 @@ TryRoom(r, prio, unsafe, curseOf, nextKind := "") {
         AddLog("Room " r.i ": its box shows the curse of " iconCurse " (the border didn't)")
     }
     OpenRoom(r)
+    if ElemTeamsOn()
+        ReadRoomBoosts()                        ; the room's boosted elements, for picking the team
     if shots < 8 {                              ; pictures of room panels, to build exact curse icons from
         shots++
         Wait(300)
@@ -2524,6 +2529,8 @@ PlayStage() {
         global walkedHere := false
         SetupCamera()
         WaitForVote()
+        if ElemTeamsOn()
+            PickRoomTeam()                      ; the team for this room's boosted element
         ctx := NewPlaceCtx()
         if BuildMode()                          ; the build order OR the Units tab, not both
             RunBuildOrder(ctx)
@@ -3248,6 +3255,217 @@ LearnSpot(n, p) {
     list.Push({x: p.x, y: p.y})
     if list.Length > 20
         list.RemoveAt(1)
+}
+
+; ---------- Element teams ----------
+; A dungeon room boosts up to 3 elements: its popup (opened when the room is picked) shows each as a
+; coloured % with the element's icon under it (Storm +388%, Air +362%, Dark +222%). Players keep a
+; team per element in the game (Units > Teams), and on the Units page each team has its element, the
+; game team it loads, and its own units and build order. At the start of a room the macro loads the
+; team for the most boosted element (or the default team) and plays with that team's setup.
+global roomBoosts := [], teamLoaded := 0        ; teamLoaded: the team loaded in the game this run (0 = not sure)
+ElemTeamsOn() => cfg.Has("elemTeams") && cfg["elemTeams"] && cfg.Has("teams") && cfg["teams"].Length > 1
+
+; the element chips on an open room popup, as [{el, pct}] (pct < 0: the number couldn't be read; the
+; chips' order then decides). Read by colour: each element's % text has its own colour (pale blue Storm,
+; deep blue Aqua, green Air, grey-purple Dark ...; checked on Chris's screenshots)
+ReadRoomBoosts() {
+    global roomBoosts
+    static shots := 0
+    roomBoosts := []
+    try {
+        WinGetClientPos &ox, &oy, , , RBX
+        Fresh()
+        scr := FindText()
+        x0 := 314, x1 := 462, y0 := 350, y1 := 364      ; the chips' % row (game-area coordinates)
+        cols := []                              ; per column: the hues of its coloured pixels
+        x := x0
+        while x < x1 {
+            hs := [], y := y0
+            while y < y1 {
+                if (h := ElemHue(scr.GetColor(ox + x, oy + y, 0) & 0xFFFFFF)) >= 0
+                    hs.Push(h)
+                y++
+            }
+            cols.Push(hs), x++
+        }
+        chips := [], c0 := 0, last := 0        ; a chip: columns with colour, 4+ empty columns apart
+        for i, hs in cols {
+            if hs.Length >= 2 {
+                c0 := c0 ? c0 : i, last := i
+            } else if c0 && i - last >= 4
+                chips.Push([c0, last]), c0 := 0
+        }
+        if c0
+            chips.Push([c0, last])
+        for n, ch in chips {
+            w := ch[2] - ch[1] + 1
+            if w < 12 || w > 44                 ; not a "52%" .. "1000%" chip
+                continue
+            ; pale (Storm) or deep (Aqua) blue: the share of near-white pixels in the text
+            pale := 0, bright := 0, xx := ch[1]
+            while xx <= ch[2] {
+                y := y0
+                while y < y1 {
+                    c := scr.GetColor(ox + x0 + xx - 1, oy + y, 0) & 0xFFFFFF
+                    r := (c >> 16) & 0xFF, g := (c >> 8) & 0xFF, b := c & 0xFF
+                    if Max(r, g, b) >= 120
+                        bright++, pale += Min(r, g, b) >= 150
+                    y++
+                }
+                xx++
+            }
+            votes := Map(), isPale := bright && pale / bright > 0.25
+            loop w
+                for h in cols[ch[1] + A_Index - 1] {
+                    k := HueElement(h, isPale)
+                    votes[k] := (votes.Has(k) ? votes[k] : 0) + 1
+                }
+            el := "", most := 0
+            for k, v in votes
+                if v > most
+                    el := k, most := v
+            pct := -n
+            try {
+                txt := OCR.FromRect(ox + x0 + ch[1] - 4, oy + y0 - 3, w + 8, y1 - y0 + 6, OcrLang(), {scale: 3, grayscale: true}).Text
+                if RegExMatch(StrReplace(StrReplace(txt, "O", "0"), "o", "0"), "\d{2,4}", &m)
+                    pct := Integer(m[0])
+            }
+            roomBoosts.Push({el: el, pct: pct})
+        }
+    }
+    txt := ""
+    for b in roomBoosts
+        txt .= (txt = "" ? "" : ", ") b.el (b.pct >= 0 ? " +" b.pct "%" : "")
+    AddLog("Room boosts: " (txt != "" ? txt : "none read"))
+    if shots < 4 {                              ; a few pictures, to check the colours on other PCs
+        shots++
+        SaveDebugShot("room_boosts")
+    }
+    return roomBoosts
+}
+
+; the hue (0-359) of a pixel of a chip's text, or -1. Dark's text is a soft grey-purple, the others strong
+ElemHue(c) {
+    r := (c >> 16) & 0xFF, g := (c >> 8) & 0xFF, b := c & 0xFF
+    mx := Max(r, g, b), mn := Min(r, g, b)
+    if mx >= 115 && mx - mn >= mx * 0.5 {
+        d := mx - mn
+        h := mx = r ? Mod(60 * (g - b) / d + 360, 360) : mx = g ? 60 * (b - r) / d + 120 : 60 * (r - g) / d + 240
+        return h
+    }
+    if Abs(r - g) < 14 && b - r >= 35 && b >= 128
+        return 245                              ; Dark's fill
+    return -1
+}
+
+HueElement(h, pale) {
+    if h < 45 || h >= 345
+        return h >= 300 ? "Rose" : "Fire"
+    if h < 75
+        return "Light"
+    if h < 170
+        return "Air"
+    if h < 228
+        return pale ? "Storm" : "Aqua"
+    if h < 300
+        return "Dark"
+    return "Rose"
+}
+
+; at the start of a room: the team for its most boosted element, loaded in the game if it isn't yet
+PickRoomTeam() {
+    global teamLoaded, roomBoosts
+    if !roomBoosts.Length                       ; not read (a room picked without its popup): no switching on a guess
+        return
+    boosts := roomBoosts, roomBoosts := []      ; used once: the next room reads its own
+    best := 0, bestPct := -999, why := ""
+    for b in boosts
+        for k, t in cfg["teams"]
+            if t.element != "" && t.element = b.el && b.pct > bestPct
+                best := k, bestPct := b.pct, why := b.el (b.pct >= 0 ? " +" b.pct "%" : "")
+    k := best ? best : cfg["teamDefault"]
+    if k = teamLoaded && k = cfg["team"]
+        return
+    t := cfg["teams"][k]
+    Step("loading " t.name " (Units > Teams)")
+    if LoadGameTeam(t.game) {
+        global slotOne, slotFull
+        if k != teamLoaded
+            slotOne := Map(), slotFull := Map()     ; what was learned about the other team's units
+        teamLoaded := k
+        UseTeam(k, true)
+        AddLog("Loaded " t.name " (" (why != "" ? why : "your default team: the room boosts none of your teams' elements") ")")
+    } else {
+        teamLoaded := 0
+        AddLog("Couldn't load " t.name " in the game (Units > Teams), playing with the team that's on")
+        SaveDebugShot("team_load")
+    }
+}
+
+; Units (K) > Teams > LOAD on row n of the game's "Switch Team" list, then both windows closed.
+; Measured on Chris's PC in the macro's frame: Teams at 397,222; LOAD at x 566, row 1 at y 231, rows 86
+; apart; one wheel notch moves the list 99 px; the list shows y 175-480; "Team changed!" in green below
+LoadGameTeam(n) {
+    static isGreen := (r, g, b) => g > 150 && r < 130 && b < 130 && g > r + 50
+    ReleaseKeys()
+    loop 2 {                                    ; K opens the Units window (a second try if it didn't)
+        Keys("k")
+        if WaitFor(() => ColorShare(372, 215, 422, 229, isGreen) >= 0.3, 2500, 150)
+            break
+        if A_Index = 2 {
+            AddLog("Teams: the Units window didn't open with K")
+            return false
+        }
+    }
+    Clk(397, 222)                               ; Teams
+    if !WaitFor(() => ColorShare(548, 224, 584, 238, isGreen) >= 0.3, 2500, 150) {
+        AddLog("Teams: the Switch Team list didn't open")
+        CloseTeamWindows()
+        return false
+    }
+    ; to the top of the list, then down until row n's LOAD shows
+    MouseMove 400, 330
+    loop 12 {
+        SendInput "{WheelUp}"
+        Sleep 15
+    }
+    Wait(600)
+    yAt := 231 + (n - 1) * 86, notches := Max(0, Ceil((yAt - 465) / 99))
+    loop notches {
+        SendInput "{WheelDown}"
+        Sleep 60
+    }
+    if notches
+        Wait(900)
+    yAt -= notches * 99
+    Stale()
+    ; the LOAD button nearest to where row n should be (only LOAD is green: SAVE is blue, CLEAR red)
+    best := -1
+    loop 41 {
+        y := yAt - 20 + A_Index - 1
+        if y < 175 || y > 485
+            continue
+        if ColorShare(552, y - 2, 580, y + 2, isGreen) >= 0.6 && (best < 0 || Abs(y - yAt) < Abs(best - yAt))
+            best := y
+    }
+    if best < 0 {
+        AddLog("Teams: no LOAD button where team " n " should be")
+        CloseTeamWindows()
+        return false
+    }
+    Clk(566, best)
+    ok := WaitFor(() => ColorShare(280, 440, 525, 474, isGreen) >= 0.04, 2500, 120)   ; "Team changed!"
+    CloseTeamWindows()
+    return ok
+}
+
+; closes Switch Team (its red X) and the Units window (its red X)
+CloseTeamWindows() {
+    Clk(608, 124)
+    Wait(500)
+    Clk(663, 204)
+    Wait(600)
 }
 
 ; ---------- build order ----------

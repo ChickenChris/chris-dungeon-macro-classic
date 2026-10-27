@@ -40,6 +40,8 @@ DirCreate A_ScriptDir "\Settings"
 DirCreate A_ScriptDir "\Logs"
 
 global CURSES := ["Flying", "Wind", "Money", "Health", "Exploding", "Shielding", "Regen"]
+; the elements a dungeon room can boost (its popup shows up to 3 with a %), for Element teams
+global ELEMENTS := ["Fire", "Aqua", "Storm", "Air", "Rose", "Dark", "Light"]
 global ROOM_KEYS := ["Rare_Chest", "Chest", "Hoard", "Shop", "Shrine", "Boss", "None"]
 global ROOM_NAMES := ["Rare chest", "Chest", "Hoard", "Shop", "Shrine", "Boss", "(nothing)"]
 global RETRIES := ["Few (quick)", "Normal", "Many", "Max (keeps trying)"]
@@ -258,6 +260,10 @@ HandleMessage(msg) {
             if cfg["denyShrine"].Has(name)
                 cfg["denyShrine"][name] := m.Get("value", 0) ? 1 : 0, SaveConfig()
         case "build": SetBuild(m.Get("steps", []))
+        case "team": UseTeam(IsInteger(v := m.Get("i", 1)) ? Integer(v) : 1)
+        case "teamAdd": AddTeam()
+        case "teamDel": DelTeam(IsInteger(v := m.Get("i", 0)) ? Integer(v) : 0)
+        case "teamSet": SetTeam(IsInteger(v := m.Get("i", 0)) ? Integer(v) : 0, m.Get("key", ""), m.Get("value", ""))
         case "jsError": AddLog("The window had a problem drawing part of a page (" SubStr(m.Get("msg", ""), 1, 120) "). Send this line in Discord")
         case "spots": SendSpots(mp)
         case "spotPick": SpotPick(mp)
@@ -317,7 +323,7 @@ UiState() {
         "roomKeys", ROOM_KEYS, "roomNames", ROOM_NAMES, "curses", CURSES, "speeds", SPEEDS,
         "upNames", UP_NAMES, "upValues", UP_VALUES, "hasRoblox", WinExist(RBX) ? 1 : 0, "duo", 0, "duoOpen", 0, "maxCount", MaxCount(),
         "run", runState, "stats", StatsMap(), "loot", LootList(), "logs", logBuf, "cfg", c,
-        "bgUrl", BgUrl(), "bgName", cfg["bgFile"] != "" ? cfg["bgName"] : "Sakura")
+        "bgUrl", BgUrl(), "bgName", cfg["bgFile"] != "" ? cfg["bgName"] : "Sakura", "teams", TeamsInfo(), "elements", ELEMENTS)
 }
 
 ; a setting changed on the page
@@ -580,6 +586,120 @@ TestWebhook(*) {
         return Notify("Paste a webhook URL first")
     ok := SendWebhook("Webhook connected", "Stage results will show up here.", 0x7DD3FC)
     Notify(ok ? "Test message sent. Check your Discord channel" : "That didn't work. Check the link", ok ? "good" : "bad")
+}
+
+; =====================================================================
+;  Element teams
+; =====================================================================
+; A dungeon room boosts up to 3 elements (Storm +388% ...). Players keep a team per element in the
+; game's Units > Teams list, and here each team has its own Units tab and build order. Team 1 is the
+; setup everyone had before. The team you're on (cfg["team"]) is the one in "slots" / "build" (the
+; dungeon set: "otherSlots" / "otherBuild" while in Fool's Hunt); the others wait in cfg["teams"].
+; Each team: {name, element ("" or one of ELEMENTS), game (its row in the game's team list), slots, build}
+DungeonSlots() => cfg["slots"]                  ; (Premium: the dungeon set can wait in "otherSlots" in Fool's Hunt)
+DungeonBuild() => cfg["build"]
+
+; the team you're on gets its current units and build order (lists get replaced, e.g. by Paste code)
+SyncTeam() {
+    EnsureTeams()
+    t := cfg["teams"][cfg["team"]]
+    t.slots := DungeonSlots(), t.build := DungeonBuild()
+}
+
+; there's always a Team 1 (a fresh install has no settings file, so LoadConfig made no teams at all,
+; and the page broke on the empty list: no Mode buttons, nothing drawn after the team box)
+EnsureTeams() {
+    if !cfg["teams"].Length {
+        cfg["teams"].Push({name: "Team 1", element: "", game: 1, slots: DungeonSlots(), build: DungeonBuild()})
+        cfg["team"] := 1, cfg["teamDefault"] := 1
+    }
+    cfg["team"] := Min(Max(cfg["team"], 1), cfg["teams"].Length)
+    cfg["teamDefault"] := Min(Max(cfg["teamDefault"], 1), cfg["teams"].Length)
+}
+
+TeamsInfo() {
+    EnsureTeams()
+    list := []
+    for t in cfg["teams"]
+        list.Push(Map("name", t.name, "element", t.element, "game", t.game))
+    return Map("list", list, "active", cfg["team"], "def", cfg["teamDefault"])
+}
+
+SendTeams() {
+    UI("units", cfg["slots"], cfg["build"], MaxCount())
+    UI("teams", TeamsInfo())
+}
+
+; makes team i the one you edit and the macro plays with (the macro calls it after loading that team in
+; the game). quiet: no saving right away (the macro is busy)
+UseTeam(i, quiet := false) {
+    global cfg
+    if i < 1 || i > cfg["teams"].Length || i = cfg["team"] {
+        SendTeams()
+        return
+    }
+    SyncTeam()
+    t := cfg["teams"][i]
+    if !t.slots.Length
+        t.slots := CopySlots(DungeonSlots())
+    cfg["slots"] := t.slots, cfg["build"] := t.build
+    cfg["team"] := i
+    quiet ? SaveSoon() : SaveConfig()
+    SendTeams()
+}
+
+AddTeam() {
+    if running
+        return Notify("Stop the macro first")
+    if cfg["teams"].Length >= 8
+        return Notify("8 teams is the most")
+    SyncTeam()
+    n := cfg["teams"].Length + 1
+    ; a new team starts as a copy of the units you're on (no build order): only the units change
+    cfg["teams"].Push({name: "Team " n, element: "", game: n, slots: CopySlots(DungeonSlots()), build: []})
+    UseTeam(n)
+    Notify("Team " n " added. Pick its element and which team it is in the game's Teams list", "good")
+}
+
+DelTeam(i) {
+    if running
+        return Notify("Stop the macro first")
+    if i <= 1 || i > cfg["teams"].Length
+        return
+    MG.Opt("+OwnDialogs")
+    if MsgBox("Remove " cfg["teams"][i].name " with its units and build order?", "Remove team", "YesNo Icon!") != "Yes"
+        return
+    if cfg["team"] = i
+        UseTeam(i - 1, true)
+    SyncTeam()
+    cfg["teams"].RemoveAt(i)
+    for k, t in cfg["teams"]                    ; teams still called "Team N" get their new number
+        if RegExMatch(t.name, "^Team \d+$")
+            t.name := "Team " k
+    if cfg["team"] > i
+        cfg["team"]--
+    cfg["teamDefault"] := cfg["teamDefault"] = i ? 1 : cfg["teamDefault"] > i ? cfg["teamDefault"] - 1 : cfg["teamDefault"]
+    SaveConfig()
+    SendTeams()
+}
+
+SetTeam(i, key, value) {
+    if i < 1 || i > cfg["teams"].Length
+        return
+    t := cfg["teams"][i]
+    switch key {
+        case "element": t.element := IndexOf(ELEMENTS, value) ? String(value) : ""
+        case "name":
+            v := Trim(RegExReplace(String(value), "[\r\n=\[\]]", ""))
+            if v = ""
+                return
+            t.name := SubStr(v, 1, 20)
+        case "game": t.game := ClampInt(value, 1, 20, t.game)
+        case "default": cfg["teamDefault"] := i
+        default: return
+    }
+    SaveConfig()
+    UI("teams", TeamsInfo())
 }
 
 ; =====================================================================
@@ -1085,7 +1205,7 @@ DefaultConfig() {
         "denyAllShrines", 0, "denyUnknownShrine", 1, "stopAfterDefeat", 0,
         "placeSpeed", 1, "webhook", "", "hookRuns", 1, "psLink", "", "fixOnStart", 1, "tolerance", 2, "retries", 3, "useBuild", 0,
         "bgStrength", 3, "bgGif", "", "accent", "Crimson",
-        "bgOpacity", 70, "bgBlur", 0, "glass", 60, "bgAnimate", 1, "bgFile", "", "bgName", "", "lastSpotMap", "",
+        "bgOpacity", 70, "bgBlur", 0, "glass", 60, "bgAnimate", 1, "bgFile", "", "bgName", "", "lastSpotMap", "", "elemTeams", 0, "team", 1, "teamDefault", 1, "teams", [],
         "route", ["Rare_Chest", "Chest", "Shop", "Hoard", "Shrine", "Boss"],
         "avoid", Map("Flying", 1, "Wind", 0, "Money", 1, "Health", 1, "Exploding", 0, "Shielding", 1, "Regen", 1),
         "curseRank", ["Flying", "Money", "Health", "Shielding", "Regen", "Wind", "Exploding"], "skipWorst", 5,
@@ -1217,7 +1337,7 @@ class IniDoc {
 
 ScalarKeys() => ["pattern", "useSpots", "saveForTop", "autoAbility", "zoom", "tpSpawn", "saveChests", "buyShop",
     "denyAllShrines", "denyUnknownShrine", "stopAfterDefeat", "placeSpeed", "webhook", "hookRuns", "psLink", "fixOnStart", "tolerance", "skipWorst", "retries", "useBuild",
-    "bgStrength", "bgGif", "accent", "bgOpacity", "bgBlur", "glass", "bgAnimate", "bgFile", "bgName", "lastSpotMap"]
+    "bgStrength", "bgGif", "accent", "bgOpacity", "bgBlur", "glass", "bgAnimate", "bgFile", "bgName", "lastSpotMap", "elemTeams"]
 
 ; Fool's Hunt cards (Premium): only shown, locked, on the Dungeon page
 FOOL_CARDS() => ["shield", "regen", "health", "speed", "yen", "range", "cooldown", "attack", "explosive", "resistant", "spellproof", "plated", "boss"]
@@ -1266,6 +1386,17 @@ LoadConfig() {
     cfg["tolerance"] := ClampInt(cfg["tolerance"], 1, 3, 2)
     cfg["retries"] := ClampInt(cfg["retries"], 1, RETRIES.Length, 3)
     cfg["build"] := ReadBuild("Build", 6)
+    ; Element teams: team 1 is [Slot1..6] / [Build] (the setup from before teams), team k [TkSlot..] / [TkBuild]
+    n := ClampInt(IniRead(cfgFile, "Teams", "Count", 1), 1, 8, 1), teams := []
+    loop n {
+        k := A_Index, el := IniRead(cfgFile, "Teams", "Element" k, ""), nm := Trim(IniRead(cfgFile, "Teams", "Name" k, ""))
+        teams.Push({name: nm != "" ? SubStr(nm, 1, 20) : "Team " k, element: IndexOf(ELEMENTS, el) ? el : "", game: ClampInt(IniRead(cfgFile, "Teams", "Game" k, k), 1, 20, k),
+            slots: k = 1 ? cfg["slots"] : ReadSlots("T" k "Slot", cfg["slots"], 6), build: k = 1 ? cfg["build"] : ReadBuild("T" k "Build", 6)})
+    }
+    cfg["teams"] := teams
+    cfg["team"] := ClampInt(IniRead(cfgFile, "Teams", "Active", 1), 1, n, 1)
+    cfg["teamDefault"] := ClampInt(IniRead(cfgFile, "Teams", "Default", 1), 1, n, 1)
+    cfg["slots"] := teams[cfg["team"]].slots, cfg["build"] := teams[cfg["team"]].build
     try walkSec := IniRead(cfgFile, "Walks")
     catch
         walkSec := ""
@@ -1321,7 +1452,15 @@ SaveConfig(*) {
             ini.Set("DenyShrine", name, v)
         for i, name in cfg["curseRank"]
             ini.Set("Curses", "Rank" i, name)
-        WriteSlots(ini, "Slot", cfg["slots"])
+        ; units and build orders, one set per Element team (team 1 = [Slot..] / [Build])
+        SyncTeam()
+        ini.Drop("Teams")
+        ini.Set("Teams", "Count", cfg["teams"].Length), ini.Set("Teams", "Active", cfg["team"]), ini.Set("Teams", "Default", cfg["teamDefault"])
+        for k, t in cfg["teams"] {
+            ini.Set("Teams", "Element" k, t.element), ini.Set("Teams", "Game" k, t.game), ini.Set("Teams", "Name" k, t.name)
+            WriteSlots(ini, k = 1 ? "Slot" : "T" k "Slot", t.slots)
+            WriteBuild(ini, k = 1 ? "Build" : "T" k "Build", t.build)
+        }
         ini.Drop("Spots")
         for name, list in cfg["spots"] {
             if !list.Length
@@ -1331,7 +1470,6 @@ SaveConfig(*) {
                 str .= (A_Index > 1 ? "|" : "") p.x "," p.y
             ini.Set("Spots", name, str)
         }
-        WriteBuild(ini, "Build", cfg["build"])
         ini.Drop("Walks")
         for name, route in cfg["walks"]
             ini.Set("Walks", name, route)

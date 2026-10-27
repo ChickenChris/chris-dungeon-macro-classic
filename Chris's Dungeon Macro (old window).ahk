@@ -1646,3 +1646,6 @@ DefaultGif(*) {
 #Include %A_ScriptDir%\Lib\FindText.ahk
 ; OCR.ahk: Windows' built-in text reader (by Descolada, MIT licence)
 #Include %A_ScriptDir%\Lib\OCR.ahk
+
+; Element teams live in the new window only (the engine asks for this when switching teams)
+UseTeam(i, quiet := false) => 0
