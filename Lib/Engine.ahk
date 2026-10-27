@@ -2639,15 +2639,23 @@ TeleportToSpawn() {
             Wait(500)
             ; one notch at a time, and the list slides for a moment after each one: let it
             ; settle before looking (looking mid-slide missed the button or matched a wrong row)
-            same := 0, sig := MenuSig()
-            loop 45 {
-                if found := SpawnFound(&fx, &fy)
-                    break
-                Keys("{WheelDown 1}")
-                Wait(350)
-                now := MenuSig()
-                same := now = sig ? same + 1 : 0, sig := now
-                if same >= 3                       ; reached the bottom of the list
+            ; Down, then (if it slipped through) back up: one notch moves the list ~4 rows, and on
+            ; some players' lists (more rows) every notch on the way down left the Teleport row half
+            ; under the "Settings" title, where it wasn't recognised, and the next notch moved it
+            ; out of view. From the bottom the rows line up differently, so it shows in full there
+            for dir in ["{WheelDown 1}", "{WheelUp 1}"] {
+                same := 0, sig := MenuSig()
+                loop 45 {
+                    if found := SpawnFound(&fx, &fy)
+                        break
+                    Keys(dir)
+                    Wait(350)
+                    now := MenuSig()
+                    same := now = sig ? same + 1 : 0, sig := now
+                    if same >= 3                   ; reached the end of the list
+                        break
+                }
+                if found
                     break
             }
             if !found
@@ -2671,8 +2679,15 @@ TeleportToSpawn() {
 ; that also fit another row: it clicked that, stopped scrolling and never teleported. So a
 ; loose hit must also read "Spawn"/"Teleport" on that row, or match the picture closely.
 SpawnFound(&fx, &fy) {
-    if !Det("Spawn", &fx, &fy)
+    if !Det("Spawn", &fx, &fy) {
+        ; the picture missed (a row at the edge of the list, another font size): the words on the
+        ; whole list. fx, fy as the picture gives them (window coordinates), for the click
+        if OcrFindWord(225, 140, 370, 335, "i)sp[a@]wn", &wx, &wy) {
+            fx := wx + 5, fy := wy + 31
+            return true
+        }
         return false
+    }
     cx := fx - 5, cy := fy - 31                     ; window -> game-area coords
     if OcrFindWord(Max(0, cx - 180), Max(0, cy - 23), 360, 46, "i)sp[a@]wn|tele", &wx, &wy)
         return true
