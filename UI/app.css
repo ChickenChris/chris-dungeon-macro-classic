@@ -158,7 +158,7 @@ body.fool-units .fool-note { display: block; }
 .build-note .btn { flex: none; }
 body.build-on .build-note { display: flex; }
 #slots { transition: opacity .2s, filter .2s; }
-body.build-on:not(.units-unlocked) #slots { opacity: .38; filter: grayscale(.6); pointer-events: none; }
+body.build-on:not(.units-unlocked) #slots, body.build-on:not(.units-unlocked) .units-teams { opacity: .38; filter: grayscale(.6); pointer-events: none; }
 #duoInfo .duo-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 /* a box whose alt isn't open yet: the same card the main frame shows without Roblox */
 .duo-box.empty { display: grid; place-items: center; text-align: center; padding: 14px; background: rgba(0, 0, 0, .55); }
@@ -549,3 +549,6 @@ body.fool-units .teambar { display: none; }
 .abil-h { display: block; }
 .abil-h small { display: block; color: var(--mist); font-size: 11px; font-weight: 400; margin-top: 2px; }
 .teamrow .tname { width: 130px; }
+.eico { display: inline-grid; place-items: center; color: var(--ec); filter: drop-shadow(0 0 4px color-mix(in srgb, var(--ec) 55%, transparent)); }
+.eico .i { width: 14px; height: 14px; }
+.tteam .eico .i { width: 13px; height: 13px; }

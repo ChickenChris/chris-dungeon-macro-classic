@@ -98,7 +98,7 @@ function bindToggles() {
     t.onclick = (e) => {
       e.preventDefault();
       const v = +S.cfg[key] ? 0 : 1;
-      sw.classList.toggle("on", !!v);
+      $$(`.toggle[data-key="${key}"] .switch`).forEach((s) => s.classList.toggle("on", !!v));   // the same switch can be on two pages
       setVal(key, v);
       if (key === "bgAnimate") applyLook();
       if (key === "useBuild") unitsLockState();
@@ -198,12 +198,14 @@ function renderUnits() {
 // A team per element: tabs on the Units and Build order pages, each team with its own units and build
 // order. The macro sends {list: [{name, element, game}], active, def}; Classic has none (one locked tab)
 const EL_COLORS = { Fire: "#ff9a1f", Aqua: "#1aa7fb", Storm: "#b9e6fe", Air: "#7dfc9a", Rose: "#ffade3", Dark: "#8f8fd6", Light: "#f9f2a0" };
+const EL_ICONS = { Fire: "flame", Aqua: "droplet", Storm: "snowflake", Air: "wind", Rose: "flower", Dark: "moon", Light: "sun" };
+const elIcon = (el) => `<span class="eico" style="--ec:${EL_COLORS[el] || "#aaa"}">${icon(EL_ICONS[el] || "sparkles")}</span>`;
 function renderTeams() {
   const T = S.teams || { list: [{ name: "Team 1", element: "", game: 1 }], active: 1, def: 1 };
   const els = S.elements || Object.keys(EL_COLORS);
   const act = +T.active || 1, cur = T.list[act - 1] || T.list[0];
   const tabs = T.list.map((t, i) => `<button class="tteam ${i + 1 === act ? "on" : ""}" data-t="${i + 1}" title="${t.element ? esc(t.element) + " team" : "No element picked"}">`
-      + (t.element ? `<i class="edot" style="--ec:${EL_COLORS[t.element] || "#aaa"}"></i>` : "") + esc(t.name)
+      + (t.element ? elIcon(t.element) : "") + esc(t.name)
       + (i + 1 === +T.def ? `<span class="tdef">${icon("star")}</span>` : "")
       + (i ? `<span class="tdel" data-del="${i + 1}" title="Remove ${esc(t.name)}">${icon("x")}</span>` : "") + "</button>").join("")
     + (T.list.length < 8 ? `<button class="tteam add" data-t="add" aria-label="Add a team" title="Add a team">${icon("plus")}</button>` : "");
@@ -219,7 +221,7 @@ function renderTeams() {
   $$(".teamrow").forEach((row) => {
   row.innerHTML = `
     <input type="text" class="tname" maxlength="20" value="${esc(cur.name)}" title="The team's name" aria-label="Team name">
-    <span class="lbl">Element</span><select data-k="element">${options(["None", ...els], cur.element ? els.indexOf(cur.element) + 1 : 0)}</select>
+    <span class="lbl">Element</span>${cur.element ? elIcon(cur.element) : ""}<select data-k="element">${options(["None", ...els], cur.element ? els.indexOf(cur.element) + 1 : 0)}</select>
     <span class="lbl" title="Its row in Units &gt; Teams in the game">Loads</span><select data-k="game">${options(games, (+cur.game || 1) - 1)}</select>
     <button class="btn sm ${act === +T.def ? "acc" : ""}" data-k="default" title="Used when a room boosts none of your teams' elements">${icon("star")}${act === +T.def ? "Default" : "Make default"}</button>
     ${act > 1 ? `<button class="btn sm" data-k="del" title="Remove this team">${icon("trash-2")}</button>` : ""}`;
