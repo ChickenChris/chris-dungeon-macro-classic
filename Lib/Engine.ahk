@@ -866,14 +866,20 @@ CurseIcon(r) {
                 lx := r.a.cx - 46 + A_Index
                 if IconScore(scr, ox + lx, oy + ly, lab, 0.85) < 0.85
                     continue
-                best := "", bestV := 0
-                for name, pts in tpl
-                    for sh in [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]] {
-                        v := IconScore(scr, ox + lx + sh[1], oy + ly + sh[2], pts, 0.6)
-                        if v > bestV
-                            best := name, bestV := v
-                    }
-                if bestV >= 0.6
+                ; the icons glow and pulse: a Money ring mid-pulse matched 58% (the old cut was 60%), while
+                ; a wrong icon never matched more than 19% on Chris's screenshots. So 40% is enough, as long
+                ; as the best is well ahead of the next one
+                best := "", bestV := 0, secondV := 0
+                for name, pts in tpl {
+                    v := 0
+                    for sh in [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]]
+                        v := Max(v, IconScore(scr, ox + lx + sh[1], oy + ly + sh[2], pts, 0.3))
+                    if v > bestV
+                        secondV := bestV, best := name, bestV := v
+                    else if v > secondV
+                        secondV := v
+                }
+                if bestV >= 0.4 && bestV - secondV >= 0.25
                     return best = "Shopping" ? "Money" : best    ; Shopping is listed with Money
                 static told := false
                 if !told {
