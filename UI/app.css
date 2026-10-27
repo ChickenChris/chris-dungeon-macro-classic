@@ -554,3 +554,10 @@ body.fool-units .teambar { display: none; }
 .tteam .eico .i { width: 13px; height: 13px; }
 .eimg { width: 16px; height: 16px; flex: none; }
 .teamrow .eimg { width: 18px; height: 18px; }
+.step-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.step-head b { font-size: 13px; color: var(--cloud); }
+.step-head .btn .i { width: 13px; height: 13px; }
+/* the bigger build order editor: only the steps and the builder on the page */
+body.build-full #p-build > :not(#stepPane) { display: none; }
+body.build-full #stepPane { flex: 1; }
+body.build-full #steps .item { padding-top: 9px; padding-bottom: 9px; font-size: 14px; }

@@ -340,9 +340,10 @@ SetBuild(steps) {
     for st in steps {
         if !(st is Map)
             continue
-        kind := st.Get("kind", ""), slot := st.Get("slot", 0), count := st.Get("count", 1), up := st.Get("up", 0)
+        kind := st.Get("kind", ""), slot := st.Get("slot", 0), count := st.Get("count", 1), up := st.Get("up", 0), units := st.Get("units", 0)
         if (kind = "place" || kind = "upgrade") && IsInteger(slot) && IsInteger(count) && IsInteger(up) && !(kind = "upgrade" && up = 0)
-            list.Push({kind: kind, slot: ClampInt(slot, 1, 6, 1), count: ClampInt(count, 1, MaxCount(), 1), up: ClampInt(up, -1, 10, 0)})
+            list.Push({kind: kind, slot: ClampInt(slot, 1, 6, 1), count: ClampInt(count, 1, MaxCount(), 1), up: ClampInt(up, -1, 10, 0),
+                units: kind = "upgrade" && IsInteger(units) ? ClampInt(units, 0, 20, 0) : 0})
     }
     cfg["build"] := list
     SaveSoon()
@@ -1133,9 +1134,11 @@ ReadBuild(sec, most) {
     list := []
     loop ClampInt(IniRead(cfgFile, sec, "Count", 0), 0, 100, 0) {
         f := StrSplit(IniRead(cfgFile, sec, "S" A_Index, ""), ",")
-        if f.Length = 4 && (f[1] = "place" || f[1] = "upgrade") && IsInteger(f[2]) && IsInteger(f[3]) && IsInteger(f[4])
+        ; a 5th field: an upgrade step's number of units (0 = all of that slot)
+        if f.Length >= 4 && (f[1] = "place" || f[1] = "upgrade") && IsInteger(f[2]) && IsInteger(f[3]) && IsInteger(f[4])
             && !(f[1] = "upgrade" && f[4] = 0)
-            list.Push({kind: f[1], slot: ClampInt(f[2], 1, 6, 1), count: ClampInt(f[3], 1, most, 1), up: ClampInt(f[4], -1, 10, 0)})
+            list.Push({kind: f[1], slot: ClampInt(f[2], 1, 6, 1), count: ClampInt(f[3], 1, most, 1), up: ClampInt(f[4], -1, 10, 0),
+                units: f[1] = "upgrade" && f.Length >= 5 ? ClampInt(f[5], 0, 20, 0) : 0})
     }
     return list
 }
@@ -1152,7 +1155,7 @@ WriteBuild(ini, sec, list) {
     ini.Drop(sec)
     ini.Set(sec, "Count", list.Length)
     for i, st in list
-        ini.Set(sec, "S" i, st.kind "," st.slot "," st.count "," st.up)
+        ini.Set(sec, "S" i, st.kind "," st.slot "," st.count "," st.up (st.HasOwnProp("units") && st.units ? "," st.units : ""))
 }
 
 ; The settings file, edited in memory and written to disk in one go. Saving used to be one

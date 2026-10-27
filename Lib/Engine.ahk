@@ -3244,9 +3244,10 @@ RunBuildOrder(ctx) {
                 return
             }
         } else {
-            list := []
+            ; all of that slot's units, or only the first N placed (two Elyssias, only one upgraded)
+            list := [], most := st.HasOwnProp("units") && st.units ? st.units : 99
             for u in placedUnits
-                if u.slot = st.slot
+                if u.slot = st.slot && list.Length < most
                     list.Push(u)
             if !list.Length
                 AddLog("Step " i ": no slot " st.slot " units placed yet, skipping")
@@ -3270,7 +3271,8 @@ StepText(st) {
     up := st.up < 0 ? "to max" : st.up " time" (st.up = 1 ? "" : "s")
     if st.kind = "place"
         return "Place slot " st.slot " x" st.count (st.up = 0 ? "" : ", upgrade each " up)
-    return "Upgrade slot " st.slot " " up
+    n := st.HasOwnProp("units") ? st.units : 0
+    return n ? "Upgrade " n " unit" (n = 1 ? "" : "s") " of slot " st.slot " " up : "Upgrade slot " st.slot " " up
 }
 
 ; how far each unit of an upgrade step got, for the log: "2 of 3 units reached 6 (1 can't be found)"

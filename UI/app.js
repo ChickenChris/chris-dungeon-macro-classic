@@ -275,11 +275,14 @@ function renderAbil() {
 function stepText(st) {
   const up = st.up < 0 ? "to max" : st.up + (st.up == 1 ? " time" : " times");
   if (st.kind === "place") return `Place slot ${st.slot} ×${st.count}` + (st.up == 0 ? "" : `, upgrade each ${up}`);
-  return `Upgrade slot ${st.slot} ${up}`;
+  const n = +st.units || 0;
+  return n ? `Upgrade ${n} unit${n == 1 ? "" : "s"} of slot ${st.slot} ${up}` : `Upgrade slot ${st.slot} ${up}`;
 }
 
 function renderBuild() {
   const list = S.cfg.build;
+  const T = S.teams, team = T && T.list.length > 1 && !isFool() ? T.list[(+T.active || 1) - 1] : null;
+  $("#stepTitle").textContent = (isFool() ? "Fool's Hunt steps" : "Steps") + (team ? " · " + team.name : "");
   unitsLockState();
   const el = $("#steps");
   el.innerHTML = list.length ? list.map((st, i) => `
@@ -312,7 +315,9 @@ function initBuilder() {
   $("#bAdd").onclick = () => {
     const up = S.upValues[+$("#bUp").value];
     if (bKind === 1 && up === 0) return toast("Pick how many times to upgrade", "bad");
-    const st = { kind: bKind ? "upgrade" : "place", slot: +$("#bSlot").value + 1, count: +$("#bCount").value + 1, up };
+    // Upgrade: how many of the slot's units ("all units" = 0), e.g. only 1 of 2 Elyssias
+    const st = bKind ? { kind: "upgrade", slot: +$("#bSlot").value + 1, count: 1, up, units: +$("#bCount").value }
+      : { kind: "place", slot: +$("#bSlot").value + 1, count: +$("#bCount").value + 1, up, units: 0 };
     // Place always puts down NEW units. Players used "Place slot 2 ×3, upgrade to max" to upgrade the
     // slot 2 units they had already placed, and got 3 more of them. Ask when that's likely.
     const before = S.cfg.build.findIndex((o) => o.kind === "place" && o.slot === st.slot);
@@ -328,8 +333,20 @@ function initBuilder() {
   };
 }
 function builderState() {
-  $("#bCount").style.display = $("#bX").style.display = bKind ? "none" : "";
+  // Place: how many to place (×N). Upgrade: how many of that slot's units (all, or the first N placed)
+  $("#bX").style.display = bKind ? "none" : "";
+  const max = S.maxCount || 6;
+  $("#bCount").innerHTML = bKind
+    ? options(["all units", ...Array.from({ length: max }, (_, i) => (i + 1) + (i ? " units" : " unit"))], 0)
+    : options(Array.from({ length: max }, (_, i) => String(i + 1)), 0);
+  $("#bCount").title = bKind ? "How many of that slot's units: all, or only the first ones placed" : "How many to place";
 }
+// the step list and builder over the whole page (with the team boxes the list got small)
+function bigEditor(on) {
+  document.body.classList.toggle("build-full", on);
+  $("#bBig").innerHTML = on ? icon("check") + "Done" : icon("maximize") + "Bigger editor";
+}
+$("#bBig").onclick = () => bigEditor(!document.body.classList.contains("build-full"));
 
 function renderSpotsPage() {
   $("#spotMap").innerHTML = S.maps.map((m) => `<option ${m === spotMap ? "selected" : ""}>${esc(m)}</option>`).join("");
@@ -606,16 +623,16 @@ function buildCode(list) {
   const up = (n) => (n < 0 ? "max" : n);
   return "AA build: " + list.map((st) => st.kind === "place"
     ? `P${st.slot}x${st.count}` + (st.up ? "u" + up(st.up) : "")
-    : `U${st.slot}u${up(st.up)}`).join(" ");
+    : `U${st.slot}` + (+st.units ? "n" + st.units : "") + `u${up(st.up)}`).join(" ");
 }
 function parseBuildCode(text) {
-  const out = [], re = /\b([PU])([1-6])(?:x(\d{1,2}))?(?:u(max|\d{1,2}))?\b/gi;
+  const out = [], re = /\b([PU])([1-6])(?:x(\d{1,2}))?(?:n(\d{1,2}))?(?:u(max|\d{1,2}))?\b/gi;
   let m;
   while ((m = re.exec(text))) {
     const kind = m[1].toUpperCase() === "P" ? "place" : "upgrade";
-    const up = m[4] ? (m[4].toLowerCase() === "max" ? -1 : Math.min(10, +m[4])) : 0;
+    const up = m[5] ? (m[5].toLowerCase() === "max" ? -1 : Math.min(10, +m[5])) : 0;
     if (kind === "upgrade" && !up) continue;
-    out.push({ kind, slot: +m[2], count: kind === "place" ? Math.min(S.maxCount || 6, +m[3] || 1) : 1, up });
+    out.push({ kind, slot: +m[2], count: kind === "place" ? Math.min(S.maxCount || 6, +m[3] || 1) : 1, up, units: kind === "upgrade" ? Math.min(20, +m[4] || 0) : 0 });
   }
   return out.slice(0, 100);
 }
@@ -780,11 +797,10 @@ window.ui = {
   units(slots, build, max) {
     S.cfg.slots = slots; S.cfg.build = build; S.maxCount = +max || 6;
     document.body.classList.toggle("fool-units", S.maxCount > 6);
-    const keep = +$("#bCount").value || 0;
-    $("#bCount").innerHTML = options(Array.from({ length: S.maxCount }, (_, i) => String(i + 1)), Math.min(keep, S.maxCount - 1));
+    builderState();
     renderUnits(); renderBuild();
   },
-  teams(info) { S.teams = info; renderTeams(); },
+  teams(info) { S.teams = info; renderTeams(); renderBuild(); },
   duo(n, open) {
     n = +n || 0; open = +open || 0;
     document.documentElement.classList.toggle("duo", n > 0);

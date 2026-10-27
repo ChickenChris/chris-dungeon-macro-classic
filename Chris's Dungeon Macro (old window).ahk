@@ -1338,9 +1338,10 @@ LoadConfig() {
     ; build order: S1=place,1,2,2  (kind, slot, count, upgrades: 0 none, N times, -1 max)
     loop ClampInt(IniRead(cfgFile, "Build", "Count", 0), 0, 100, 0) {
         f := StrSplit(IniRead(cfgFile, "Build", "S" A_Index, ""), ",")
-        if f.Length = 4 && (f[1] = "place" || f[1] = "upgrade") && IsInteger(f[2]) && IsInteger(f[3]) && IsInteger(f[4])
+        if f.Length >= 4 && (f[1] = "place" || f[1] = "upgrade") && IsInteger(f[2]) && IsInteger(f[3]) && IsInteger(f[4])
             && !(f[1] = "upgrade" && f[4] = 0)
-            cfg["build"].Push({kind: f[1], slot: ClampInt(f[2], 1, 6, 1), count: ClampInt(f[3], 1, 6, 1), up: ClampInt(f[4], -1, 10, 0)})
+            cfg["build"].Push({kind: f[1], slot: ClampInt(f[2], 1, 6, 1), count: ClampInt(f[3], 1, 6, 1), up: ClampInt(f[4], -1, 10, 0),
+                units: f[1] = "upgrade" && f.Length >= 5 ? ClampInt(f[5], 0, 20, 0) : 0})
     }
     try walkSec := IniRead(cfgFile, "Walks")
     catch
@@ -1405,7 +1406,7 @@ SaveConfig(*) {
         try IniDelete cfgFile, "Build"
         IniWrite cfg["build"].Length, cfgFile, "Build", "Count"
         for i, st in cfg["build"]
-            IniWrite st.kind "," st.slot "," st.count "," st.up, cfgFile, "Build", "S" i
+            IniWrite st.kind "," st.slot "," st.count "," st.up (st.HasOwnProp("units") && st.units ? "," st.units : ""), cfgFile, "Build", "S" i
         try IniDelete cfgFile, "Walks"
         for name, route in cfg["walks"]
             IniWrite route, cfgFile, "Walks", name
