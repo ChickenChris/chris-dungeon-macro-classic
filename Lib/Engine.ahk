@@ -2650,9 +2650,7 @@ ZoomCameraNow() {
     Stale()
 }
 
-global spawnNotch := 0      ; wheel notches from the top of the settings list to the Teleport row (learned)
 TeleportToSpawn() {
-    global spawnNotch
     Step("teleporting to spawn")
     ; still on a loading screen ("Travelling to... Neo-Tokyo"): there's no settings menu to open yet
     ; (a no_spawn picture showed exactly that). Wait for it to go, up to 25 s
@@ -2667,44 +2665,43 @@ TeleportToSpawn() {
         Wait(350)
         Clk(400, 215)                              ; mouse over the list so the wheel scrolls it
         Wait(200)
-        MenuMouseOff()
         found := SpawnFound(&fx, &fy) || (Wait(300), SpawnFound(&fx, &fy))
         if !found {
-            ; To the top in one go, then (from the 2nd time) straight to where the row was last time
-            ; (the notch count is remembered). Only when it isn't there: down a notch at a time.
-            ; It used to go up 30 notches one by one, then down one by one waiting up to 1.5 s and
-            ; reading the whole list after each: a slow crawl with stops
-            MenuWheel("{WheelUp 40}")
-            MenuSettle()
-            if spawnNotch > 0 {
-                MenuWheel("{WheelDown " spawnNotch "}")
-                MenuSettle()
-                found := SpawnFound(&fx, &fy)
+            ; the menu remembers how far it was scrolled: go to the top first,
+            ; then step down one notch at a time until the button shows up
+            ; (some players have more settings, so it keeps going until the list stops moving)
+            loop 30 {
+                Keys("{WheelUp 1}")
+                Sleep 40
             }
-            ; one notch moves the list ~4 rows, and on some players' lists every notch on the way
-            ; down left the Teleport row half under the "Settings" title: then back up from the bottom,
-            ; where the rows line up differently
-            for dir in ["{WheelDown 1}", "{WheelUp 1}"] {
-                if found
+            Wait(500)
+            ; one notch at a time, and the list slides for a moment after each one: let it
+            ; settle before looking (looking mid-slide missed the button or matched a wrong row)
+            same := 0, sig := MenuSig()
+            loop 45 {
+                if found := SpawnFound(&fx, &fy)
                     break
-                same := 0, sig := MenuSig(), notch := dir = "{WheelDown 1}" ? 0 : -1
-                loop 45 {
-                    if found := SpawnFound(&fx, &fy) {
-                        if notch >= 0
-                            spawnNotch := notch       ; next time it goes straight there
-                        break
-                    }
-                    MenuWheel(dir)
-                    MenuSettle()
-                    notch += notch >= 0
-                    now := MenuSig()
-                    same := now = sig ? same + 1 : 0, sig := now
-                    if same >= 2                   ; reached the end of the list
+                Keys("{WheelDown 1}")
+                Wait(350)
+                now := MenuSig()
+                same := now = sig ? same + 1 : 0, sig := now
+                if same >= 3                       ; reached the bottom of the list
+                    break
+            }
+            ; went past it (on some players' lists every notch left the Teleport row half under
+            ; the "Settings" title, or under the mouse pointer): back up a few notches from the
+            ; bottom, where the rows line up differently, the pointer off the list while it looks
+            if !found
+                loop 8 {
+                    MouseMove 400, 215
+                    Keys("{WheelUp 1}")
+                    MouseMove 700, 560
+                    Wait(350)
+                    if found := SpawnFound(&fx, &fy, true)
                         break
                 }
-            }
             if !found
-                found := SpawnFound(&fx, &fy) || (Wait(300), SpawnFound(&fx, &fy))
+                found := SpawnFound(&fx, &fy, true) || (Wait(300), SpawnFound(&fx, &fy, true))
         }
         if found {
             Clk(fx + 100, fy - 30)
@@ -2732,11 +2729,11 @@ LoadingScreenUp() {
 ; The Teleport to Spawn picture is matched loosely (20%), and on some players' settings lists
 ; that also fit another row: it clicked that, stopped scrolling and never teleported. So a
 ; loose hit must also read "Spawn"/"Teleport" on that row, or match the picture closely.
-SpawnFound(&fx, &fy) {
+SpawnFound(&fx, &fy, words := false) {
     if !Det("Spawn", &fx, &fy) {
-        ; the picture missed (a row at the edge of the list, another font size): the words on the
-        ; whole list. fx, fy as the picture gives them (window coordinates), for the click
-        if OcrFindWord(225, 140, 370, 335, "i)sp[a@]wn", &wx, &wy) {
+        ; the picture missed (a row at the edge of the list): the words on the whole list, only
+        ; on the way back up (it's slower). fx, fy as the picture gives them (window coordinates)
+        if words && OcrFindWord(225, 140, 370, 335, "i)sp[a@]wn", &wx, &wy) {
             fx := wx + 5, fy := wy + 31
             return true
         }
@@ -2747,39 +2744,6 @@ SpawnFound(&fx, &fy) {
         return true
     o := DetDefs()["Spawn"], a := o.area
     return FT(&fx, &fy, a[1], a[2], a[3], a[4], 0.06, 0.06, o.pats) ? true : false
-}
-
-; The mouse pointer sat on the list's top row while the macro looked for the Teleport row (it has to be
-; over the list for the wheel). On mmanimals' PC the row stopped right there, under the pointer, so
-; neither the picture nor the text reader saw it (his video: the row fully on screen, then scrolled
-; past). Now the pointer goes off the menu before every look
-MenuMouseOff() {
-    MouseMove 700, 560
-    Sleep 60
-}
-
-; the list slides for a while after a wheel notch (longer on a slow PC: mmanimals' video showed rows
-; doubled mid-slide 350 ms after the notch): wait until two looks in a row match, 0.25 s to about 1 s
-MenuSettle() {
-    Wait(150)
-    prev := MenuSig()
-    loop 8 {
-        Wait(100)
-        now := MenuSig()
-        if now = prev
-            return
-        prev := now
-    }
-}
-
-; wheel notches on the settings list (the pointer over it), then the pointer off it again so it
-; can't cover a row
-MenuWheel(keys) {
-    FocusRoblox()
-    MouseMove 400, 215
-    Sleep 30
-    SendInput keys
-    MenuMouseOff()
 }
 
 ; a rough fingerprint of the settings list, to tell when scrolling stops moving it
