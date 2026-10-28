@@ -390,6 +390,10 @@ function renderMode() {
   });
   $("#modeSub").classList.toggle("open", isIC());
   $("#foolSub").classList.toggle("open", isFool());
+  $("#infSub").classList.toggle("open", isInf());
+  const im = $("#infMap"), maps = S.infMaps || ["Shibuya District"];
+  im.innerHTML = options(maps, Math.max(0, maps.indexOf(S.cfg.infMap || "Shibuya District")));
+  im.onchange = () => setVal("infMap", maps[+im.value]);
   seg($("#segFoolJoin"), ["Play Here", "Find Match"], +S.cfg.foolMatch ? 1 : 0, (i) => {
     setVal("foolMatch", i);
     if (i && +S.cfg.foolOwnTeam) toast("Find Match plays alone (with the freeze). Pick Play Here to use your alts");
@@ -613,7 +617,7 @@ function setRun(state) {
   run = state;
   document.body.dataset.run = state;
   $("#pillText").textContent = RUN_TEXT[state][0];
-  $("#heroTitle").textContent = state === "running" && isIC() ? "Climbing Infinity Castle" : state === "running" && isFool() ? "Hunting in Fool's Hunt" : state === "running" && isInf() ? "Infinite on Shibuya" : RUN_TEXT[state][1];
+  $("#heroTitle").textContent = state === "running" && isIC() ? "Climbing Infinity Castle" : state === "running" && isFool() ? "Hunting in Fool's Hunt" : state === "running" && isInf() ? "Infinite on " + (S.cfg.infMap || "Shibuya District") : RUN_TEXT[state][1];
   $(".controls .btn.go").lastChild.textContent = state === "running" ? "Farming…" : state === "paused" ? "Paused" : "Start farming";
   $(".controls [data-cmd=pause]").lastChild.textContent = state === "paused" ? "Resume" : "Pause";
 }
