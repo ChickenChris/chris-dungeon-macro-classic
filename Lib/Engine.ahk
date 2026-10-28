@@ -670,6 +670,7 @@ ChooseRoom(rooms) {
     }
     if best {
         c := curseOf.Has(best.i) ? curseOf[best.i] : ""
+        global lastRoomI := best.i
         AddLog("No preferred room left, taking the least bad one" (c != "" ? " (curse of " c ")" : ""))
         OpenRoom(best)
         if ElemTeamsOn()
@@ -747,6 +748,7 @@ TryRoom(r, prio, unsafe, curseOf, nextKind := "") {
     }
     if prio = "Boss"
         bossDone := true
+    global lastRoomI := r.i
     AddLog("Going for " RoomLabel(prio) (nextKind != "" ? ", then " RoomLabel(nextKind) : "") (curseName != "" ? "  (curse of " curseName ")" : ""))
     EnterRoom()
     return true
@@ -794,6 +796,17 @@ RoomOrder(rooms) {
     for pk in picks
         for thing in pk.has
             pk.score += ThingValue(thing, shopOk)
+    ; a room that beat you twice in a row at this choice: the others first (the same room was played
+    ; 5 times at depth 12 and lost every time, until the dungeon ran out of lives)
+    others := 0
+    for pk in picks
+        others += !(lostRooms.Has(pk.r.i) && lostRooms[pk.r.i] >= 2)
+    if others
+        for pk in picks
+            if lostRooms.Has(pk.r.i) && lostRooms[pk.r.i] >= 2 {
+                pk.score -= 100
+                AddLog("Room " pk.r.i " beat you " lostRooms[pk.r.i] " times here, trying another room")
+            }
     ; every room's curse, read from the icon on its box before anything is clicked, and scored with
     ; your curse list: a curse you skip makes the room worth nothing (it's only taken when nothing
     ; else is left), one you don't skip keeps its worth, and on a tie the milder curse goes first.
@@ -1160,9 +1173,9 @@ TextScreen() {
 
 ; the curse in the shrine's offer list ("[*] Curse of Chaos") -> "Chaos"
 ShrineKindFromText() {
-    static spellings := Map("Armor", "ARMOR", "Burst", "BURST", "Chaos", "CHAOS", "Frenzy", "FRENZY", "Vamparism", "VAMPARISM|VAMPIRISM")
+    static spellings := Map("Armor", "ARMOR", "Burst", "BURST", "Chaos", "CHAOS", "Frenzy", "FRENZY", "Vamparism", "VAMPARISM|VAMPIRISM", "Eruption", "ERUPTION")
     ; the effect line under the name, for when the name is misread
-    static effects := [["BURST", "Burst"], ["ARMOU?RED", "Armor"], ["RANDOM", "Chaos"], ["ENEMY ?SPEED", "Frenzy"], ["REGEN", "Vamparism"]]
+    static effects := [["BURST", "Burst"], ["ARMOU?RED", "Armor"], ["RANDOM", "Chaos"], ["ENEMY ?SPEED", "Frenzy"], ["REGEN", "Vamparism"], ["EXPLOSIVE ?DEATH|DEATH ?RANGE", "Eruption"]]
     ; "You will receive" is a list that scrolls: the curse can be below the visible rows
     loop 4 {
         if A_Index > 1 {
@@ -1542,6 +1555,7 @@ OpenChestSlot(x, y) {
 ; after the other. They're read before being clicked away, added up for the session (the
 ; Dashboard) and logged; a Secret unit also gets a popup and a webhook message.
 global chestLoot := Map()       ; reward name -> how many since Start
+global lostRooms := Map(), lastRoomI := 0   ; defeats per room at the current choice (Room 2 -> 2), the room last entered
 global dungeonLoot := Map()     ; the same for the dungeon being played (sent with "Dungeon cleared")
 
 ; one look at the reward text: {name, n, rarity} or "" when there's none on screen
@@ -1846,7 +1860,7 @@ HandleDungeonPopups() {
             ; what the chests gave: this dungeon, and everything since Start
             SendWebhook("Dungeon cleared", Summary(), 0x22C55E,
                 [["Rewards this dungeon", LootText(dungeonLoot)], ["Since Start", LootText(chestLoot)]])
-            global dungeonLoot := Map()
+            global dungeonLoot := Map(), lostRooms := Map(), lastRoomI := 0   ; a new dungeon: its rewards and room losses start over
         }
         lastCleared := A_TickCount, cancels := 0
         chestsDone := false, bossDone := false
@@ -2181,8 +2195,15 @@ MapFromScreenText(x, y, w, h, &depth := "", &raw := "", tf := "") {
         }
         return ""
     }
-    if RegExMatch(raw, "i)depth\D{0,4}(\d(?: ?\d)?)(?!\d)", &m)
-        depth := StrReplace(m[1], " ")
+    ; the panel has the dungeon's progress at the top ("DUNGEON DEPTH: 11/20") and the room's own
+    ; "Depth: 12" further down: the room's is the one wanted ("DEPTH: 1?/20 ... Depth» 12" was taken as 1).
+    ; So the last "depth N" that isn't an "N/20"
+    pos := 1
+    while pos := RegExMatch(raw, "i)depth\D{0,4}(\d(?: ?\d)?)(?!\d)(\W{0,2}/)?", &m, pos) {
+        if m[2] = ""
+            depth := StrReplace(m[1], " ")
+        pos += m.Len
+    }
     if RegExMatch(raw, "i)f[il1]oor\D{0,4}(\d+)", &m)
         icFloor := Integer(m[1])
     return MatchMapName(raw)
@@ -4916,6 +4937,12 @@ ClickOpenDungeon() {
 }
 
 RecordRun() {
+    global lostRooms, lastRoomI
+    ; the same choice comes back after a defeat: count losses per room, forget them after a win
+    if lastResult = "loss" && lastRoomI
+        lostRooms[lastRoomI] := (lostRooms.Has(lastRoomI) ? lostRooms[lastRoomI] : 0) + 1
+    else if lastResult = "win"
+        lostRooms := Map()
     stat.runs++
     if lastResult = "win"
         stat.wins++

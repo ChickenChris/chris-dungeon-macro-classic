@@ -1265,7 +1265,7 @@ DefaultConfig() {
         "route", ["Rare_Chest", "Chest", "Shop", "Hoard", "Shrine", "Boss"],
         "avoid", Map("Flying", 1, "Wind", 0, "Money", 1, "Health", 1, "Exploding", 0, "Shielding", 1, "Regen", 1),
         "curseRank", ["Flying", "Money", "Health", "Shielding", "Regen", "Wind", "Exploding"], "skipWorst", 5,
-        "denyShrine", Map("Burst", 0, "Armor", 0, "Chaos", 0, "Vamparism", 0, "Frenzy", 0),
+        "denyShrine", Map("Burst", 0, "Armor", 0, "Chaos", 0, "Vamparism", 0, "Frenzy", 0, "Eruption", 0),
         "dmgType", "Both", "shopUnknown", 1, "lookAhead", 0, "shopMinCoins", 0, "usePanel", 0, "shopRank", SHOP_ITEMS(), "shopOff", Map(),
         "slots", [
             {on: 1, count: 2, prio: 3, up: 0, limit: 0},
@@ -1304,7 +1304,7 @@ LoadConfig() {
     }
     for name in ["Flying", "Wind", "Money", "Health", "Exploding", "Shielding", "Regen"]
         cfg["avoid"][name] := IniRead(cfgFile, "Avoid", name, cfg["avoid"][name]) = 1 ? 1 : 0
-    for name in ["Burst", "Armor", "Chaos", "Vamparism", "Frenzy"]
+    for name in ["Burst", "Armor", "Chaos", "Vamparism", "Frenzy", "Eruption"]
         cfg["denyShrine"][name] := IniRead(cfgFile, "DenyShrine", name, cfg["denyShrine"][name]) = 1 ? 1 : 0
     if IndexOf(CURSES, IniRead(cfgFile, "Curses", "Rank1", "")) {
         loop CURSES.Length {

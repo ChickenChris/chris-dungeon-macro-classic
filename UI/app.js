@@ -422,7 +422,7 @@ function renderDungeon() {
   renderShop();
   renderFoolCards();
   stepper($("#skipWorst"), S.cfg.skipWorst, 0, S.curses.length, (v) => { setVal("skipWorst", v); renderCurses(); });
-  const names = ["Burst", "Armor", "Chaos", "Vamparism", "Frenzy"];
+  const names = ["Burst", "Armor", "Chaos", "Vamparism", "Frenzy", "Eruption"];
   const chips = names.map((n) => `<button class="chip ${S.cfg.denyShrine[n] ? "on" : ""}" data-n="${n}" data-tip="${esc(SHRINE_INFO[n])}">${icon("ban")}${n}</button>`);
   chips.push(`<button class="chip ${S.cfg.denyUnknownShrine ? "on" : ""}" data-k="denyUnknownShrine" data-tip="A shrine whose curse the macro couldn't read">${icon("ban")}Unknown</button>`);
   chips.push(`<button class="chip ${S.cfg.denyAllShrines ? "on" : ""}" data-k="denyAllShrines" data-tip="Turn down every shrine, whatever its curse">${icon("ban")}Every shrine</button>`);
@@ -499,6 +499,7 @@ const SHRINE_INFO = {
   Chaos: "All curses are random. Lasts the rest of the dungeon.",
   Vamparism: "Enemies regenerate 3% health. Lasts the rest of the dungeon.",
   Frenzy: "Enemies move 50% faster. Lasts the rest of the dungeon.",
+  Eruption: "Enemies explode further when they die (+24 range). Lasts the rest of the dungeon.",
 };
 const CURSE_INFO = {   // curses stay until the dungeon is cleared
   Flying: "+20% chance of Flying enemies (Curse of Flight). Lasts the rest of the dungeon",
@@ -919,5 +920,5 @@ if (!host) setTimeout(() => window.ui.init(window.DEMO || {
   upNames: ["no upgrades", "upgrade each 1 time", "upgrade each to max"], upValues: [0, 1, -1], hasRoblox: false,
   cfg: { slots: Array.from({ length: 6 }, (_, i) => ({ on: i < 5 ? 1 : 0, count: 2, prio: i + 1, up: 1, limit: 0 })), pattern: "Spiral", retries: 3,
     build: [], route: ["Rare_Chest", "Chest", "Shop", "Hoard", "Shrine", "Boss"], curseRank: ["Flying", "Money", "Health", "Shielding", "Regen", "Wind", "Exploding"],
-    foolMatch: 0, foolOwnTeam: 0, foolFreeze: 80, foolAccounts: 2, foolCards: ["shield", "regen", "health", "speed", "yen", "range", "cooldown", "attack", "explosive", "resistant", "spellproof", "plated", "boss"], skipWorst: 5, denyShrine: { Burst: 0, Armor: 0, Chaos: 1, Vamparism: 0, Frenzy: 0 }, placeSpeed: 1, accent: "Crimson", bgOpacity: 70, bgBlur: 0, glass: 60, bgAnimate: 1 },
+    foolMatch: 0, foolOwnTeam: 0, foolFreeze: 80, foolAccounts: 2, foolCards: ["shield", "regen", "health", "speed", "yen", "range", "cooldown", "attack", "explosive", "resistant", "spellproof", "plated", "boss"], skipWorst: 5, denyShrine: { Burst: 0, Armor: 0, Chaos: 1, Vamparism: 0, Frenzy: 0, Eruption: 0 }, placeSpeed: 1, accent: "Crimson", bgOpacity: 70, bgBlur: 0, glass: 60, bgAnimate: 1 },
 }), 50);
