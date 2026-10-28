@@ -2650,7 +2650,9 @@ ZoomCameraNow() {
     Stale()
 }
 
+global spawnNotch := 0      ; wheel notches from the top of the settings list to the Teleport row (learned)
 TeleportToSpawn() {
+    global spawnNotch
     Step("teleporting to spawn")
     ; still on a loading screen ("Travelling to... Neo-Tokyo"): there's no settings menu to open yet
     ; (a no_spawn picture showed exactly that). Wait for it to go, up to 25 s
@@ -2668,38 +2670,38 @@ TeleportToSpawn() {
         MenuMouseOff()
         found := SpawnFound(&fx, &fy) || (Wait(300), SpawnFound(&fx, &fy))
         if !found {
-            ; the menu remembers how far it was scrolled: go to the top first,
-            ; then step down one notch at a time until the button shows up
-            ; (some players have more settings, so it keeps going until the list stops moving)
-            MouseMove 400, 215
-            loop 30 {
-                Keys("{WheelUp 1}")
-                Sleep 40
-            }
-            MenuMouseOff()
+            ; To the top in one go, then (from the 2nd time) straight to where the row was last time
+            ; (the notch count is remembered). Only when it isn't there: down a notch at a time.
+            ; It used to go up 30 notches one by one, then down one by one waiting up to 1.5 s and
+            ; reading the whole list after each: a slow crawl with stops
+            MenuWheel("{WheelUp 40}")
             MenuSettle()
-            ; one notch at a time, and the list slides for a moment after each one: let it
-            ; settle before looking (looking mid-slide missed the button or matched a wrong row)
-            ; Down, then (if it slipped through) back up: one notch moves the list ~4 rows, and on
-            ; some players' lists (more rows) every notch on the way down left the Teleport row half
-            ; under the "Settings" title, where it wasn't recognised, and the next notch moved it
-            ; out of view. From the bottom the rows line up differently, so it shows in full there
+            if spawnNotch > 0 {
+                MenuWheel("{WheelDown " spawnNotch "}")
+                MenuSettle()
+                found := SpawnFound(&fx, &fy)
+            }
+            ; one notch moves the list ~4 rows, and on some players' lists every notch on the way
+            ; down left the Teleport row half under the "Settings" title: then back up from the bottom,
+            ; where the rows line up differently
             for dir in ["{WheelDown 1}", "{WheelUp 1}"] {
-                same := 0, sig := MenuSig()
-                loop 45 {
-                    if found := SpawnFound(&fx, &fy)
-                        break
-                    MouseMove 400, 215             ; the wheel only scrolls the list with the mouse over it
-                    Keys(dir)
-                    MenuMouseOff()
-                    MenuSettle()
-                    now := MenuSig()
-                    same := now = sig ? same + 1 : 0, sig := now
-                    if same >= 3                   ; reached the end of the list
-                        break
-                }
                 if found
                     break
+                same := 0, sig := MenuSig(), notch := dir = "{WheelDown 1}" ? 0 : -1
+                loop 45 {
+                    if found := SpawnFound(&fx, &fy) {
+                        if notch >= 0
+                            spawnNotch := notch       ; next time it goes straight there
+                        break
+                    }
+                    MenuWheel(dir)
+                    MenuSettle()
+                    notch += notch >= 0
+                    now := MenuSig()
+                    same := now = sig ? same + 1 : 0, sig := now
+                    if same >= 2                   ; reached the end of the list
+                        break
+                }
             }
             if !found
                 found := SpawnFound(&fx, &fy) || (Wait(300), SpawnFound(&fx, &fy))
@@ -2756,18 +2758,28 @@ MenuMouseOff() {
     Sleep 60
 }
 
-; the list slides for a while after a wheel notch (longer on a slow PC: his video showed rows doubled
-; mid-slide 350 ms after the notch): wait until two looks in a row match, up to about 1.5 s
+; the list slides for a while after a wheel notch (longer on a slow PC: mmanimals' video showed rows
+; doubled mid-slide 350 ms after the notch): wait until two looks in a row match, 0.25 s to about 1 s
 MenuSettle() {
-    Wait(250)
+    Wait(150)
     prev := MenuSig()
     loop 8 {
-        Wait(150)
+        Wait(100)
         now := MenuSig()
         if now = prev
             return
         prev := now
     }
+}
+
+; wheel notches on the settings list (the pointer over it), then the pointer off it again so it
+; can't cover a row
+MenuWheel(keys) {
+    FocusRoblox()
+    MouseMove 400, 215
+    Sleep 30
+    SendInput keys
+    MenuMouseOff()
 }
 
 ; a rough fingerprint of the settings list, to tell when scrolling stops moving it
