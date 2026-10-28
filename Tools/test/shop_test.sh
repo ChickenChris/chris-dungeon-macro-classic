@@ -39,6 +39,24 @@ checks = [
     ("Meadspli++er Dhusieal Meadspli", "", "Headsplitter"),
     ("Hage Coa+ •50% Hagie Dar•agø H", "", "Mage Coat"),
     ("Fishhook Ches+ Luck Fishhook C", "", "Fish Hook"),
+    ("Ninja -12% A++ack Cooldo•n Nin", "", "Ninja Belt"),   # was taken for Dagger
+    ("Ninja Ninja", "", "Ninja Belt"),
+    ("-sove A++ack Cooldown -SO% A++", "", "Stormbringer"), # "SO%" is 50%
+    ("Hagie •100% Dar•age Hagie •100", "", "Magic Tome"),
+    ("Hago Coa+ •SO% *agie Dar•age H", "", "Mage Coat"),
+    ("Haoie Torw Magic Dat•age Haoie", "", "Magic Tome"),   # was taken for Mage Coat
+    ("Qeaper Dar•age Qeaper Dar•age", "", "Reaper Scythe"),
+    ("Golden roon Golden roon", "", "Golden Mushroom"),
+    ("4-30% Attack 4-30% Attack", "", "Sword"),
+    ("Speedv goo+s -20% A++ack Coold", "", "Speedy Boots"),
+    ("Glacial —30% Ener•u Gpeed Glac", "", "Glacial Axe"),
+    ("Solar i + Chance Solar i + Cha", "", "Solar Cleaver"),
+    ("Aureus Haul Phußieal Dar•age H", "", "Aures Maul"),
+    ("Genie Larv Cheß+ Luck Genie La", "", "Genie Lamp"),
+    ("Golden e ranch Golden e ranch", "", "Golden Branch"),
+    ("Golden Fishhook Luck Golden Fi", "", "Golden Fishhook"),
+    ("Elf Pou gange Elf Pou Range", "", "Elf Bow"),
+    ("Golden Golden", "", ""),                              # Mushroom, Branch or Fishhook: not guessed
     ("", "", ""),
 ]
 body = "#Requires AutoHotkey v2.0\nglobal cfg := Map()\nfails := 0\n" + "\n".join(parts) + "\n"

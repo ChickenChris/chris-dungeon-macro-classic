@@ -1323,7 +1323,7 @@ ShopRowName(raw) {
     if name = "" {
         if RegExMatch(low, "\belf\b")
             name := "Elf Bow"
-        else if RegExMatch(low, "\b[hm]a[gq]e\s*[ce][o0]")       ; "Hage Coe" = Mage Coat
+        else if RegExMatch(low, "\b[hm]a[gq][eo]\s*[ce][o0]")    ; "Hage Coe", "Hago Coa" = Mage Coat
             name := "Mage Coat"
         else if RegExMatch(low, "[rg]an[gq]e")                     ; "+N% Range" and no other clue: a bow
             name := RegExMatch(low, "5\s*0\s*%") ? "Elf Bow" : "Bow"
@@ -1333,6 +1333,9 @@ ShopRowName(raw) {
     ; a "magic damage" line read as Axe (its name is close to "Hage"): Axe is physical crit
     if name = "Axe" && RegExMatch(low, "[mh]a[gq][il1]?[ce]?\s*da|magic") && !RegExMatch(low, "cr[il1]|er[il1]\+")
         name := ""
+    ; "Haoie Torw Magic Damage" is Magic Tome ("Torw"), not Mage Coat
+    if InStr(low, "torw") && IndexOf(cfg["shopRank"], "Magic Tome")
+        name := "Magic Tome"
     ; only the effect was read ("Attack Attack", "Cloak Cloak", "eri+ Chance"): the item from its effect
     if name = ""
         name := ShopByEffect(low)
@@ -1356,14 +1359,17 @@ ShopRowName(raw) {
 ; cooldown items in the shop as "?"). The % picks the item; with no % read, the effect's items count
 ; only when you buy every one of them (then it's the one lowest on your list)
 ShopByEffect(low) {
-    for kw, full in Map("cloak", "Nimble Cloak", "eeper", "Reaper Scythe", "golden room", "Golden Mushroom",
+    for kw, full in Map("cloak", "Nimble Cloak", "ninja", "Ninja Belt", "eeper", "Reaper Scythe", "eaper", "Reaper Scythe",
+        "golden roo", "Golden Mushroom",
         "peedv", "Speedy Boots", "peedy", "Speedy Boots", "boots", "Speedy Boots", "eoo+s", "Speedy Boots")
         if InStr(low, kw)
             return IndexOf(cfg["shopRank"], full) ? full : ""
-    pct := RegExMatch(low, "(\d{1,3})\s*%", &m) ? Integer(m[1]) : 0
-    for g in [["c[o0]{2}[l1i]\s*d[o0]w", Map(7, "Nimble Cloak", 12, "Ninja Belt", 20, "Speedy Boots", 50, "Stormbringer")],
+    ; the %: "SO%" is 50% (S and O misread for 5 and 0)
+    pct := RegExMatch(low, "([\dso]{1,3})\s*%", &m) && RegExMatch(m[1], "\d|^so$|^s[o0]{2}$")
+        ? Integer(StrReplace(StrReplace(m[1], "s", "5"), "o", "0")) : 0
+    for g in [["c[o0]{2}[l1i]\s*d[o0]", Map(7, "Nimble Cloak", 12, "Ninja Belt", 20, "Speedy Boots", 50, "Stormbringer")],
         ["(cr[il1]|er[il1])[t+]?\s*chan", Map(50, "Axe", 100, "Solar Cleaver")],
-        ["[mh]a[gq][il1]?[ce]?\s*da|magic", Map(50, "Mage Coat", 100, "Magic Tome", 250, "Archmage's Hat")],
+        ["[mh]a[gq][il1]?[ce]?\b.{0,12}da[tr]|magic", Map(50, "Mage Coat", 100, "Magic Tome", 250, "Archmage's Hat")],
         ["a[t+]{2}ac?k", Map(15, "Dagger", 30, "Sword", 75, "Scimitar")],
         ["[rg]an[gq]e", Map(20, "Bow", 30, "Longbow", 50, "Elf Bow")]] {
         if !RegExMatch(low, g[1])
