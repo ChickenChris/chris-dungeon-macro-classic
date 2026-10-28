@@ -3316,6 +3316,10 @@ ReadRoomBoosts() {
         Fresh()
         scr := FindText()
         x0 := 314, x1 := 462, y0 := 350, y1 := 364      ; the chips' % row (game-area coordinates)
+        ; the panel opens next to the room clicked, so it isn't always in the middle: its chips are
+        ; centred over its Enter button (Lunoc's panel on the right read "none")
+        if Det("Enter", &ex, &ey)
+            x0 := Max(0, ex - 3 - 74), x1 := Min(800, ex - 3 + 74)
         cols := []                              ; per column: the hues of its coloured pixels
         x := x0
         while x < x1 {
@@ -3497,7 +3501,9 @@ LoadGameTeam(n) {
         Sleep 15
     }
     Wait(600)
-    yAt := 231 + (n - 1) * 86, notches := Max(0, Ceil((yAt - 465) / 99))
+    ; the list's last ~60 px fade out (a LOAD there is dim, not green): row n is scrolled up to 410
+    ; at most (Lunoc's team 6 sat at 462, faded, and wasn't found)
+    yAt := 231 + (n - 1) * 86, notches := Max(0, Ceil((yAt - 410) / 99))
     loop notches {
         SendInput "{WheelDown}"
         Sleep 60
@@ -3506,10 +3512,11 @@ LoadGameTeam(n) {
         Wait(900)
     yAt -= notches * 99
     Stale()
-    ; the LOAD button nearest to where row n should be (only LOAD is green: SAVE is blue, CLEAR red)
+    ; the LOAD button nearest to where row n should be (only LOAD is green: SAVE is blue, CLEAR red);
+    ; up to 43 px off (half a row), for a list that stopped scrolling at its end
     best := -1
-    loop 41 {
-        y := yAt - 20 + A_Index - 1
+    loop 87 {
+        y := yAt - 43 + A_Index - 1
         if y < 175 || y > 485
             continue
         if ColorShare(552, y - 2, 580, y + 2, isGreen) >= 0.6 && (best < 0 || Abs(y - yAt) < Abs(best - yAt))
