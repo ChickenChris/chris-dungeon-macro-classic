@@ -817,7 +817,7 @@ window.ui = {
       ? list.map(([n, c]) => `<span class="chip-l">${esc(n)}<b>×${Number(c).toLocaleString()}</b></span>`).join("")
       : '<span class="loot-none">Nothing yet. What your chests give shows up here</span>';
   },
-  map(name, depth, tot, floor, cleared, label) {
+  map(name, depth, tot, floor, cleared, label, diff) {
     if (+tot && +tot !== total) { total = +tot; buildTrail(); }
     const known = name && name !== "Unknown";
     $("#mapName").textContent = known ? name : "Unknown map";
@@ -827,7 +827,8 @@ window.ui = {
     $(".progress").style.display = ic ? "none" : "";
     $(".trail-head").style.marginBottom = ic ? "0" : "";
     if (label) $("#depthText").innerHTML = label;                    // Infinite: "Wave 87 · best 120" (built by the macro)
-    else if (ic) $("#depthText").innerHTML = `Floor <em>${+floor > 0 ? +floor : "–"}</em>${+cleared ? ` · ${+cleared} cleared` : ""}`;
+    else if (ic) $("#depthText").innerHTML = (diff ? `<span class="diff ${diff === "Hard" ? "hard" : ""}">${esc(diff)}</span>` : "")
+      + `Floor <em>${+floor > 0 ? +floor : "–"}</em>${+cleared ? ` · ${+cleared} cleared` : ""}`;
     else setDepth(depth);
   },
   toast(msg, kind) { toast(msg, kind); },
