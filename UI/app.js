@@ -371,7 +371,8 @@ function renderSpotsPage() {
 }
 
 // Farm mode: one switch on the start page, one on the Dungeon page, kept in step
-const MODES = ["Dungeon", "Infinity Castle", "Fool's Hunt"];
+const MODES = ["Dungeon", "Infinity Castle", "Fool's Hunt", "Infinite"];
+const isInf = () => S.cfg.mode === "Infinite";
 const isIC = () => S.cfg.mode === "Infinity Castle";
 const isFool = () => S.cfg.mode === "Fool's Hunt";
 function renderMode() {
@@ -612,7 +613,7 @@ function setRun(state) {
   run = state;
   document.body.dataset.run = state;
   $("#pillText").textContent = RUN_TEXT[state][0];
-  $("#heroTitle").textContent = state === "running" && isIC() ? "Climbing Infinity Castle" : state === "running" && isFool() ? "Hunting in Fool's Hunt" : RUN_TEXT[state][1];
+  $("#heroTitle").textContent = state === "running" && isIC() ? "Climbing Infinity Castle" : state === "running" && isFool() ? "Hunting in Fool's Hunt" : state === "running" && isInf() ? "Infinite on Shibuya" : RUN_TEXT[state][1];
   $(".controls .btn.go").lastChild.textContent = state === "running" ? "Farming…" : state === "paused" ? "Paused" : "Start farming";
   $(".controls [data-cmd=pause]").lastChild.textContent = state === "paused" ? "Resume" : "Pause";
 }
@@ -798,8 +799,8 @@ window.ui = {
     $("#sRate").textContent = o.wins + o.losses ? Math.round(o.wins / (o.wins + o.losses) * 100) + "%" : "–";
     $("#sRooms").textContent = o.rooms;
     $("#sChests").textContent = o.chests;
-    $("#sClears").textContent = o.ic ? o.floors : o.dungeons;
-    $("#sClears").nextElementSibling.textContent = o.ic ? "Floors" : "Dungeons";
+    $("#sClears").textContent = o.inf ? (+o.infBest || "–") : o.ic ? o.floors : o.dungeons;
+    $("#sClears").nextElementSibling.textContent = o.inf ? "Best wave" : o.ic ? "Floors" : "Dungeons";
     $("#sHour").textContent = o.perHour;
     $("#heroTime").textContent = o.elapsed ? `${o.wins} won, ${o.losses} lost. Running for ${o.elapsed}` : "";
   },
@@ -812,16 +813,17 @@ window.ui = {
       ? list.map(([n, c]) => `<span class="chip-l">${esc(n)}<b>×${Number(c).toLocaleString()}</b></span>`).join("")
       : '<span class="loot-none">Nothing yet. What your chests give shows up here</span>';
   },
-  map(name, depth, tot, floor, cleared) {
+  map(name, depth, tot, floor, cleared, label) {
     if (+tot && +tot !== total) { total = +tot; buildTrail(); }
     const known = name && name !== "Unknown";
     $("#mapName").textContent = known ? name : "Unknown map";
     $("#mapNote").textContent = known ? "" : "Reading the map name…";
     // Infinity Castle: the floor instead of the dungeon's room trail
-    const ic = floor !== undefined && floor !== null;
+    const ic = (floor !== undefined && floor !== null && floor !== "") || !!label;
     $(".progress").style.display = ic ? "none" : "";
     $(".trail-head").style.marginBottom = ic ? "0" : "";
-    if (ic) $("#depthText").innerHTML = `Floor <em>${+floor > 0 ? +floor : "–"}</em>${+cleared ? ` · ${+cleared} cleared` : ""}`;
+    if (label) $("#depthText").innerHTML = label;                    // Infinite: "Wave 87 · best 120" (built by the macro)
+    else if (ic) $("#depthText").innerHTML = `Floor <em>${+floor > 0 ? +floor : "–"}</em>${+cleared ? ` · ${+cleared} cleared` : ""}`;
     else setDepth(depth);
   },
   toast(msg, kind) { toast(msg, kind); },
