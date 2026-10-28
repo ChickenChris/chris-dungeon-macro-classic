@@ -4161,8 +4161,11 @@ PlaceRefused(slot) {
     if msg = "unique" {
         ; only one of a unique unit. One is down already, even if it wasn't counted (its
         ; menu didn't show), so no more of this slot this stage, and one per stage after this
-        if !slotOne.Has(slot)
-            AddLog("Slot " slot " is a unique unit: the game allows only one. Placing one from now on")
+        if !slotOne.Has(slot) {
+            AddLog("Slot " slot " is a unique unit: the game allows only one. Placing one from now on (the game said: "
+                . SubStr(RegExReplace(Trim(said), "\s+", " "), 1, 90) ")")
+            SaveDebugShot("unique")
+        }
         if !CountPlaced(slot)
             AddLog("Slot " slot ": one is on the map but its placing wasn't seen, so it won't be upgraded this stage")
         slotOne[slot] := true
@@ -4218,13 +4221,16 @@ LimitMessage(&txt := "") {
     ; out as "Cannot,rldc"), so any piece of it counts; a second, closer read of the strip under
     ; the wave counter when the first finds nothing
     static limitWords := "i)c[a@]nn[o0]t|can.t\s*pl|m[o0]re\s*th|rn[o0]re\s*th|th[ae]n\s*\d+\s*un|sell\s*s|make\s*r[o0]|weaker"
+    ; "Unique units may not be placed with others of its kind": a piece of the sentence, not just
+    ; "Unique" (the Unique trait's name on a unit's card read as this refusal, meyni's slow unit)
+    static uniqueWords := "i)its\s*k[il1]nd|others\s*[o0]f|may\s*n[o0]t\s*be|placed\s*w[il1]th|un[il1]que\s*un[il1]ts"
     try {
         WinGetClientPos &ox, &oy, , , RBX
         txt := OCR.FromRect(ox + 100, oy + 60, 600, 450, OcrLang(), {scale: 2, grayscale: true}).Text
-        if !RegExMatch(txt, limitWords) && !RegExMatch(txt, "i)uniq|its kind|others of")
+        if !RegExMatch(txt, limitWords) && !RegExMatch(txt, uniqueWords)
             txt .= " " OCR.FromRect(ox + 100, oy + 70, 600, 110, OcrLang(), {scale: 3, grayscale: true}).Text
     }
-    if RegExMatch(txt, "i)uniq|its kind|others of")
+    if RegExMatch(txt, uniqueWords)
         return "unique"
     if RegExMatch(txt, limitWords)
         return "limit"
