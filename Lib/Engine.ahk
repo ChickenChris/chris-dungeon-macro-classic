@@ -46,6 +46,8 @@ global icFloor := 0             ; Infinity Castle floor as the game shows it (0 
 global lastMapRaw := ""
 global lastCurseRaw := ""      ; the text last read while looking for a room's curse (for the log)        ; the last text read while looking for the map name (for the log)
 global placedUnits := []
+global placeUnsure := Map()     ; slot -> spots clicked this stage where no menu showed (maybe placed unseen)
+global unseenFound := []        ; units found that way, for PlaceSlot to count as placed
 global allPlaced := false       ; every unit is down: from now on the F panel may be used
 global lastResult := ""
 global idleSince := 0
@@ -2589,6 +2591,7 @@ PlayStage() {
         stageStart := A_TickCount
         lastResult := ""
         placedUnits := [], allPlaced := false, slotPrice := Map()
+        global placeUnsure := Map(), unseenFound := []
         global walkedHere := false
         ; the team for this room's boosted element, FIRST: units can only be changed before the game
         ; starts ("You can change your units before the game starts!"). After the teleport, the walk and
@@ -3224,6 +3227,8 @@ PlaceSlot(ctx, n, need) {
                 AddLog("Placed slot " n "  (" got "/" need ")")
             } else {
                 ctx.fails[key "|" n] := 1
+                for u in TakeUnseen(n)
+                    newUnits.Push(u), got++, AddLog("Placed slot " n "  (" got "/" need ", found on the map)")
                 if !SlotRoom(n, 1)
                     return newUnits
             }
@@ -3251,6 +3256,8 @@ PlaceSlot(ctx, n, need) {
             } else {
                 ctx.fails[key] := ctx.fails.Get(key, 0) + 1
                 misses++
+                for u in TakeUnseen(n)
+                    newUnits.Push(u), got++, AddLog("Placed slot " n "  (" got "/" need ", found on the map)")
                 if !SlotRoom(n, 1)
                     return newUnits                 ; the game's limit for this unit
             }
@@ -4124,7 +4131,41 @@ TryPlace(x, y, slot) {
         Clk(325, 185)                       ; close the unit menu
         return true
     }
+    ; no menu and no refusal: usually nothing was placed, but a slow menu means it may have been
+    ; (Skyyylyyyy's third Speedwagon was down and never upgraded). Kept in case the game says so later
+    if !placeUnsure.Has(slot)
+        placeUnsure[slot] := []
+    placeUnsure[slot].Push({x: x, y: y})
     return false
+}
+
+; the game says a slot is at its limit with `k` more down than were seen: they're at the latest spots
+; where no menu showed. Added as placed units, so they get upgraded like the others
+FindUnseen(slot, k) {
+    found := 0, list := placeUnsure.Get(slot, [])
+    while k > 0 && list.Length {
+        p := list.Pop()
+        if NearUnit(p.x, p.y, 15)
+            continue
+        u := {x: p.x, y: p.y, slot: slot, maxed: false, capped: false, dx: 0, dy: -3, misses: 0, lost: false}
+        placedUnits.Push(u), unseenFound.Push(u), k--, found++
+    }
+    return found
+}
+
+; the units FindUnseen added for this slot (PlaceSlot counts them as placed, and a "place and
+; upgrade" step upgrades them too)
+TakeUnseen(slot) {
+    global unseenFound
+    out := [], keep := []
+    for u in unseenFound {
+        if u.slot = slot
+            out.Push(u)
+        else
+            keep.Push(u)
+    }
+    unseenFound := keep
+    return out
 }
 
 ; The game refused the unit with a red message: remember the limit so the macro stops trying.
@@ -4151,7 +4192,7 @@ PlaceRefused(slot) {
     ; only a clear "of this unit" is that unit's limit (it stops the slot for the map); anything
     ; else counts as the map being full, which just waits a minute and tries again
     ; the number tells them apart too: a unit's limit is small (3 of this unit), the map's is 20
-    most := RegExMatch(said, "i)th[ae]n\s*(\d[\dOo]?)", &mm) ? Integer(RegExReplace(mm[1], "[Oo]", "0")) : 0
+    most := RegExMatch(said, "i)t{1,3}h?[ae]n\s*(\d[\dOo]?)", &mm) ? Integer(RegExReplace(mm[1], "[Oo]", "0")) : 0   ; "than", "tttan"
     mapWords := RegExMatch(said, "i)sell|weaker|make\s*r|r[o0][o0]m\b|un[il1]ts")
     thisUnit := !mapWords && (RegExMatch(said, "i)th[il1]s\s*un[il1]t|of\s*th[il1]s|of\s*the\s*un") || most && most < 10)
     if msg = "limit" && !thisUnit {
@@ -4171,11 +4212,14 @@ PlaceRefused(slot) {
         have := CountPlaced(slot)
         if most > have {
             slotCap[CapKey(slot)] := most
+            found := FindUnseen(slot, most - have)
             AddLog("Slot " slot ": the game allows " most " of this unit. " most - have " of them got placed without the macro seeing it"
-                . " (the unit's menu didn't show in time): set Placement speed slower in Settings")
+                . " (the unit's menu didn't show in time)" (found ? ": found where " (found = 1 ? "it is" : "they are") ", upgrading " (found = 1 ? "it" : "them") " too" : "")
+                . (found < most - have ? ". Set Placement speed slower in Settings" : ""))
         } else if have {
-            slotCap[CapKey(slot)] := have
-            AddLog("Slot " slot ": the game allows only " have " of this unit, placing no more")
+            ; the number wasn't read ("Cannot place more tttan 3"): no limit is saved for next time, a
+            ; wrong 2 kept every later stage at 2 of a unit the game allows 3 of
+            AddLog("Slot " slot ": the game says no more of this unit (" have " seen placed), placing no more this stage")
         } else
             AddLog("Slot " slot ": the game says no more of this unit, but none were seen being placed. "
                 . "Placing it again next stage (if this keeps happening: Placement speed slower in Settings)")
