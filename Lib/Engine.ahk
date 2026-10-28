@@ -1330,6 +1330,12 @@ ShopRowName(raw) {
         if name != "" && !IndexOf(cfg["shopRank"], name)
             name := ""
     }
+    ; a "magic damage" line read as Axe (its name is close to "Hage"): Axe is physical crit
+    if name = "Axe" && RegExMatch(low, "[mh]a[gq][il1]?[ce]?\s*da|magic") && !RegExMatch(low, "cr[il1]|er[il1]\+")
+        name := ""
+    ; only the effect was read ("Attack Attack", "Cloak Cloak", "eri+ Chance"): the item from its effect
+    if name = ""
+        name := ShopByEffect(low)
     ; short names that are the end of longer ones: the description's % tells them apart
     if name = "Fish Hook" && RegExMatch(raw, "4\s*0\s*%")
         name := "Golden Fishhook"
@@ -1344,6 +1350,36 @@ ShopRowName(raw) {
     else if name = "Glacial Axe" && RegExMatch(raw, "i)crit") && !RegExMatch(raw, "i)g[il1]ac")
         name := "Axe"                       ; Axe: +50% physical crit chance
     return name
+}
+
+; A shop row from its effect line when the name wasn't read (Nightbubi's macro left his attack and
+; cooldown items in the shop as "?"). The % picks the item; with no % read, the effect's items count
+; only when you buy every one of them (then it's the one lowest on your list)
+ShopByEffect(low) {
+    for kw, full in Map("cloak", "Nimble Cloak", "eeper", "Reaper Scythe", "golden room", "Golden Mushroom",
+        "peedv", "Speedy Boots", "peedy", "Speedy Boots", "boots", "Speedy Boots", "eoo+s", "Speedy Boots")
+        if InStr(low, kw)
+            return IndexOf(cfg["shopRank"], full) ? full : ""
+    pct := RegExMatch(low, "(\d{1,3})\s*%", &m) ? Integer(m[1]) : 0
+    for g in [["c[o0]{2}[l1i]\s*d[o0]w", Map(7, "Nimble Cloak", 12, "Ninja Belt", 20, "Speedy Boots", 50, "Stormbringer")],
+        ["(cr[il1]|er[il1])[t+]?\s*chan", Map(50, "Axe", 100, "Solar Cleaver")],
+        ["[mh]a[gq][il1]?[ce]?\s*da|magic", Map(50, "Mage Coat", 100, "Magic Tome", 250, "Archmage's Hat")],
+        ["a[t+]{2}ac?k", Map(15, "Dagger", 30, "Sword", 75, "Scimitar")],
+        ["[rg]an[gq]e", Map(20, "Bow", 30, "Longbow", 50, "Elf Bow")]] {
+        if !RegExMatch(low, g[1])
+            continue
+        if g[2].Has(pct)
+            return IndexOf(cfg["shopRank"], g[2][pct]) ? g[2][pct] : ""
+        worst := "", at := 0
+        for , full in g[2] {
+            if !ShopWanted(full)
+                return ""
+            if (i := IndexOf(cfg["shopRank"], full)) > at
+                worst := full, at := i
+        }
+        return worst
+    }
+    return ""
 }
 
 ReadShopRows() {
