@@ -67,6 +67,7 @@ global HOLE := [3, 33, 800, 630]           ; left, top, right, bottom of the gam
 global guiH := GUI_H
 global savePending := false               ; settings changed, saved a moment later (SaveSoon)
 global wvc := 0, wv := 0, uiReady := false, uiQueue := [], logBuf := []
+global splashPic := 0, splashTitle := 0, splashSub := 0, splashFrames := [], splashI := 1   ; the loading screen
 global runState := "idle", robloxShown := -1, stepNow := ""
 global importCfg := 0               ; settings read from another macro, waiting for "Import"
 
@@ -74,6 +75,7 @@ global MG := Gui("+AlwaysOnTop -Caption -DPIScale", "Chris's Dungeon Macro")
 MG.BackColor := "050506"
 MG.MarginX := 0, MG.MarginY := 0
 MG.OnEvent("Close", (*) => (SaveConfig(), ExitApp()))
+SplashStart()                        ; the sakura tree plays until the page has loaded
 MG.Show("w" GUI_W " h" GUI_H)
 
 if !StartWebView() {
@@ -151,6 +153,8 @@ StartWebView() {
         try wvc.ShouldDetectMonitorScaleChanges := 0      ; 1 page pixel = 1 screen pixel, like the game frame
         try wvc.RasterizationScale := 1.0
         wvc.Fill()
+        if splashPic
+            try wvc.IsVisible := false                    ; the loading screen shows until the page is ready
         wv := wvc.CoreWebView2
         st := wv.Settings
         try st.AreDevToolsEnabled := FileExist(A_ScriptDir "\Settings\devtools") ? 1 : 0
@@ -170,6 +174,51 @@ StartWebView() {
         try FileAppend(FormatTime(, "yyyy-MM-dd HH:mm:ss") "  WebView2 failed: " err.Message "`n", logFile, "UTF-8")
         return false
     }
+}
+
+; ---------------------------------------------------------------------
+;  Loading screen: the sakura tree (frames of the background video, Images\ui\loading) plays
+;  in the middle of the window while WebView2 starts and the page loads, instead of a black window
+; ---------------------------------------------------------------------
+SplashStart() {
+    global splashPic, splashTitle, splashSub, splashFrames
+    loop files A_ScriptDir "\Images\ui\loading\*.jpg"
+        splashFrames.Push(A_LoopFileFullPath)
+    if !splashFrames.Length
+        return
+    w := 448, h := 252, x := (GUI_W - w) // 2, y := (GUI_H - h) // 2 - 34
+    try {
+        splashPic := MG.AddPicture("x" x " y" y " w" w " h" h, splashFrames[1])
+        MG.SetFont("s15 w600 cF2B8D4", "Segoe UI")
+        splashTitle := MG.AddText("x0 y" (y + h + 16) " w" GUI_W " Center BackgroundTrans", "Chris's Dungeon Macro")
+        MG.SetFont("s10 w400 c9C8A9E", "Segoe UI")
+        splashSub := MG.AddText("x0 y" (y + h + 46) " w" GUI_W " Center BackgroundTrans", "Loading...")
+        MG.SetFont()
+    } catch {
+        splashPic := 0
+        return
+    }
+    SetTimer SplashTick, 130
+    SetTimer SplashStop, -20000                     ; never longer than this, even if the page doesn't say it's ready
+}
+
+SplashTick() {
+    global splashI
+    if !splashPic
+        return SetTimer(SplashTick, 0)
+    splashI := Mod(splashI, splashFrames.Length) + 1
+    try splashPic.Value := splashFrames[splashI]
+}
+
+SplashStop() {
+    global splashPic
+    SetTimer SplashTick, 0
+    if !splashPic
+        return
+    for c in [splashPic, splashTitle, splashSub]
+        try c.Visible := false
+    splashPic := 0
+    try wvc.IsVisible := true
 }
 
 ; calls window.ui.<fn>(args...) in the page (queued until the page says it's ready)
@@ -298,6 +347,7 @@ HandleMessage(msg) {
 PageReady() {
     global uiReady
     uiReady := true
+    SetTimer SplashStop, -250                   ; a moment for the page to draw itself first
     UI("init", UiState())
     for js in uiQueue                       ; init already has the logs, stats and status
         if InStr(js, "ui.toast(") = 1
