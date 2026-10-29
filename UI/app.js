@@ -870,12 +870,18 @@ window.ui = {
       ? `<div class="duo-cell"><div class="duo-box live" data-i="${i + 1}"><span>${n > 1 ? "Alt " + (i + 1) : "Your alt's Roblox shows here"}</span></div>${
           n > 1 ? `<button class="btn sm" data-swap="${i + 1}" title="Make alt ${i + 1} the main">${icon("arrow-up-down")}${n > 3 ? "Make main" : `Make alt ${i + 1} the main`}</button>` : ""}</div>`
       : `<div class="duo-cell"><div class="duo-box empty"><div><h4>Open ${n > 1 ? "alt " + (i + 1) + "'s" : "your alt's"} Roblox</h4>
-           <p>Start <code>Tools\\Roblox Multi-Instance</code>, open another Roblox, log in with the alt and join your private server. It shows up here by itself.</p></div></div></div>`).join("");
+           <p>Switch on <b>Multi Roblox</b> (Fool's Hunt), open another Roblox, log in with the alt and join your private server. It shows up here by itself.</p></div></div></div>`).join("");
     box.onclick = (e) => { const b = e.target.closest("[data-swap]"); if (b) send("duoSwap", { i: +b.dataset.swap }); };
     box.onpointerdown = duoDrag;
     $("#duoTitle").textContent = n > 1 ? `Your ${n} alts` : "Your alt";
     $("#duoInfo [data-cmd=duoSwap]").hidden = n > 1;     // 2-5 alts: each view has its own button
     $("#duoAltLine").innerHTML = n > 1 ? "<b>Alts</b> are the live views on the left." : "<b>Alt</b> is the live view on the left.";
+  },
+  // Multi Roblox: on or off, and how many Roblox windows are open
+  multi(on, count) {
+    $("#multiInfo").textContent = +on
+      ? `On · ${+count || 0} Roblox open. Open your alts now (same private server)`
+      : "Your main and alts open at the same time. Switch on before opening Roblox";
   },
   spots(map, list, walkKind, walkText) {
     if (map !== spotMap) return;
