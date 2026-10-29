@@ -792,13 +792,14 @@ RoomOrder(rooms) {
         ; a room can hold several things (Shop + Chest + Shrine...): it's worth all of them.
         ; "own" is the best of them (for the log), "has" all of them.
         own := "", rank := 0, rare := RareChestAt(r), has := []
+        ; the CHEST label is on both kinds of chest: counted, so a rare chest's own label isn't taken
+        ; for a second, normal chest, and a room with both counts both (Lunoc)
+        chests := ChestLabels(r), kinds := RoomChests(rare, chests)
         for i, prio in route {
             if prio = "None"
                 continue
-            if prio = "Rare_Chest"
-                hit := rare
-            else if prio = "Chest" && rare
-                hit := false                        ; the chest picture also fits a rare chest
+            if prio = "Rare_Chest" || prio = "Chest"
+                hit := IndexOf(kinds, prio)
             else
                 hit := Seen(r.a.sx1, r.a.sy1, r.a.sx2, r.a.sy2, RoomPattern(prio), 0.2)
             if hit {
@@ -807,7 +808,7 @@ RoomOrder(rooms) {
                     own := prio, rank := i
             }
         }
-        picks.Push({r: r, prio: own, has: has, rank: rank ? rank : 99, score: 0, next: "", cursed: r.kind = "Cursed"})
+        picks.Push({r: r, prio: own, has: has, rank: rank ? rank : 99, score: 0, next: "", cursed: r.kind = "Cursed", chests: chests})
     }
     for pk in picks
         for thing in pk.has
@@ -836,6 +837,7 @@ RoomOrder(rooms) {
         if c = "" && !pk.cursed
             continue
         pk.cursed := true, pk.curse := c, pk.bad := CurseBadness(c), pk.r.kind := "Cursed"
+        CursedRare(pk)
         if c != "" && AvoidCurse(c)
             pk.score := -99, pk.skip := true
     }
@@ -871,6 +873,18 @@ RoomSpare(p) => p.HasOwnProp("spare") ? p.spare : 0
 ; double (it's what dungeons are farmed for), a curse costs more than a chest and a hoard
 ; together (cursed rooms lose runs), and a shop is worth nothing until you have the coins
 ; to spend in it ("Only go to a shop with" setting).
+; a cursed room always holds a rare chest (150 of 150 cursed rooms in a player's log), so it counts
+; one even when its picture wasn't matched: in a room with 4 things the icons are smaller, the rare
+; chest picture missed, and only the plain "CHEST" label was found. A "Chest" read there is that rare chest
+CursedRare(pk) {
+    if IndexOf(pk.has, "Rare_Chest")
+        return
+    ; one CHEST label: it's the rare chest's. Two: a rare chest and a normal one (Lunoc)
+    if (pk.HasOwnProp("chests") ? pk.chests : 1) < 2 && (i := IndexOf(pk.has, "Chest"))
+        pk.has.RemoveAt(i), pk.score -= ThingValue("Chest")
+    pk.has.Push("Rare_Chest"), pk.score += ThingValue("Rare_Chest")
+}
+
 ThingValue(kind, shopOk := true) {
     if kind = "Curse"
         return -8
@@ -884,6 +898,29 @@ ThingValue(kind, shopOk := true) {
 ; a rare chest in this room, looked for around the room itself (it used to look once, in the middle
 ; of the screen only: a rare chest in an outer room, or a second one, counted as a plain chest)
 RareChestAt(r) => ImgFind(RareChestImage, r.a.cx - 48, 315, r.a.cx + 48, 462, &ix, &iy)
+
+; how many CHEST labels a room box shows (rare and normal chests both have one). The search can
+; find one label at a few spots next to each other: matches within 15 px count once
+ChestLabels(r) {
+    if !(ok := FT(&fx, &fy, r.a.sx1, r.a.sy1, r.a.sx2, r.a.sy2, 0.2, 0.2, Chest))
+        return 0
+    return LabelCount(ok)
+}
+LabelCount(found) {
+    seen := []
+    for f in found {
+        new := true
+        for p in seen
+            if Abs(p[1] - f.x) <= 15 && Abs(p[2] - f.y) <= 15
+                new := false
+        if new
+            seen.Push([f.x, f.y])
+    }
+    return seen.Length
+}
+
+; the chests a room holds, from the rare chest picture and the number of CHEST labels
+RoomChests(rare, labels) => rare ? (labels >= 2 ? ["Rare_Chest", "Chest"] : ["Rare_Chest"]) : labels ? ["Chest"] : []
 
 FindRareChestX() {
     return ImgFind(RareChestImage, 247, 325, 561, 457, &ix, &iy) ? ix : -1
