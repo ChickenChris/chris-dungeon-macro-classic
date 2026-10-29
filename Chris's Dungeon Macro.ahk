@@ -85,7 +85,7 @@ SplashStart()                        ; a clean loading screen fades in until the
 if !StartWebView() {
     oldWin := A_ScriptDir "\Chris's Dungeon Macro (old window).ahk"
     if FileExist(oldWin) {
-        Run '"' A_AhkPath '" "' oldWin '"'
+        Run '"' A_AhkPath '" "' oldWin '" --updated'        ; the update was checked already
         ExitApp
     }
     MsgBox "This window needs Microsoft Edge WebView2, which didn't start.`nInstall the WebView2 Runtime from Microsoft and try again.", "Chris's Dungeon Macro", "Icon!"

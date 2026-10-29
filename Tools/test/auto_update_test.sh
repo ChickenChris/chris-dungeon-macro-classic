@@ -42,6 +42,7 @@ MacroArgs() => args
 Try1(ver, have := "3.2.67", a := "") {
     global started, online, APP_VER, args
     started := 0, online := ver, APP_VER := have, args := a = "" ? [] : [a]
+    try FileDelete(A_ScriptDir "\Settings\update.ini")       ; every check starts fresh, unless said
     AutoUpdate("ChickenChris/updates", "latest.txt")
     return started
 }
@@ -58,6 +59,15 @@ Check("just updated (--updated): never a second round", Try1("3.2.68", "3.2.67",
 Check("3.2.100 is newer than 3.2.99 (numbers, not text)", Try1("3.2.100", "3.2.99") = 1)
 Check("3.10.0 is newer than 3.9.9", Try1("3.10.0", "3.9.9") = 1)
 Check("Classic's version text ('3.0.99 Classic')", Try1("3.1.0", "3.0.99 Classic") = 1)
+; a failed update isn't tried again on every start (the updater blocked, the license server down):
+; each new version gets one automatic try, Update.bat is the retry
+Try1("3.2.68")
+started := 0, online := "3.2.68", APP_VER := "3.2.67", args := []
+AutoUpdate("ChickenChris/updates", "latest.txt")
+Check("the same new version, the next start (its update didn't take): starts as it is", started = 0)
+online := "3.2.69"
+AutoUpdate("ChickenChris/updates", "latest.txt")
+Check("an even newer one out: tried", started = 1)
 Check("VerOf finds the number", VerOf("Premium 3.2.67 (2026-10-28)") = "3.2.67", VerOf("Premium 3.2.67 (2026-10-28)"))
 Check("VerNewer: unknown versions never update", !VerNewer("", "3.2.67") && !VerNewer("3.2.68", ""))
 FileAppend(fails ? "FAILED " fails "`n" : "ALL PASSED`n", "*", "UTF-8")

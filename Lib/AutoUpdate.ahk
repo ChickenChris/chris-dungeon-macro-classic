@@ -10,8 +10,19 @@ AutoUpdate(repo, file) {
     for a in MacroArgs()
         if a = "--updated"                      ; just updated (or the update failed): start as it is
             return
-    if VerNewer(VerOf(NewestVersion(repo, file)), VerOf(APP_VER))
-        StartUpdater()
+    newest := VerOf(NewestVersion(repo, file))
+    if !VerNewer(newest, VerOf(APP_VER))
+        return
+    ; each new version gets one try: when its update didn't take (PowerShell blocked, the license
+    ; server down), the macro starts as it is from then on and Update.bat is the retry
+    tried := A_ScriptDir "\Settings\update.ini"
+    if IniRead(tried, "Update", "Tried", "") = newest
+        return
+    try {
+        DirCreate A_ScriptDir "\Settings"
+        IniWrite newest, tried, "Update", "Tried"
+    }
+    StartUpdater()
 }
 
 MacroArgs() => A_Args

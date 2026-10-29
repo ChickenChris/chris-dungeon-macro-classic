@@ -164,7 +164,9 @@ if ($Auto) {
     if ($Ahk -ne '' -and $Script -ne '') {
         Say '   Starting the macro...' Green
         Start-Sleep -Seconds $(if ($ok) { 2 } else { 10 })
-        Start-Process -FilePath $Ahk -ArgumentList @(('"' + $Script + '"'), '--updated') -WorkingDirectory $dir
+        # no -WorkingDirectory (a folder name with [ ] broke it on Windows PowerShell); the macro sets its own
+        try { Start-Process -FilePath $Ahk -ArgumentList @(('"' + $Script + '"'), '--updated') }
+        catch { Say ('   Couldn''t start it: ' + $_.Exception.Message + '. Start it yourself.') Red; Start-Sleep -Seconds 15 }
     }
     exit $(if ($ok) { 0 } else { 1 })
 }
