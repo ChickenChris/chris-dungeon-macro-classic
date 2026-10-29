@@ -480,6 +480,9 @@ IdleTick() {
 ;  Lobby -> dungeon
 ; =====================================================================
 OpenDungeonFromLobby() {
+    ; a new dungeon, no boss beaten yet: one from an earlier dungeon (or from before a Stop) opened
+    ; this dungeon's chests from the first room with "Save chests for after the boss" on (Apocalipse)
+    global bossDone := false, chestsDone := false
     Step("lobby: opening dungeons")
     AddLog("In the lobby, opening dungeons")
     Clk(400, 340), Clk(400, 390)
