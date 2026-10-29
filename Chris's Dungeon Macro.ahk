@@ -67,7 +67,7 @@ global HOLE := [3, 33, 800, 630]           ; left, top, right, bottom of the gam
 global guiH := GUI_H
 global savePending := false               ; settings changed, saved a moment later (SaveSoon)
 global wvc := 0, wv := 0, uiReady := false, uiQueue := [], logBuf := []
-global splashPic := 0, splashTitle := 0, splashSub := 0, splashFrames := [], splashI := 1   ; the loading screen
+global splashGui := 0, splashPic := 0, splashFrames := [], splashI := 1, splashAlpha := 0, splashGoal := 255   ; the loading screen
 global runState := "idle", robloxShown := -1, stepNow := ""
 global importCfg := 0               ; settings read from another macro, waiting for "Import"
 
@@ -75,8 +75,8 @@ global MG := Gui("+AlwaysOnTop -Caption -DPIScale", "Chris's Dungeon Macro")
 MG.BackColor := "050506"
 MG.MarginX := 0, MG.MarginY := 0
 MG.OnEvent("Close", (*) => (SaveConfig(), ExitApp()))
-SplashStart()                        ; the sakura tree plays until the page has loaded
 MG.Show("w" GUI_W " h" GUI_H)
+SplashStart()                        ; the sakura tree fades in and plays until the page has loaded
 
 if !StartWebView() {
     oldWin := A_ScriptDir "\Chris's Dungeon Macro (old window).ahk"
@@ -153,8 +153,6 @@ StartWebView() {
         try wvc.ShouldDetectMonitorScaleChanges := 0      ; 1 page pixel = 1 screen pixel, like the game frame
         try wvc.RasterizationScale := 1.0
         wvc.Fill()
-        if splashPic
-            try wvc.IsVisible := false                    ; the loading screen shows until the page is ready
         wv := wvc.CoreWebView2
         st := wv.Settings
         try st.AreDevToolsEnabled := FileExist(A_ScriptDir "\Settings\devtools") ? 1 : 0
@@ -177,28 +175,32 @@ StartWebView() {
 }
 
 ; ---------------------------------------------------------------------
-;  Loading screen: the sakura tree (frames of the background video, Images\ui\loading) plays
-;  in the middle of the window while WebView2 starts and the page loads, instead of a black window
+;  Loading screen: the sakura tree (frames of the background video with the name on them,
+;  Images\ui\loading) covers the whole window while WebView2 starts and the page loads, instead
+;  of a black window. It's its own window on top of the macro, so it can fade in and fade out
+;  (the page shows through as it fades)
 ; ---------------------------------------------------------------------
 SplashStart() {
-    global splashPic, splashTitle, splashSub, splashFrames
+    global splashGui, splashPic, splashFrames
     loop files A_ScriptDir "\Images\ui\loading\*.jpg"
         splashFrames.Push(A_LoopFileFullPath)
     if !splashFrames.Length
         return
-    w := 448, h := 252, x := (GUI_W - w) // 2, y := (GUI_H - h) // 2 - 34
     try {
-        splashPic := MG.AddPicture("x" x " y" y " w" w " h" h, splashFrames[1])
-        MG.SetFont("s15 w600 cF2B8D4", "Segoe UI")
-        splashTitle := MG.AddText("x0 y" (y + h + 16) " w" GUI_W " Center BackgroundTrans", "Chris's Dungeon Macro")
-        MG.SetFont("s10 w400 c9C8A9E", "Segoe UI")
-        splashSub := MG.AddText("x0 y" (y + h + 46) " w" GUI_W " Center BackgroundTrans", "Loading...")
-        MG.SetFont()
+        WinGetClientPos &cx, &cy, &cw, &ch, MG.Hwnd
+        splashGui := Gui("-Caption +ToolWindow -DPIScale +Owner" MG.Hwnd)
+        splashGui.BackColor := "000000"
+        splashGui.MarginX := 0, splashGui.MarginY := 0
+        splashPic := splashGui.AddPicture("x0 y0 w" cw " h" ch, splashFrames[1])
+        splashGui.Show("x" cx " y" cy " w" cw " h" ch " Hide")
+        WinSetTransparent 0, splashGui.Hwnd
+        splashGui.Show("NA")
     } catch {
-        splashPic := 0
+        splashGui := 0, splashPic := 0
         return
     }
     SetTimer SplashTick, 130
+    SplashFade(255)
     SetTimer SplashStop, -20000                     ; never longer than this, even if the page doesn't say it's ready
 }
 
@@ -210,15 +212,35 @@ SplashTick() {
     try splashPic.Value := splashFrames[splashI]
 }
 
+; fades the loading screen to `target` (0-255) in about 0.35 s; at 0 it's closed
+SplashFade(target) {
+    global splashGoal := target
+    SetTimer SplashStep, 15
+}
+
+SplashStep() {
+    global splashAlpha
+    if !splashGui
+        return SetTimer(SplashStep, 0)
+    splashAlpha += splashGoal > splashAlpha ? Min(12, splashGoal - splashAlpha) : -Min(12, splashAlpha - splashGoal)
+    try WinSetTransparent splashAlpha, splashGui.Hwnd
+    if splashAlpha = splashGoal {
+        SetTimer SplashStep, 0
+        if splashGoal = 0
+            SplashClose()
+    }
+}
+
 SplashStop() {
-    global splashPic
+    if splashGui
+        SplashFade(0)
+}
+
+SplashClose() {
+    global splashGui, splashPic
     SetTimer SplashTick, 0
-    if !splashPic
-        return
-    for c in [splashPic, splashTitle, splashSub]
-        try c.Visible := false
-    splashPic := 0
-    try wvc.IsVisible := true
+    try splashGui.Destroy()
+    splashGui := 0, splashPic := 0
 }
 
 ; calls window.ui.<fn>(args...) in the page (queued until the page says it's ready)
@@ -347,7 +369,7 @@ HandleMessage(msg) {
 PageReady() {
     global uiReady
     uiReady := true
-    SetTimer SplashStop, -250                   ; a moment for the page to draw itself first
+    SetTimer SplashStop, -300                   ; a moment for the page to draw itself, then the tree fades out
     UI("init", UiState())
     for js in uiQueue                       ; init already has the logs, stats and status
         if InStr(js, "ui.toast(") = 1
