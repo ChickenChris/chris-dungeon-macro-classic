@@ -47,6 +47,7 @@ Det(name) => false
 OcrLang() => "en"
 LEGEND_WORLD() => "Magic Hills (Elf Invasion)"
 LEGEND_STAGE() => 1
+ChallengeLeave() => false
 LegendBaseMap(w) => "Magic Hills"
 FindText() => scr
 OcrFindWord(x, y, w, h, re, &cx, &cy) {

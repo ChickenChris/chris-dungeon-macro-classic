@@ -397,6 +397,7 @@ function renderMode() {
   im.innerHTML = options(maps, Math.max(0, maps.indexOf(S.cfg.infMap || "Shibuya District")));
   im.onchange = () => setVal("infMap", maps[+im.value]);
   $("#legendSub").classList.toggle("open", isLegend());
+  $("#autoChallenge").classList.toggle("dim", isFool());   // the alts stay in the same round: no challenges
   const lw = $("#legendWorld"), worlds = S.legendWorlds || ["Magic Hills (Elf Invasion)"];
   lw.innerHTML = options(worlds, Math.max(0, worlds.indexOf(S.cfg.legendWorld || worlds[0])));
   lw.onchange = () => { setVal("legendWorld", worlds[+lw.value]); if (run) setRun(run); };

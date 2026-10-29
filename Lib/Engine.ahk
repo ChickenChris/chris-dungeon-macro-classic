@@ -343,6 +343,11 @@ Tick() {
         Wait(400)
         return
     }
+    if challengeOn && postStage && !stageActive {   ; a challenge counted at Next: rewards, the lobby
+        idleSince := 0
+        ChallengeEnded()
+        return
+    }
     if Det("Xp") {
         idleSince := 0
         ReadResult()
@@ -419,7 +424,9 @@ Tick() {
     }
     if Det("Lobby") {
         idleSince := 0
-        if LegendMode()
+        if ChallengeDue()                    ; Auto challenge: a new one goes first
+            StartChallenge()
+        else if LegendMode()
             StartLegend()
         else
             OpenDungeonFromLobby()
@@ -4775,6 +4782,10 @@ FinishStage() {
 HandleEnd() {
     ReadResult()
     FinishStage()
+    if challengeOn {                            ; Auto challenge: back to the lobby, then farming
+        ChallengeEnded()
+        return
+    }
     if lastResult = "loss" && cfg["stopAfterDefeat"] {
         AddLog("Defeat, stopping (Stop after a defeat is on)")
         SendWebhook("Stopped after a defeat", Summary(), 0xDC2626)
@@ -5024,7 +5035,7 @@ RecordRun() {
         stat.losses++
     stat.streak := lastResult = "win" ? stat.streak + 1 : lastResult = "loss" ? 0 : stat.streak
     took := FmtTime(A_TickCount - stageStart)
-    word := lastResult = "win" ? "Victory" : lastResult = "loss" ? "Defeat" : "Run finished"
+    word := (challengeOn ? "Challenge: " : "") (lastResult = "win" ? "Victory" : lastResult = "loss" ? "Defeat" : "Run finished")
     AddLog(word " on " curMap " in " took)
     UpdateStats()
     if cfg["hookRuns"] {
@@ -5032,7 +5043,7 @@ RecordRun() {
         total := stat.wins + stat.losses
         where := "**" curMap "**" (IsInteger(curDepth) ? "   Room " curDepth " of " dungeonTotal : "") "   " took
         shot := A_ScriptDir "\Logs\last_result.png"
-        SendWebhook(lastResult = "win" ? "Victory" : lastResult = "loss" ? "Defeat" : "Stage finished", where,
+        SendWebhook((challengeOn ? "Challenge: " : "") (lastResult = "win" ? "Victory" : lastResult = "loss" ? "Defeat" : "Stage finished"), where,
             lastResult = "loss" ? 0xF43F5E : lastResult = "win" ? 0x4ADE80 : 0x7DD3FC,
             [["Streak", stat.streak], ["Wins", stat.wins " of " stat.runs], ["Win rate", total ? Round(stat.wins / total * 100) "%" : "–"]],
             CaptureGamePng(shot) ? shot : "", false)

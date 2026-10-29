@@ -48,6 +48,19 @@ const legendBtn = (p) => p.evaluateHandle(() => [...document.querySelectorAll("#
     const sent2 = await p.evaluate(() => window.__sent);
     check(tag + ": the world is saved", sent2.some((m) => m.cmd === "set" && m.key === "legendWorld" && m.value === "Ruined City (Midnight)"));
     check(tag + ": the stage is saved as a number", sent2.some((m) => m.cmd === "set" && m.key === "legendStage" && m.value === 3));
+    // Auto challenge: one switch on the Mode panel, free in Classic, greyed in Fool's Hunt
+    const ac = '.modebar .toggle[data-key="autoChallenge"]';
+    check(tag + ": an Auto challenge switch on the Mode panel", await p.evaluate((q) => !!document.querySelector(q), ac));
+    check(tag + ": Auto challenge isn't locked", await p.evaluate((q) => { const t = document.querySelector(q); return !!t && !t.closest("[data-premium]"); }, ac));
+    await p.evaluate((q) => document.querySelector(q)?.click(), ac); await p.waitForTimeout(100);
+    check(tag + ": switching it on is saved", (await p.evaluate(() => window.__sent)).some((m) => m.cmd === "set" && m.key === "autoChallenge" && m.value === 1));
+    check(tag + ": not greyed outside Fool's Hunt", !(await p.evaluate((q) => document.querySelector(q)?.classList.contains("dim"), ac)));
+    if (!edition) {
+      await p.evaluate(() => [...document.querySelectorAll("#segModeHome button")].find((x) => x.textContent.trim() === "Fool's Hunt").click());
+      await p.waitForTimeout(150);
+      check("premium: greyed in Fool's Hunt", await p.evaluate((q) => !!document.querySelector(q)?.classList.contains("dim"), ac));
+      await legendBtn(p).then((h) => h.evaluate((x) => x.click())); await p.waitForTimeout(150);
+    }
     await p.screenshot({ path: `${out}/legend_${tag}.png`, clip: { x: 0, y: 0, width: 1423, height: 300 } });
     check(tag + ": no page errors", !p.errors.length, p.errors.join("; "));
     await p.close();

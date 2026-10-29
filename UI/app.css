@@ -317,6 +317,8 @@ body[data-run="stopping"] .dot { background: var(--bad); }
 #foolSub .seg { flex: none; }
 .seg.wide { flex: 1; display: flex; }
 .seg.wide button { flex: 1; height: 28px; font-size: 12.5px; }
+.modebar > .toggle { margin-top: 8px; }
+.toggle.dim { opacity: .45; }
 #segModeHome button { flex: auto; padding: 0 7px; white-space: nowrap; font-size: 12px; }   /* five modes on one line */
 body.classic #segModeHome button[data-premium] { gap: 3px; }
 .hero-text p b { color: var(--cloud); font-weight: 500; }

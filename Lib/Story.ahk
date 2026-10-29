@@ -258,10 +258,13 @@ FoolJoinUp() {
 }
 
 ; Select, Play Here if "Join Matchmaking?" asks, then Start until the loading screen hides the
-; settings gear. label: "Infinite" / "Legend" for the log
-PadStart(label) {
-    Clk(401, 438)                               ; Select
-    Wait(1000)
+; settings gear. label: "Infinite" / "Legend" / "Challenge" for the log. select: false when there's
+; no Select button (a challenge's door asks "Join Matchmaking?" straight away)
+PadStart(label, select := true) {
+    if select {
+        Clk(401, 438)                           ; Select
+        Wait(1000)
+    }
     Stale()
     if FoolJoinUp() {
         Clk(330, 325)                           ; Play Here
@@ -460,6 +463,8 @@ ScrollAt(x, y, n) {
 ; lobby, where the stage is picked again
 LegendReplay() {
     AddLog("Legend: " (lastResult = "win" ? "won" : lastResult = "loss" ? "lost" : "round over") ", replaying")
+    if ChallengeLeave()                         ; a new challenge is up: the lobby instead
+        return
     Step("replaying Legend")
     if OcrFindWord(0, 300, 800, 300, "i)^replay$", &rx, &ry)
         Clk(rx, ry)
