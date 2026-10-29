@@ -71,8 +71,6 @@ global mapFull := 0             ; when the game last said the map holds no more 
 SlotRoom(n, need) {
     if slotCap.Has(CapKey(n))
         need := Min(need, slotCap[CapKey(n)] - CountPlaced(n))
-    if slotOne.Has(n)
-        need := Min(need, 1 - CountPlaced(n))
     if slotFull.Get(n, -1) = stageStart
         need := 0
     if mapFull && A_TickCount - mapFull < 60000  ; the map is full right now: upgrade, try again in a bit
@@ -4103,14 +4101,16 @@ TryPlace(x, y, slot) {
     ; MenuParts): the yen can't be read reliably. The game lags now and then, so a late menu
     ; gets extra time.
     how := ""
-    if autoOpenOff ? WaitUnitMenu(300) : (WaitUnitMenu(PlaceTimeout()) || WaitUnitMenu(1200))
+    if WaitUnitMenu(autoOpenOff ? 300 : PlaceTimeout())
         how := "auto"
     else if PlaceRefused(slot)
         return false
-    else if !autoOpenSeen && !NearUnit(x, y, 45) {
-        ; With 'Disable Auto-Open Upgrade UI' on in the game, no menu opens by itself after
-        ; placing. Clicking the spot opens the new unit's menu (an empty spot does nothing).
-        ; Skipped next to known units, whose menu could pass for a new one.
+    else if !NearUnit(x, y, 22) {
+        ; No menu: nothing was placed, or the menu didn't open (the game's 'Disable Auto-Open
+        ; Upgrade UI' setting, or it was just slow). Clicking the spot opens a new unit's menu;
+        ; an empty spot does nothing. (It used to click only before any menu had opened by itself
+        ; and not within 45 px of a known unit: spots are 40 px apart, so a unit placed next to
+        ; another one was never seen, and never upgraded)
         Clk(x, y)
         if WaitUnitMenu(700)
             how := "click"
@@ -4128,7 +4128,7 @@ TryPlace(x, y, slot) {
         }
         if how = "auto"
             autoOpenSeen := true, autoOpenOff := false
-        else if ++clickOpened = 2 && !autoOpenOff {
+        else if !autoOpenSeen && ++clickOpened = 2 && !autoOpenOff {
             autoOpenOff := true
             AddLog("The unit menu doesn't open by itself after placing, so the macro clicks each new unit. Faster: in the game's settings, set 'Disable Auto-Open Upgrade UI' so the menu pops up when you place a unit")
         }
