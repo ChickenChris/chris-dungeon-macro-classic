@@ -3847,6 +3847,11 @@ PatternPoints(name) {
             continue
         if p.x < 295 && p.y < 120          ; top-left HUD
             continue
+        ; right HUD: Current Effects and the DUNGEON INVENTORY button. A click there opened the
+        ; inventory (purple curse boxes), taken for the stage being over: Soru's Ruined City spot
+        ; stopped after the first units every stage
+        if p.x >= 655 && p.y >= 135 && p.y <= 260
+            continue
         out.Push(p)
     }
     return out
