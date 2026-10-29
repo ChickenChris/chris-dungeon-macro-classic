@@ -371,10 +371,11 @@ function renderSpotsPage() {
 }
 
 // Farm mode: one switch on the start page, one on the Dungeon page, kept in step
-const MODES = ["Dungeon", "Infinity Castle", "Fool's Hunt", "Infinite", "Legend"];
+const MODES = ["Dungeon", "Infinity Castle", "Fool's Hunt", "Infinite", "Legend", "Portal"];
 const FREE_MODES = ["Dungeon", "Legend"];   // the ones Classic has
 const isInf = () => S.cfg.mode === "Infinite";
 const isLegend = () => S.cfg.mode === "Legend";
+const isPortal = () => S.cfg.mode === "Portal";
 const isIC = () => S.cfg.mode === "Infinity Castle";
 const isFool = () => S.cfg.mode === "Fool's Hunt";
 function renderMode() {
@@ -397,7 +398,11 @@ function renderMode() {
   im.innerHTML = options(maps, Math.max(0, maps.indexOf(S.cfg.infMap || "Shibuya District")));
   im.onchange = () => setVal("infMap", maps[+im.value]);
   $("#legendSub").classList.toggle("open", isLegend());
-  $("#autoChallenge").classList.toggle("dim", isFool());   // the alts stay in the same round: no challenges
+  $("#autoChallenge").classList.toggle("dim", isFool());
+  $("#portalSub").classList.toggle("open", isPortal());
+  const pn = $("#portalName");
+  pn.value = S.cfg.portalName || "Shibuya Portal";
+  pn.onchange = () => { setVal("portalName", pn.value.trim() || "Shibuya Portal"); if (run) setRun(run); };   // the alts stay in the same round: no challenges
   const lw = $("#legendWorld"), worlds = S.legendWorlds || ["Magic Hills (Elf Invasion)"];
   lw.innerHTML = options(worlds, Math.max(0, worlds.indexOf(S.cfg.legendWorld || worlds[0])));
   lw.onchange = () => { setVal("legendWorld", worlds[+lw.value]); if (run) setRun(run); };
@@ -627,7 +632,7 @@ function setRun(state) {
   run = state;
   document.body.dataset.run = state;
   $("#pillText").textContent = RUN_TEXT[state][0];
-  $("#heroTitle").textContent = state === "running" && isIC() ? "Climbing Infinity Castle" : state === "running" && isFool() ? "Hunting in Fool's Hunt" : state === "running" && isInf() ? "Infinite on " + (S.cfg.infMap || "Shibuya District") : state === "running" && isLegend() ? "Legend: " + (S.cfg.legendWorld || "Magic Hills (Elf Invasion)") + " stage " + (+S.cfg.legendStage || 1) : RUN_TEXT[state][1];
+  $("#heroTitle").textContent = state === "running" && isIC() ? "Climbing Infinity Castle" : state === "running" && isFool() ? "Hunting in Fool's Hunt" : state === "running" && isInf() ? "Infinite on " + (S.cfg.infMap || "Shibuya District") : state === "running" && isPortal() ? "Portals: " + (S.cfg.portalName || "Shibuya Portal") : state === "running" && isLegend() ? "Legend: " + (S.cfg.legendWorld || "Magic Hills (Elf Invasion)") + " stage " + (+S.cfg.legendStage || 1) : RUN_TEXT[state][1];
   $(".controls .btn.go").lastChild.textContent = state === "running" ? "Farming…" : state === "paused" ? "Paused" : "Start farming";
   $(".controls [data-cmd=pause]").lastChild.textContent = state === "paused" ? "Resume" : "Pause";
 }

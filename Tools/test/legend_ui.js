@@ -61,6 +61,18 @@ const legendBtn = (p) => p.evaluateHandle(() => [...document.querySelectorAll("#
       check("premium: greyed in Fool's Hunt", await p.evaluate((q) => !!document.querySelector(q)?.classList.contains("dim"), ac));
       await legendBtn(p).then((h) => h.evaluate((x) => x.click())); await p.waitForTimeout(150);
     }
+    // Portal mode: Premium only (locked in Classic), a name box
+    const portal = await p.evaluateHandle(() => [...document.querySelectorAll("#segModeHome button")].find((b) => b.textContent.trim() === "Portal"));
+    check(tag + ": a Portal button in the mode row", await portal.evaluate((x) => !!x));
+    if (edition) check("classic: Portal is locked", await portal.evaluate((x) => !!x && x.dataset.premium === "Portal"));
+    else {
+      await portal.evaluate((x) => x && x.click()); await p.waitForTimeout(200);
+      check("premium: picking Portal sets the mode", (await p.evaluate(() => window.__sent)).some((m) => m.cmd === "set" && m.key === "mode" && m.value === "Portal"));
+      check("premium: the Portal panel opens with a name box", await p.evaluate(() => !!document.querySelector("#portalSub")?.classList.contains("open") && !!document.querySelector("#portalName")));
+      await p.evaluate(() => { const i = document.querySelector("#portalName"); if (i) { i.value = "  Namek Portal "; i.dispatchEvent(new Event("change")); } });
+      check("premium: the name is saved, trimmed", (await p.evaluate(() => window.__sent)).some((m) => m.cmd === "set" && m.key === "portalName" && m.value === "Namek Portal"));
+      await legendBtn(p).then((h) => h.evaluate((x) => x.click())); await p.waitForTimeout(150);
+    }
     await p.screenshot({ path: `${out}/legend_${tag}.png`, clip: { x: 0, y: 0, width: 1423, height: 300 } });
     check(tag + ": no page errors", !p.errors.length, p.errors.join("; "));
     await p.close();
