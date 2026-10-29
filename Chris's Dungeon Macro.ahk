@@ -67,7 +67,7 @@ global HOLE := [3, 33, 800, 630]           ; left, top, right, bottom of the gam
 global guiH := GUI_H
 global savePending := false               ; settings changed, saved a moment later (SaveSoon)
 global wvc := 0, wv := 0, uiReady := false, uiQueue := [], logBuf := []
-global splashGui := 0, splashPic := 0, splashFrames := [], splashI := 1, splashAlpha := 0, splashGoal := 255   ; the loading screen
+global splashGui := 0, splashBar := 0, splashTrack := [0, 0], splashT := 0, splashAlpha := 0, splashGoal := 255   ; the loading screen
 global runState := "idle", robloxShown := -1, stepNow := ""
 global importCfg := 0               ; settings read from another macro, waiting for "Import"
 
@@ -76,7 +76,7 @@ MG.BackColor := "050506"
 MG.MarginX := 0, MG.MarginY := 0
 MG.OnEvent("Close", (*) => (SaveConfig(), ExitApp()))
 MG.Show("w" GUI_W " h" GUI_H)
-SplashStart()                        ; the sakura tree fades in and plays until the page has loaded
+SplashStart()                        ; a clean loading screen fades in until the page has loaded
 
 if !StartWebView() {
     oldWin := A_ScriptDir "\Chris's Dungeon Macro (old window).ahk"
@@ -175,41 +175,46 @@ StartWebView() {
 }
 
 ; ---------------------------------------------------------------------
-;  Loading screen: the sakura tree (frames of the background video with the name on them,
-;  Images\ui\loading) covers the whole window while WebView2 starts and the page loads, instead
-;  of a black window. It's its own window on top of the macro, so it can fade in and fade out
-;  (the page shows through as it fades)
+;  Loading screen: while WebView2 starts and the page loads, a plain dark screen with the macro's
+;  name and a thin sliding bar, instead of a black window. It's its own window on top of the
+;  macro, so it fades in and fades out (the page shows through as it fades). No pictures needed
 ; ---------------------------------------------------------------------
 SplashStart() {
-    global splashGui, splashPic, splashFrames
-    loop files A_ScriptDir "\Images\ui\loading\*.jpg"
-        splashFrames.Push(A_LoopFileFullPath)
-    if !splashFrames.Length
-        return
+    global splashGui, splashBar, splashTrack
     try {
         WinGetClientPos &cx, &cy, &cw, &ch, MG.Hwnd
         splashGui := Gui("-Caption +ToolWindow -DPIScale +Owner" MG.Hwnd)
-        splashGui.BackColor := "000000"
+        splashGui.BackColor := "0B0A0F"
         splashGui.MarginX := 0, splashGui.MarginY := 0
-        splashPic := splashGui.AddPicture("x0 y0 w" cw " h" ch, splashFrames[1])
+        mid := ch // 2
+        splashGui.SetFont("s24 w600 cF4C2DA", "Segoe UI")
+        splashGui.AddText("x0 y" (mid - 52) " w" cw " Center BackgroundTrans", "Chris's Dungeon Macro")
+        splashGui.SetFont("s10 w400 c8A7F95", "Segoe UI")
+        splashGui.AddText("x0 y" (mid - 6) " w" cw " Center BackgroundTrans", "Classic  ·  v" APP_VER)
+        bw := 180, bx := (cw - bw) // 2, by := mid + 30
+        splashGui.AddText("x" bx " y" by " w" bw " h3 Background2A2433")          ; the track
+        splashBar := splashGui.AddText("x" bx " y" by " w54 h3 BackgroundF4A9CC")   ; the sliding bar
         splashGui.Show("x" cx " y" cy " w" cw " h" ch " Hide")
         WinSetTransparent 0, splashGui.Hwnd
         splashGui.Show("NA")
+        splashTrack := [bx, bw]
     } catch {
-        splashGui := 0, splashPic := 0
+        splashGui := 0, splashBar := 0
         return
     }
-    SetTimer SplashTick, 130
+    SetTimer SplashTick, 16
     SplashFade(255)
     SetTimer SplashStop, -20000                     ; never longer than this, even if the page doesn't say it's ready
 }
 
+; the bar slides along the track and back, easing at the ends
 SplashTick() {
-    global splashI
-    if !splashPic
+    global splashT
+    if !splashBar
         return SetTimer(SplashTick, 0)
-    splashI := Mod(splashI, splashFrames.Length) + 1
-    try splashPic.Value := splashFrames[splashI]
+    splashT += 0.016
+    t := (1 - Cos(splashT * 2.4)) / 2
+    try splashBar.Move(splashTrack[1] + Round(t * (splashTrack[2] - 54)))
 }
 
 ; fades the loading screen to `target` (0-255) in about 0.35 s; at 0 it's closed
@@ -237,10 +242,10 @@ SplashStop() {
 }
 
 SplashClose() {
-    global splashGui, splashPic
+    global splashGui, splashBar
     SetTimer SplashTick, 0
     try splashGui.Destroy()
-    splashGui := 0, splashPic := 0
+    splashGui := 0, splashBar := 0
 }
 
 ; calls window.ui.<fn>(args...) in the page (queued until the page says it's ready)
@@ -369,7 +374,7 @@ HandleMessage(msg) {
 PageReady() {
     global uiReady
     uiReady := true
-    SetTimer SplashStop, -300                   ; a moment for the page to draw itself, then the tree fades out
+    SetTimer SplashStop, -300                   ; a moment for the page to draw itself, then the loading screen fades out
     UI("init", UiState())
     for js in uiQueue                       ; init already has the logs, stats and status
         if InStr(js, "ui.toast(") = 1
