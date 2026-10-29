@@ -1697,6 +1697,28 @@ ParseReward(txt) {
         if StrLen(name) >= 3 && !InStr(name, "click") && n > 0
             return {name: name, n: n, rarity: rarity}
     }
+    ; no rarity read: its coloured letters over the sparkles were never read in players' logs, so a
+    ; Secret unit (no amount) went unseen. Its name is the line above "(Click anywhere to continue)",
+    ; or above a half-read rarity. No amount and not a chest item = a unit, and only Secret units
+    ; drop from chests ("Rare Chests have a chance to drop a Secret Unit")
+    if !at {
+        for i, ln in lines {
+            if !RegExMatch(ln, "i)click\s*anywhere")
+                continue
+            j := i - 1
+            if j >= 1 && StrLen(NormName(lines[j])) < 6 && j > 1   ; a scrap of the rarity ("S ecr")
+                j--
+            if j < 1
+                break
+            name := Trim(RegExReplace(lines[j], "[^A-Za-z0-9'(),. ]"))
+            item := false                       ; a chest item whose amount wasn't read
+            for k in ChestItems()
+                item := item || RewardName(name) = k
+            if StrLen(NormName(name)) >= 6 && !item
+                return {name: name, n: 1, rarity: "Secret"}
+            break
+        }
+    }
     return ""
 }
 
@@ -1705,8 +1727,10 @@ ParseReward(txt) {
 ; longest names first ("Perfect Stat Cube" before "Stat Cube"). Misreads stack with the right
 ; one ("Ab Star Rermant (Limited)", "t (Limited)" -> Star Remnant (Limited)). Something unknown
 ; keeps its last few words; a scrap like "hts" gives "" (not counted).
+ChestItems() => ["Star Remnant (Limited)", "Perfect Stat Cube", "Trait Crystal", "Cursed Token", "Stat Cube", "Gems"]
+
 RewardName(raw) {
-    static known := ["Star Remnant (Limited)", "Perfect Stat Cube", "Trait Crystal", "Cursed Token", "Stat Cube", "Gems"]
+    known := ChestItems()
     flat := NormName(raw)
     if flat = ""
         return ""
@@ -1786,6 +1810,7 @@ AddLoot(r) {
     AddLog("Chest: " key " x" r.n (r.rarity != "" ? "  (" r.rarity ")" : ""))
     if r.rarity = "Secret" && r.n = 1 {
         AddLog("*** SECRET UNIT: " key " ***")
+        SaveDebugShot("secret_unit")            ; a picture of it in Logs (to check the read)
         Notify("Secret unit: " key "!")
         SendWebhook("Secret unit!", "**" key "** dropped from a chest", 0xF59E0B)
         ShowcaseDrop(key, "chest")              ; Premium: posted in Chris's Discord (Settings)
