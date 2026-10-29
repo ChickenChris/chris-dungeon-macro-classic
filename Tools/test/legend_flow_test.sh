@@ -14,7 +14,7 @@ def fn(n):
         return m.group(0)
     missing.append(n)
     return n + '(p*) => "MISSING"'
-parts = [fn(n) for n in ["LegendReplay", "CloseTournament", "RedSpotAt", "PadList", "LegendClickStage", "LegendRows", "LegendStageOf", "LegendPickStage"]]
+parts = [fn(n) for n in ["LegendReplay", "CloseTournament", "RedSpotAt", "PadList", "LegendClickStage", "LegendRows", "LegendStageOf", "LegendPickStage", "LegendGuessRow"]]
 if missing:
     print("FAIL not defined: " + ", ".join(missing))
 body = r'''#Requires AutoHotkey v2.0
@@ -123,6 +123,8 @@ Reset(), OCR.Q := [Read(St(4, 90), St(5, 125), St(6, 160)), Read(), Read(St(1, 9
 Check("stage 1 above: scrolled up", LegendClickStage(1) = 1 && calls = "Scroll 289,290,-1;Clk 295,247;", calls)
 Reset(), OCR.Q := [Read(), Read(St(2, 125))]
 Check("read only with the colours flipped: still found", LegendClickStage(2) = 2 && calls = "Clk 295,282;", calls)
+Reset(), OCR.Q := [Read(St(2, 125), St(3, 160)), Read(), Read(St(2, 125), St(3, 160)), Read()]
+Check("stage 1 never read, 2 and 3 are (a player's log): clicked one row above stage 2", LegendClickStage(1) = 1 && calls = "Scroll 289,290,-1;Clk 295,247;", calls)
 Reset()
 Check("nothing read: no scrolling, 0", LegendClickStage(2) = 0 && !InStr(calls, "Scroll"), calls)
 

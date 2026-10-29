@@ -422,6 +422,13 @@ LegendClickStage(want, &read := "") {
         ScrollAt(289, 290, low > want ? -1 : 1)
         Wait(450)
     }
+    ; not read, but its neighbours are: where their spacing puts it (a player's Stage 1, a button
+    ; coloured differently, was never read while Stage 2 and 3 were)
+    if !rows.Has(want) && LegendGuessRow(rows, want, &gx, &gy) {
+        AddLog("Legend: Stage " want " not read, clicking where it sits next to the others")
+        Clk(gx, gy)
+        return want
+    }
     seen := []
     for n in rows
         seen.Push(n)
@@ -429,6 +436,27 @@ LegendClickStage(want, &read := "") {
         return 0
     Clk(rows[pick][1], rows[pick][2])
     return pick
+}
+
+; where stage `want`'s button is, from two buttons read (same column, even spacing). Only when a
+; higher stage was read (so it exists: a world with fewer stages plays its highest instead). False
+; when fewer than two were read, their spacing is odd, or it would be off the list
+LegendGuessRow(rows, want, &x, &y) {
+    a := 0, b := 0, higher := false
+    for n in rows {
+        higher := higher || n > want
+        if !a
+            a := n
+        else if !b
+            b := n
+    }
+    if !b || !higher
+        return false
+    step := (rows[b][2] - rows[a][2]) / (b - a)
+    if step < 25 || step > 100
+        return false
+    x := rows[a][1], y := Round(rows[a][2] + (want - a) * step)
+    return y >= 160 && y <= 450
 }
 
 ; the stage buttons showing: Map(N, [x, y]). Read twice, the 2nd time with the colours flipped
