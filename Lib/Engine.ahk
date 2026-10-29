@@ -2891,14 +2891,41 @@ MenuSig() {
 }
 
 ; make sure the settings menu is really shut, so later mouse-wheel zooming doesn't scroll it
+; closed when it's really gone: the Spawn row not on show wasn't enough (a list scrolled to its
+; top has none, so one missed click counted as closed and placing clicked into it for a stage)
 CloseSettings() {
     loop 3 {
         Wait(250)
         Clk(583, 147)
-        if WaitFor(() => !Det("Spawn"), 500)
+        if WaitFor(() => !Det("Spawn"), 500) && !GameSettingsOpen()
             return true
     }
     return false
+}
+
+; the game's own Settings window (Quick Summon, Graphics, Teleport to Spawn...) over the map
+GameSettingsOpen() {
+    try {
+        WinGetClientPos &ox, &oy, , , RBX
+        return IsSettingsText(OCR.FromRect(ox + 180, oy + 120, 440, 380, OcrLang(), {scale: 2, grayscale: true}).Text)
+    }
+    return false
+}
+IsSettingsText(t) => RegExMatch(t, "i)settings") && RegExMatch(t, "i)quick\s*summon|graphics|smooth\s*lighting|textures|depth.of.field|teleport|spawn")
+
+; placing failed: is the game's Settings window in the way? Closed if so (a player's clip: it stayed
+; open over the map and every placing click went into it). Looked at every 10 s at most (a read)
+SettingsInTheWay() {
+    static lastAt := 0
+    if lastAt && A_TickCount - lastAt < 10000
+        return false
+    lastAt := A_TickCount
+    if !GameSettingsOpen()
+        return false
+    AddLog("The game's Settings window was open over the map, closing it")
+    SaveDebugShot("game_settings")
+    CloseSettings()
+    return true
 }
 
 WaitForVote() {
@@ -4217,6 +4244,8 @@ TryPlace(x, y, slot) {
         Clk(325, 185)                       ; close the unit menu
         return true
     }
+    if SettingsInTheWay()                   ; the game's Settings window over the map: nothing placed
+        return false
     ; no menu and no refusal: usually nothing was placed, but a slow menu means it may have been
     ; (Skyyylyyyy's third Speedwagon was down and never upgraded). Kept in case the game says so later
     if !placeUnsure.Has(slot)
