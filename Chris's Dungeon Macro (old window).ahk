@@ -15,6 +15,7 @@ SendMode "Event"
 
 #Include %A_ScriptDir%\Lib\Patterns.ahk
 #Include %A_ScriptDir%\Lib\Engine.ahk
+#Include %A_ScriptDir%\Lib\Story.ahk
 
 global APP_VER := ClassicVersion()       ; e.g. "3.0.64 Classic", from version.txt (Update.bat keeps it current)
 

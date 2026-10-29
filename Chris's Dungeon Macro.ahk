@@ -22,6 +22,7 @@ SendMode "Event"
 
 #Include %A_ScriptDir%\Lib\Patterns.ahk
 #Include %A_ScriptDir%\Lib\Engine.ahk
+#Include %A_ScriptDir%\Lib\Story.ahk
 
 global APP_VER := AppVersion()
 
@@ -392,7 +393,7 @@ UiState() {
     for k in ["route", "curseRank", "denyShrine", "slots", "build", "shopRank", "shopOff"]
         c[k] := cfg[k]
     ; Premium's parts show locked on the page, with what Classic does there
-    for k, v in Map("mode", "Dungeon", "icHard", 0, "icStopFloors", 0, "foolMatch", 0, "foolOwnTeam", 0, "foolFreeze", 80,
+    for k, v in Map("icHard", 0, "icStopFloors", 0, "foolMatch", 0, "foolOwnTeam", 0, "foolFreeze", 80,
         "foolAccounts", 2, "foolCards", FOOL_CARDS(), "showcase", 0, "showcaseName", "", "showcaseDiscord", "",
         "lookAhead", 0, "dmgType", "Both", "shopUnknown", 1, "shopMinCoins", 0)
         c[k] := v
@@ -400,7 +401,7 @@ UiState() {
         "roomKeys", ROOM_KEYS, "roomNames", ROOM_NAMES, "curses", CURSES, "speeds", SPEEDS,
         "upNames", UP_NAMES, "upValues", UP_VALUES, "hasRoblox", WinExist(RBX) ? 1 : 0, "duo", 0, "duoOpen", 0, "maxCount", MaxCount(),
         "run", runState, "stats", StatsMap(), "loot", LootList(), "logs", logBuf, "cfg", c,
-        "bgUrl", BgUrl(), "bgName", cfg["bgFile"] != "" ? cfg["bgName"] : "Sakura", "teams", TeamsInfo(), "elements", ELEMENTS)
+        "bgUrl", BgUrl(), "bgName", cfg["bgFile"] != "" ? cfg["bgName"] : "Sakura", "teams", TeamsInfo(), "elements", ELEMENTS, "legendWorlds", LEGEND_WORLDS())
 }
 
 ; a setting changed on the page
@@ -414,6 +415,8 @@ SetCfg(key, value) {
     } else
         value := String(value)
     if key = "keyboard" && !IndexOf(["Auto", "QWERTY", "AZERTY", "QWERTZ", "Non-Latin"], value)
+        return
+    if key = "mode" && !IndexOf(["Dungeon", "Legend"], value)   ; the other modes are in Premium
         return
     cfg[key] := value
     SaveConfig()
@@ -1286,7 +1289,7 @@ DefaultConfig() {
         "denyAllShrines", 0, "denyUnknownShrine", 1, "stopAfterDefeat", 0,
         "placeSpeed", 1, "webhook", "", "hookRuns", 1, "psLink", "", "fixOnStart", 1, "tolerance", 2, "retries", 3, "useBuild", 0,
         "bgStrength", 3, "bgGif", "", "accent", "Crimson",
-        "bgOpacity", 70, "bgBlur", 0, "glass", 60, "bgAnimate", 1, "bgFile", "", "bgName", "", "lastSpotMap", "", "elemTeams", 0, "keyboard", "Auto", "team", 1, "teamDefault", 1, "teams", [],
+        "bgOpacity", 70, "bgBlur", 0, "glass", 60, "bgAnimate", 1, "bgFile", "", "bgName", "", "lastSpotMap", "", "elemTeams", 0, "keyboard", "Auto", "mode", "Dungeon", "legendWorld", "Magic Hills (Elf Invasion)", "legendStage", 1, "team", 1, "teamDefault", 1, "teams", [],
         "route", ["Rare_Chest", "Chest", "Shop", "Hoard", "Shrine", "Boss"],
         "avoid", Map("Flying", 1, "Wind", 0, "Money", 1, "Health", 1, "Exploding", 0, "Shielding", 1, "Regen", 1),
         "curseRank", ["Flying", "Money", "Health", "Shielding", "Regen", "Wind", "Exploding"], "skipWorst", 5,
@@ -1418,7 +1421,7 @@ class IniDoc {
 
 ScalarKeys() => ["pattern", "useSpots", "saveForTop", "autoAbility", "zoom", "tpSpawn", "saveChests", "buyShop",
     "denyAllShrines", "denyUnknownShrine", "stopAfterDefeat", "placeSpeed", "webhook", "hookRuns", "psLink", "fixOnStart", "tolerance", "skipWorst", "retries", "useBuild",
-    "bgStrength", "bgGif", "accent", "bgOpacity", "bgBlur", "glass", "bgAnimate", "bgFile", "bgName", "lastSpotMap", "elemTeams", "keyboard"]
+    "bgStrength", "bgGif", "accent", "bgOpacity", "bgBlur", "glass", "bgAnimate", "bgFile", "bgName", "lastSpotMap", "elemTeams", "keyboard", "mode", "legendWorld", "legendStage"]
 
 ; Fool's Hunt cards (Premium): only shown, locked, on the Dungeon page
 FOOL_CARDS() => ["shield", "regen", "health", "speed", "yen", "range", "cooldown", "attack", "explosive", "resistant", "spellproof", "plated", "boss"]
@@ -1507,6 +1510,8 @@ LoadConfig() {
         for name in [list*]
             if InStr(name, "(Fool's Hunt)")
                 list.Delete(name)
+    if !IndexOf(["Dungeon", "Legend"], cfg["mode"])           ; a Premium mode from copied settings
+        cfg["mode"] := "Dungeon"
 }
 
 ; quick clicks on the Units / Build pages (1 to 17 units = 16 clicks) saved 16 times: now once,

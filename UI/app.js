@@ -371,8 +371,10 @@ function renderSpotsPage() {
 }
 
 // Farm mode: one switch on the start page, one on the Dungeon page, kept in step
-const MODES = ["Dungeon", "Infinity Castle", "Fool's Hunt", "Infinite"];
+const MODES = ["Dungeon", "Infinity Castle", "Fool's Hunt", "Infinite", "Legend"];
+const FREE_MODES = ["Dungeon", "Legend"];   // the ones Classic has
 const isInf = () => S.cfg.mode === "Infinite";
+const isLegend = () => S.cfg.mode === "Legend";
 const isIC = () => S.cfg.mode === "Infinity Castle";
 const isFool = () => S.cfg.mode === "Fool's Hunt";
 function renderMode() {
@@ -384,7 +386,7 @@ function renderMode() {
     renderMode(); if (run) setRun(run);
   };
   seg($("#segModeHome"), MODES, cur, pick);
-  if (isClassic()) $$("#segModeHome button").slice(1).forEach((b) => {   // Premium's modes, locked
+  if (isClassic()) $$("#segModeHome button").filter((b) => !FREE_MODES.includes(MODES[+b.dataset.i])).forEach((b) => {   // Premium's modes, locked
     b.dataset.premium = MODES[+b.dataset.i]; b.dataset.tip = MODES[+b.dataset.i] + " is in Premium";
     b.insertAdjacentHTML("afterbegin", icon("lock"));
   });
@@ -394,6 +396,13 @@ function renderMode() {
   const im = $("#infMap"), maps = S.infMaps || ["Shibuya District"];
   im.innerHTML = options(maps, Math.max(0, maps.indexOf(S.cfg.infMap || "Shibuya District")));
   im.onchange = () => setVal("infMap", maps[+im.value]);
+  $("#legendSub").classList.toggle("open", isLegend());
+  const lw = $("#legendWorld"), worlds = S.legendWorlds || ["Magic Hills (Elf Invasion)"];
+  lw.innerHTML = options(worlds, Math.max(0, worlds.indexOf(S.cfg.legendWorld || worlds[0])));
+  lw.onchange = () => { setVal("legendWorld", worlds[+lw.value]); if (run) setRun(run); };
+  const ls = $("#legendStage"), stages = [1, 2, 3, 4, 5, 6].map((n) => "Stage " + n);
+  ls.innerHTML = options(stages, Math.min(5, Math.max(0, (+S.cfg.legendStage || 1) - 1)));
+  ls.onchange = () => { setVal("legendStage", +ls.value + 1); if (run) setRun(run); };
   seg($("#segFoolJoin"), ["Play Here", "Find Match"], +S.cfg.foolMatch ? 1 : 0, (i) => {
     setVal("foolMatch", i);
     if (i && +S.cfg.foolOwnTeam) toast("Find Match plays alone (with the freeze). Pick Play Here to use your alts");
@@ -617,7 +626,7 @@ function setRun(state) {
   run = state;
   document.body.dataset.run = state;
   $("#pillText").textContent = RUN_TEXT[state][0];
-  $("#heroTitle").textContent = state === "running" && isIC() ? "Climbing Infinity Castle" : state === "running" && isFool() ? "Hunting in Fool's Hunt" : state === "running" && isInf() ? "Infinite on " + (S.cfg.infMap || "Shibuya District") : RUN_TEXT[state][1];
+  $("#heroTitle").textContent = state === "running" && isIC() ? "Climbing Infinity Castle" : state === "running" && isFool() ? "Hunting in Fool's Hunt" : state === "running" && isInf() ? "Infinite on " + (S.cfg.infMap || "Shibuya District") : state === "running" && isLegend() ? "Legend: " + (S.cfg.legendWorld || "Magic Hills (Elf Invasion)") + " stage " + (+S.cfg.legendStage || 1) : RUN_TEXT[state][1];
   $(".controls .btn.go").lastChild.textContent = state === "running" ? "Farming…" : state === "paused" ? "Paused" : "Start farming";
   $(".controls [data-cmd=pause]").lastChild.textContent = state === "paused" ? "Resume" : "Pause";
 }

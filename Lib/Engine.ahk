@@ -411,9 +411,18 @@ Tick() {
         WaitFor(() => ScanRooms().Length || SpecialScreen(), 3000)
         return
     }
+    if LegendMode() && FoolJoinUp() {         ; "Join Matchmaking?" left open: Play Here
+        idleSince := 0
+        Clk(330, 325)
+        Wait(800)
+        return
+    }
     if Det("Lobby") {
         idleSince := 0
-        OpenDungeonFromLobby()
+        if LegendMode()
+            StartLegend()
+        else
+            OpenDungeonFromLobby()
         return
     }
     if IsLoaded() {
@@ -4772,6 +4781,10 @@ HandleEnd() {
         ClickDet("EndScreen", 0, -35)
         StopMacro()
         Chk()
+    }
+    if LegendMode() {
+        LegendReplay()
+        return
     }
     Step("opening the dungeon for the next room")
     ClickOpenDungeon()
