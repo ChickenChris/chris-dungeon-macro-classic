@@ -17,8 +17,10 @@ SendMode "Event"
 #Include %A_ScriptDir%\Lib\Engine.ahk
 #Include %A_ScriptDir%\Lib\Story.ahk
 #Include %A_ScriptDir%\Lib\Challenge.ahk
+#Include %A_ScriptDir%\Lib\AutoUpdate.ahk
 
 global APP_VER := ClassicVersion()       ; e.g. "3.0.64 Classic", from version.txt (Update.bat keeps it current)
+AutoUpdate("ChickenChris/chris-dungeon-macro-classic", "version.txt")   ; a newer version out: installed first
 
 ClassicVersion() {
     try {

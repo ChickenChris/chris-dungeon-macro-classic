@@ -2,7 +2,9 @@
 # Downloads the newest Classic from GitHub and copies it over this folder.
 # Settings and Logs (your walks, spots, options) are kept.
 #   -Full   the new Update.bat: this script draws the whole window (title, pauses, errors).
-param([switch]$Full)
+#   -Auto   started by the macro (a newer version is out): no key presses, and the macro is started
+#           again afterwards (-Ahk, -Script) with --updated, also when the update didn't work
+param([switch]$Full, [switch]$Auto, [string]$Ahk = '', [string]$Script = '')
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'        # PowerShell's progress bar made downloads several times slower
 $dir = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
@@ -133,7 +135,7 @@ function RunUpdate {
     if (-not $src -or -not (Test-Path -LiteralPath (Join-Path $src.FullName "Chris's Dungeon Macro.ahk"))) { Say 'failed' Red; throw 'The download looks broken. Try again later.' }
     $have = VersionOf (Join-Path $dir 'version.txt')
     $new = VersionOf (Join-Path $src.FullName 'version.txt')
-    robocopy $src.FullName $dir /E /XD Settings Logs .git /XF Update.bat .gitattributes .gitignore README.md /NFL /NDL /NJH /NJS /NP | Out-Null
+    robocopy $src.FullName $dir /E /XD Settings Logs .git /XF Update.bat .gitattributes .gitignore README.md /R:5 /W:1 /NFL /NDL /NJH /NJS /NP | Out-Null
     if ($LASTEXITCODE -ge 8) { Say 'failed' Red; throw 'Copying the new files failed. Is the macro still open?' }
     Ok
     Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue
@@ -143,6 +145,29 @@ function RunUpdate {
 }
 
 # ---------------------------------------------------------------- run
+if ($Auto) {
+    try { $Host.UI.RawUI.WindowTitle = "Chris's Dungeon Macro Classic - Update" } catch { }
+    Banner
+    Say '   A new version is out: installing it before the macro starts.' Cyan
+    Say '   Your Settings and Logs folders are kept (your own walks, spots and options).'
+    Say ''
+    Start-Sleep -Milliseconds 1500              # the macro closing lets go of its files
+    $ok = $true
+    try { RunUpdate } catch {
+        $ok = $false
+        Say ''
+        Say ('   ' + $_.Exception.Message) Red
+        Say ''
+        Say '   Starting the version you have. Run Update.bat later to try again.' Yellow
+    }
+    Say ''
+    if ($Ahk -ne '' -and $Script -ne '') {
+        Say '   Starting the macro...' Green
+        Start-Sleep -Seconds $(if ($ok) { 2 } else { 10 })
+        Start-Process -FilePath $Ahk -ArgumentList @(('"' + $Script + '"'), '--updated') -WorkingDirectory $dir
+    }
+    exit $(if ($ok) { 0 } else { 1 })
+}
 if (-not $Full) {
     RunUpdate
     exit 0
