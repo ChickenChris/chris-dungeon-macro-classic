@@ -302,8 +302,10 @@ LEGEND_WORLD() => cfg.Has("legendWorld") && IndexOf(LEGEND_WORLDS(), cfg["legend
 LEGEND_STAGE() => cfg.Has("legendStage") && IsInteger(cfg["legendStage"]) ? Max(1, Min(6, Integer(cfg["legendStage"]))) : 1
 
 ; the N of a "Legend Stage N" line (0: not one, or the "Legend Stages" button). The reader gives
-; "l" or "|" for 1 and "З" for 3; "Legend Stage 13" doesn't exist, so it isn't 1
+; "l" or "|" for 1 and "З" for 3, and spaces inside words ("Legen d Stage 2" on Chris's PC);
+; "Legend Stage 13" doesn't exist, so it isn't 1
 LegendStageOf(text) {
+    text := RegExReplace(text, "(?<=[A-Za-z])\s+(?=[a-z])")          ; "Legen d" -> "Legend"
     if !RegExMatch(text, "i)legend\s*stage\s*([1-6Il|Зз])(?![\dA-Za-z])", &m)
         return 0
     d := m[1]
@@ -401,36 +403,20 @@ PadList(legend, &read := "") {
     return false
 }
 
-; the "Legend Stage N" rows on the left: scrolled to the top, then down a notch at a time until N
-; shows. Returns the stage clicked (N, else the highest one seen), 0 if none
+; the "Legend Stage N" buttons on the left (game x 244-336). Clicked where they are; only when the
+; one wanted isn't showing is the column scrolled, towards it, with the mouse over the buttons (the
+; wheel anywhere else zooms the camera). Returns the stage clicked (N, else the highest one when
+; the world has fewer), 0 if none
 LegendClickStage(want, &read := "") {
-    MouseMove 230, 300
-    Sleep 100
-    loop 10 {
-        SendInput "{WheelUp}"
-        Sleep 30
-    }
-    Wait(600)
-    prev := "", rows := Map()
+    prev := ""
     loop 5 {
-        txt := "", rows := Map()
-        try {
-            WinGetClientPos &ox, &oy, , , RBX
-            res := OCR.FromRect(ox + 100, oy + 150, 260, 310, OcrLang(), {scale: 2, grayscale: true})
-            for ln in res.Lines {
-                txt .= ln.Text "|"
-                if (n := LegendStageOf(ln.Text)) && !rows.Has(n)
-                    rows[n] := [Round(100 + ln.x + ln.w / 2), Round(150 + ln.y + ln.h / 2)]
-            }
-        }
-        read := txt
-        if rows.Has(want)
+        rows := LegendRows(&read)
+        if rows.Has(want) || !rows.Count || read = prev || A_Index = 5
             break
-        if txt = prev                           ; the column stopped moving: the bottom
-            break
-        prev := txt
-        MouseMove 230, 300
-        SendInput "{WheelDown}"
+        prev := read, low := 9
+        for n in rows
+            low := Min(low, n)
+        ScrollAt(289, 290, low > want ? -1 : 1)
         Wait(450)
     }
     seen := []
@@ -440,6 +426,33 @@ LegendClickStage(want, &read := "") {
         return 0
     Clk(rows[pick][1], rows[pick][2])
     return pick
+}
+
+; the stage buttons showing: Map(N, [x, y]). Read twice, the 2nd time with the colours flipped
+; (yellow letters on orange)
+LegendRows(&read := "") {
+    rows := Map(), read := ""
+    for tf in [{scale: 2, grayscale: true}, {scale: 3, grayscale: true, invertcolors: true}] {
+        try {
+            WinGetClientPos &ox, &oy, , , RBX
+            for ln in OCR.FromRect(ox + 100, oy + 150, 260, 310, OcrLang(), tf).Lines {
+                read .= ln.Text "|"
+                if (n := LegendStageOf(ln.Text)) && !rows.Has(n)
+                    rows[n] := [Round(100 + ln.x + ln.w / 2), Round(150 + ln.y + ln.h / 2)]
+            }
+        }
+    }
+    return rows
+}
+
+; the mouse wheel over a list: n notches, down (+) or up (-)
+ScrollAt(x, y, n) {
+    MouseMove x, y
+    Sleep 100
+    loop Abs(n) {
+        SendInput n > 0 ? "{WheelDown}" : "{WheelUp}"
+        Sleep 30
+    }
 }
 
 ; the end of a Legend round: counted already (RecordRun), so Replay. After a win the yellow button

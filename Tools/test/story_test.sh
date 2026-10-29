@@ -55,7 +55,7 @@ body += 'Check("brackets are plain text in a world regex", !!RegExMatch("Virtual
 body += 'Check("8 Legend worlds, Magic Hills (Elf Invasion) first", LEGEND_WORLDS().Length = 8 && LEGEND_WORLDS()[1] = "Magic Hills (Elf Invasion)")\n'
 # the Legend stage column
 for line, want in [("Legend Stage 3", 3), ("LegendStage 1", 1), ("LegendStage3", 3), ("Legend Stage l", 1), ("Legend Stage З", 3),
-        ("Legend Stage 6", 6), ("Legend Stages", 0), ("Legend Stage 11", 0), ("Legend Stage 13", 0), ("Main Stages", 0), ("Legend Stage", 0)]:
+        ("Legend Stage 6", 6), ("Legen d Stage 2", 2), ("Legend Stag e 3", 3), ("Legend Stage 2 Cleared", 2), ("Legen d Stages", 0), ("Legend Stages", 0), ("Legend Stage 11", 0), ("Legend Stage 13", 0), ("Main Stages", 0), ("Legend Stage", 0)]:
     body += f'Check({q("stage of " + line + " = " + str(want))}, (g := LegendStageOf({q(line)})) = {want}, g)\n'
 for want, seen, exp in [(5, "[1, 2, 3]", 3), (2, "[1, 2, 3]", 2), (4, "[]", 0), (1, "[2, 3]", 0), (6, "[4, 5, 6]", 6), (2, "[3, 4, 5, 6]", 0)]:
     body += f'Check({q(f"stage {want} of {seen} = {exp}")}, (g := LegendPickStage({want}, {seen})) = {exp}, g)\n'

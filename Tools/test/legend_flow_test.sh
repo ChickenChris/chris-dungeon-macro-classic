@@ -14,7 +14,7 @@ def fn(n):
         return m.group(0)
     missing.append(n)
     return n + '(p*) => "MISSING"'
-parts = [fn(n) for n in ["LegendReplay", "CloseTournament", "RedSpotAt", "PadList"]]
+parts = [fn(n) for n in ["LegendReplay", "CloseTournament", "RedSpotAt", "PadList", "LegendClickStage", "LegendRows", "LegendStageOf", "LegendPickStage"]]
 if missing:
     print("FAIL not defined: " + ", ".join(missing))
 body = r'''#Requires AutoHotkey v2.0
@@ -37,6 +37,7 @@ ClickOpenDungeon() => Note("OpenDungeon;")
 BackToLobby() => Note("Lobby;")
 LoadStage(p*) => Note("LoadStage;")
 ClosePopups() => (Note("Popups;"), false)
+ScrollAt(x, y, n) => Note("Scroll " x "," y "," n ";")
 AddLog(t) => 0
 Step(t) => 0
 Wait(ms) => 0
@@ -110,6 +111,19 @@ Reset()
 Check("Infinite, nothing read there: goes on as before, no clicks", PadList(false) && calls = "", calls)
 Reset(), OCR.Q := [Read(["Legend Stages", 150, 40, 100, 20]), Read(["Legend Stages", 150, 40, 100, 20]), Read(["Legend Stages", 150, 40, 100, 20]), Read(["Legend Stages", 150, 40, 100, 20])]
 Check("Legend list never shows: false after 3 presses", !PadList(true) && StrSplit(calls, "Clk").Length - 1 = 3, calls)
+
+; --- the stage column (read area x 100, y 150; each read is done twice, the 2nd with the colours flipped)
+St(n, y) => ["Legend Stage " n, 150, y, 90, 14]
+Reset(), OCR.Q := [Read(["Legen d Stage 2", 150, 120, 90, 14], St(3, 155)), Read()]
+Check("a stage read with a stray space is clicked, no scrolling (it zoomed the camera)", LegendClickStage(2) = 2 && calls = "Clk 295,277;", calls)
+Reset(), OCR.Q := [Read(St(1, 90), St(2, 125), St(3, 160)), Read(), Read(St(4, 90), St(5, 125), St(6, 160)), Read()]
+Check("stage 5 below: scrolled down over the stage buttons, then clicked", LegendClickStage(5) = 5 && calls = "Scroll 289,290,1;Clk 295,282;", calls)
+Reset(), OCR.Q := [Read(St(4, 90), St(5, 125), St(6, 160)), Read(), Read(St(1, 90), St(2, 125), St(3, 160)), Read()]
+Check("stage 1 above: scrolled up", LegendClickStage(1) = 1 && calls = "Scroll 289,290,-1;Clk 295,247;", calls)
+Reset(), OCR.Q := [Read(), Read(St(2, 125))]
+Check("read only with the colours flipped: still found", LegendClickStage(2) = 2 && calls = "Clk 295,282;", calls)
+Reset()
+Check("nothing read: no scrolling, 0", LegendClickStage(2) = 0 && !InStr(calls, "Scroll"), calls)
 
 FileAppend(fails ? "FAILED " fails "`n" : "ALL PASSED`n", "*", "UTF-8")
 ExitApp fails ? 1 : 0
