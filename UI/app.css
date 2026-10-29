@@ -315,6 +315,7 @@ body[data-run="stopping"] .dot { background: var(--bad); }
 .mode-stop small { color: var(--mist); font-size: 12px; }
 #foolSub .seg button, #foolSub .toggle span, #foolSub small { white-space: nowrap; }
 #foolSub .seg { flex: none; }
+#foolSub .mode-sub-in { flex-wrap: wrap; row-gap: 4px; }   /* Multi Roblox on its own line */
 .seg.wide { flex: 1; display: flex; }
 .seg.wide button { flex: 1; height: 28px; font-size: 12.5px; }
 .modebar > .toggle { margin-top: 8px; }

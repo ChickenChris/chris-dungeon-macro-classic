@@ -71,6 +71,13 @@ const legendBtn = (p) => p.evaluateHandle(() => [...document.querySelectorAll("#
       check("premium: the Portal panel opens with a name box", await p.evaluate(() => !!document.querySelector("#portalSub")?.classList.contains("open") && !!document.querySelector("#portalName")));
       await p.evaluate(() => { const i = document.querySelector("#portalName"); if (i) { i.value = "  Namek Portal "; i.dispatchEvent(new Event("change")); } });
       check("premium: the name is saved, trimmed", (await p.evaluate(() => window.__sent)).some((m) => m.cmd === "set" && m.key === "portalName" && m.value === "Namek Portal"));
+      // Multi Roblox: a switch on the Fool's Hunt panel
+      await p.evaluate(() => [...document.querySelectorAll("#segModeHome button")].find((x) => x.textContent.trim() === "Fool's Hunt").click());
+      await p.waitForTimeout(150);
+      check("premium: a Multi Roblox switch on the Fool's Hunt panel", await p.evaluate(() => !!document.querySelector('#foolSub .toggle[data-key="multiRoblox"]')));
+      await p.evaluate(() => document.querySelector('#foolSub .toggle[data-key="multiRoblox"]')?.click()); await p.waitForTimeout(100);
+      check("premium: switching Multi Roblox on is sent", (await p.evaluate(() => window.__sent)).some((m) => m.cmd === "set" && m.key === "multiRoblox" && m.value === 1));
+      await p.screenshot({ path: `${out}/fool_panel.png`, clip: { x: 803, y: 32, width: 620, height: 200 } });
       await legendBtn(p).then((h) => h.evaluate((x) => x.click())); await p.waitForTimeout(150);
     }
     await p.screenshot({ path: `${out}/legend_${tag}.png`, clip: { x: 0, y: 0, width: 1423, height: 300 } });
