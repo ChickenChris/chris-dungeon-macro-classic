@@ -10,8 +10,19 @@
 ; =====================================================================
 global challengeOn := false      ; a challenge round is being played
 
-; the half hour a time is in (seconds since 1970, UTC, / 1800)
-ChallengeSlot(stamp := A_NowUTC) => DateDiff(stamp, "19700101000000", "Seconds") // 1800
+; the half hour a time is in (seconds since 1970, UTC, / 1800), counted from 2 minutes past: a PC
+; clock a little ahead (or the game a little late) still showed the old, already cleared challenge,
+; and the new one was then skipped
+ChallengeSlot(stamp := A_NowUTC) => (DateDiff(stamp, "19700101000000", "Seconds") - 120) // 1800
+
+; in the lobby: no challenge round is being played any more (a disconnect, leaving by hand or a
+; Stop / Start in the middle of one left it set, and the next farming round was taken for its end:
+; a dungeon was thrown away). Then: is a new one due?
+ChallengeLobby() {
+    global challengeOn
+    challengeOn := false
+    return ChallengeDue()
+}
 
 ChallengeDue() {
     if challengeOn || !cfg.Has("autoChallenge") || !cfg["autoChallenge"]
@@ -42,11 +53,11 @@ StartChallenge() {
             AddLog("Challenge already cleared this half hour (no rewards), back to farming")
             Clk(401, 525)                       ; Cancel
             Wait(1000)
-            return
+            return ChallengeStepOff()
         }
     }
-    if !PadStart("Challenge", false)
-        return
+    if !PadStart("Challenge", false)            ; (it pressed Cancel)
+        return ChallengeStepOff()
     challengeOn := true
     AddLog("Challenge started")
     LoadStage()
@@ -88,31 +99,42 @@ ChallengeWalk() {
     return false
 }
 
+; a step off the challenge's door after Cancel, so "Join Matchmaking?" doesn't come back
+ChallengeStepOff() {
+    SendKeys("{d down}")
+    Wait(1000)
+    SendKeys("{d up}")
+}
+
 ChallengeFail(kind, why) {
     AddLog("Challenge: " why ". Back to farming. Send Logs\challenge_" kind "_....bmp in Discord")
     SaveDebugShot("challenge_" kind)
 }
 
+; the top "Return to lobby" button's words, read with the usual mistakes ("Iobby", "lobby.")
+LobbyWordRe() => "i)^\W*(return|[l1i|]obb[yv])\W*$"
+
 ; the end of a challenge round (already counted at Next): reward popups tapped away, then the
-; "Return to lobby" button at the top. Up to 90 s, then the usual way back
+; "Return to lobby" button at the top. 150 tries (2-3 minutes), then the usual way back. Still a
+; challenge until the lobby shows (a Stop / Start on the reward popups carries on from there)
 ChallengeEnded() {
     global challengeOn
-    challengeOn := false
     AddLog("Challenge " (lastResult = "win" ? "won" : lastResult = "loss" ? "lost" : "over") ", back to farming")
     Step("challenge over: back to the lobby")
     loop 150 {
         Stale()
         if Det("Lobby")
-            return
+            return (challengeOn := false)
         if Det("Next")
             ClickDet("Next", 0, -40, 5000)
-        else if OcrFindWord(300, 95, 200, 55, "i)^lobby$", &lx, &ly)
+        else if OcrFindWord(300, 95, 200, 55, LobbyWordRe(), &lx, &ly)
             Clk(lx, ly)                         ; "Return to lobby" at the top
         else
             Clk(560, 560)                       ; reward popups
         Wait(600)
     }
-    BackToLobby()
+    if BackToLobby()
+        challengeOn := false
 }
 
 ; at the end of a Legend / Infinite / Infinity Castle round: a challenge due -> the lobby (it goes

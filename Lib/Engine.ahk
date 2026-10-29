@@ -424,7 +424,7 @@ Tick() {
     }
     if Det("Lobby") {
         idleSince := 0
-        if ChallengeDue()                    ; Auto challenge: a new one goes first
+        if ChallengeLobby()                  ; Auto challenge: a new one goes first
             StartChallenge()
         else if LegendMode()
             StartLegend()

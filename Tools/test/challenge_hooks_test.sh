@@ -13,7 +13,7 @@ story = open(f"{root}/Lib/Story.ahk", encoding="utf-8-sig").read()
 def cut(src, n):
     m = re.search(r"^" + n + r"\([^)\n]*\) \{.*?^\}", src, re.S | re.M)
     return m.group(0) if m else ""
-code = cut(eng, "HandleEnd") + "\n" + cut(story, "LegendReplay") + "\n"
+code = cut(eng, "HandleEnd") + "\n" + cut(story, "LegendReplay") + "\n" + cut(eng, "InfTick") + "\n"
 # what the test decides
 special = {
     "Det": "Det(n) => false", "FoolMode": "FoolMode() => mode = \"Fool's Hunt\"", "FoolDuo": "FoolDuo() => false",
@@ -22,15 +22,15 @@ special = {
     "ChallengeLeave": "ChallengeLeave() => (due ? (Note(\"Leave;\"), true) : false)",
     "OcrFindWord": "OcrFindWord(x, y, w, h, re, &cx, &cy) => false", "INF_MAP": "INF_MAP() => \"Shibuya District\"",
     "LEGEND_WORLD": "LEGEND_WORLD() => \"Magic Hills (Elf Invasion)\"", "LEGEND_STAGE": "LEGEND_STAGE() => 1",
-    "Summary": "Summary() => \"\"",
+    "Summary": "Summary() => \"\"", "ReadWave": "ReadWave() => (Note(\"ReadWave;\"), 0)",
 }
-called = set(re.findall(r"\b([A-Z][A-Za-z_]\w*)\(", code)) - {"HandleEnd", "LegendReplay", "Map", "Max", "Min", "Round", "Abs", "Floor", "Mod", "InStr", "SubStr", "StrLen", "StrLower", "RegExMatch", "RegExReplace", "Integer", "String", "IsInteger", "IsNumber", "FormatTime", "Format", "StrSplit", "StrReplace", "Trim", "Sleep", "WinExist", "Number"}
+called = set(re.findall(r"\b([A-Z][A-Za-z_]\w*)\(", code)) - {"HandleEnd", "LegendReplay", "InfTick", "Map", "Max", "Min", "Round", "Abs", "Floor", "Mod", "InStr", "SubStr", "StrLen", "StrLower", "RegExMatch", "RegExReplace", "Integer", "String", "IsInteger", "IsNumber", "FormatTime", "Format", "StrSplit", "StrReplace", "Trim", "Sleep", "WinExist", "Number"}
 stubs = [special.get(n, f'{n}(p*) => Note("{n};")') for n in sorted(called)]
 body = r'''#Requires AutoHotkey v2.0
 OnError((e, m) => (FileAppend("ERROR " e.Message " (line " e.Line ")`n", "*"), ExitApp(3)))
 global fails := 0, calls := "", mode := "", due := false, challengeOn := false, lastResult := "win"
 global cfg := Map("stopAfterDefeat", 0, "foolMatch", 0, "icHard", 0, "icStopFloors", 0)
-global icFloors := 0, icFloor := 0, icUnlocked := 0, icUnlockedTop := 0, infWave := 12, infRuns := 0
+global stageActive := true, icFloors := 0, icFloor := 0, icUnlocked := 0, icUnlockedTop := 0, infWave := 12, infRuns := 0
 Check(name, ok, got := "") {
     global fails
     FileAppend((ok ? "PASS " : "FAIL ") name (ok ? "" : " (got " got ")") "`n", "*", "UTF-8")
@@ -64,12 +64,21 @@ c := Round_("Infinite", true)
 Check("Infinite, due: the wave counted first, then leaves", InStr(c, "InfBest;") && InStr(c, "Leave;") > InStr(c, "InfBest;") && !InStr(c, "ClickOpenDungeon"), c)
 c := Round_("Infinity Castle", true, false, "win")
 Check("Infinity Castle, due: the floor counted first, then leaves", icFloors = 1 && InStr(c, "Leave;") && !InStr(c, "ClickOpenDungeon"), c)
+mode := "Infinite", challengeOn := true, calls := ""
+InfTick()
+Check("Infinite mode, a challenge round playing: its waves aren't Infinite's", !InStr(calls, "ReadWave"), calls)
+challengeOn := false, calls := ""
+InfTick()
+Check("Infinite round: waves read as before", InStr(calls, "ReadWave"), calls)
 }
 c := Round_("Fool's Hunt", false)
 Check("Fool's Hunt: as before (no challenge)", InStr(c, "ClickOpenDungeon;") && !InStr(c, "Leave"), c)
 FileAppend(fails ? "FAILED " fails "`n" : "ALL PASSED`n", "*", "UTF-8")
 ExitApp fails ? 1 : 0
 '''
+if "InfMode()" not in code:                      # Classic: no Infinite / Infinity Castle checks at all
+    i = body.index("if HAS_INF {"); j = body.index("\n}\n", i)
+    body = body[:i] + body[j + 3:]
 open(sys.argv[1], "w", encoding="utf-8-sig").write(body)
 P
 WINEDEBUG=-all timeout 90 xvfb-run -a wine "$AHK" /ErrorStdOut "Z:${T//\//\\}\\t.ahk" 2>&1 | grep -v "^X conn" | tr -d '\r'
