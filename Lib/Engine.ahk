@@ -5073,6 +5073,23 @@ IsDisconnected() {
     return lastRes
 }
 
+; Roblox's app page (its left bar: Home, Moments, Chat, Me) instead of a game
+RobloxAppPage() {
+    try {
+        WinGetClientPos &ox, &oy, , , RBX
+        return IsAppNav(OCR.FromRect(ox, oy + 40, 90, 320, OcrLang(), {scale: 2, grayscale: true}).Text)
+    }
+    return false
+}
+
+; two of the app bar's words, each on its own line (a misread one can miss)
+IsAppNav(txt) {
+    n := 0
+    for w in ["home", "moments", "chat"]
+        n += !!RegExMatch(txt, "im)^\W*" w "\W*$")
+    return n >= 2
+}
+
 ; returns true if it had to reconnect
 CheckConnection(force := false) {
     global stageActive
@@ -5101,7 +5118,13 @@ CheckConnection(force := false) {
                     AddLog("Reconnected")
                     return true
                 }
-                Clk(490, 400)
+                ; Roblox's own app page instead of the game: a click there opened another game
+                if RobloxAppPage() {
+                    AddLog("Roblox opened its app page instead of Anime Adventures. Opening the game again")
+                    SaveDebugShot("roblox_app")
+                    break
+                }
+                Clk(490, 400)                   ; the game's loading screen: tap through
             }
             Wait(5000)
         }
