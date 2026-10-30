@@ -168,10 +168,16 @@ function sortable(list, onMove) {
 // ---------------------------------------------------------------- pages
 // Buff rotation (Premium): one copy's ability every N seconds, in turn (Windsong, Commander)
 const BUFF_SECS = [0, 20, 25, 30, 35, 40, 45, 60];
-const BUFF_TIP = "Presses one copy's ability every N seconds, in turn, so a buff is always up (Windsong, Commander: 30 s with 2+ copies). The game's Auto stays off for this slot";
 function renderUnits() {
   const lim = ["Max", ...Array.from({ length: 9 }, (_, i) => "Level " + (i + 1))];
   const buffs = BUFF_SECS.map((v) => v ? v + " s" : "Off");
+  // Buff rotation: its own pane (the slot cards are greyed out while the build order is on)
+  $("#buffGrid").innerHTML = S.cfg.slots.map((s, i) =>
+    `<label class="buff-cell"><span class="lbl">Slot ${i + 1}</span><select data-i="${i}">${options(buffs, Math.max(0, BUFF_SECS.indexOf(+s.buff || 0)))}</select></label>`).join("");
+  $$("#buffGrid select").forEach((sel) => sel.onchange = () => {
+    const i = +sel.dataset.i, v = BUFF_SECS[+sel.value] || 0;
+    S.cfg.slots[i].buff = v; send("slot", { i: i + 1, prop: "buff", value: v });
+  });
   $("#slots").innerHTML = S.cfg.slots.map((s, i) => `
     <div class="pane slot ${s.on ? "" : "off"}" data-i="${i}">
       <div class="slot-top"><kbd>${i + 1}</kbd><b>Slot ${i + 1}</b><i class="switch ${s.on ? "on" : ""}" data-p="on"></i></div>
@@ -180,7 +186,6 @@ function renderUnits() {
         <div class="row"><span class="lbl">Priority</span><span class="stepper" data-p="prio"></span></div>
         <div class="row"><span class="lbl">Upgrade</span><i class="switch ${s.up ? "on" : ""}" data-p="up"></i></div>
         <div class="row"><span class="lbl">Until</span><select data-p="limit">${options(lim, s.limit)}</select></div>
-        <div class="row" data-premium="Buff rotation" data-tip="${BUFF_TIP}"><span class="lbl">Buff</span><select data-p="buff">${options(buffs, Math.max(0, BUFF_SECS.indexOf(+s.buff || 0)))}</select></div>
       </div>
     </div>`).join("");
   $$(".slot").forEach((card) => {
@@ -194,7 +199,6 @@ function renderUnits() {
     stepper($('[data-p="count"]', card), s.count, 1, S.maxCount || 6, (v) => put("count", v));
     stepper($('[data-p="prio"]', card), s.prio, 1, 6, (v) => put("prio", v));
     $('select[data-p="limit"]', card).onchange = (e) => put("limit", +e.target.value);
-    $('select[data-p="buff"]', card).onchange = (e) => put("buff", BUFF_SECS[+e.target.value] || 0);
   });
   seg($("#segPattern"), S.patterns, Math.max(0, S.patterns.indexOf(S.cfg.pattern)), (i) => setVal("pattern", S.patterns[i]));
   seg($("#segRetries"), ["Few", "Normal", "Many", "Max"], S.cfg.retries - 1, (i) => setVal("retries", i + 1));

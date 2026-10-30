@@ -515,7 +515,8 @@ body.classic .prem-tag svg.i { width: 11px; height: 11px; stroke-width: 2.4; }
 body.classic .toggle > .prem-tag, body.classic .row > .prem-tag { flex: none; margin-left: 0; }
 /* the narrow Dungeon columns: just the crown, so the setting's text keeps its room */
 body.classic .cols .toggle > .prem-tag { font-size: 0; gap: 0; padding: 4px; }
-body.classic .slot .row > .prem-tag { font-size: 0; gap: 0; padding: 4px; }   /* a slot card is narrow: the crown only */
+.buff-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px 14px; margin-top: 10px; }
+.buff-cell { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 body.classic .cols .toggle > .prem-tag svg.i { width: 12px; height: 12px; }
 body.classic .prem-tag.corner { position: absolute; top: 12px; right: 14px; margin: 0; z-index: 2; }
 body.classic .row.share > .prem-tag { margin: 0 4px 0 0; }

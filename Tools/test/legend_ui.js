@@ -81,16 +81,16 @@ const legendBtn = (p) => p.evaluateHandle(() => [...document.querySelectorAll("#
       await legendBtn(p).then((h) => h.evaluate((x) => x.click())); await p.waitForTimeout(150);
     }
     await p.screenshot({ path: `${out}/legend_${tag}.png`, clip: { x: 0, y: 0, width: 1423, height: 300 } });
-    // Buff rotation: a Buff row on every slot card (Units tab), Premium only
+    // Buff rotation: its own pane on the Units tab (usable with the build order on), Premium only
     await p.evaluate(() => { window.__sent = []; });
-    const hasBuff = await p.evaluate(() => $$(".slot").length === 6 && $$(".slot").every((c) => c.querySelector('select[data-p="buff"]')));
-    check(tag + ": a Buff row on every slot card", hasBuff);
-    const buffOpts = await p.evaluate(() => [...(document.querySelector('.slot[data-i="4"] select[data-p="buff"]')?.options || [])].map((o) => o.textContent));
+    check(tag + ": a Buff box for each of the 6 slots", await p.evaluate(() => $$("#buffGrid select").length === 6));
+    const buffOpts = await p.evaluate(() => [...(document.querySelector('#buffGrid select[data-i="4"]')?.options || [])].map((o) => o.textContent));
     check(tag + ": Off, then 20 to 60 seconds", JSON.stringify(buffOpts) === JSON.stringify(["Off", "20 s", "25 s", "30 s", "35 s", "40 s", "45 s", "60 s"]), JSON.stringify(buffOpts));
-    if (edition) check("classic: Buff is locked", await p.evaluate(() => !!document.querySelector('.slot[data-i="4"] select[data-p="buff"]')?.closest("[data-premium]")));
+    check(tag + ": not inside the slot cards (greyed out with the build order on)", await p.evaluate(() => !document.querySelector("#slots #buffGrid")));
+    if (edition) check("classic: Buff rotation is locked", await p.evaluate(() => !!document.querySelector("#buffGrid")?.closest("[data-premium]")));
     else {
-      await p.evaluate(() => { const s = document.querySelector('.slot[data-i="4"] select[data-p="buff"]'); s.value = "3"; s.dispatchEvent(new Event("change")); });
-      check("premium: picking 30 s saves the slot's buff", (await p.evaluate(() => window.__sent)).some((m) => m.cmd === "slot" && m.i === 5 && m.prop === "buff" && m.value === 30), JSON.stringify(await p.evaluate(() => window.__sent)));
+      await p.evaluate(() => { const s = document.querySelector('#buffGrid select[data-i="4"]'); s.value = "3"; s.dispatchEvent(new Event("change")); });
+      check("premium: picking 30 s for slot 5 saves it", (await p.evaluate(() => window.__sent)).some((m) => m.cmd === "slot" && m.i === 5 && m.prop === "buff" && m.value === 30), JSON.stringify(await p.evaluate(() => window.__sent)));
       const limitSent = await p.evaluate(() => { const s = document.querySelector('.slot[data-i="4"] select[data-p="limit"]'); s.value = "2"; s.dispatchEvent(new Event("change")); return window.__sent.some((m) => m.prop === "limit" && m.value === 2); });
       check("premium: the Until box still saves", limitSent);
     }
