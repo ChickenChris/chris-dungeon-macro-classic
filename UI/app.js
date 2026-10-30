@@ -255,7 +255,11 @@ const everyName = (n) => n < 0 ? "turn on Auto" : n ? "again every " + n + (n ==
 const BUFF_OPTS = [[20, 0], [25, 0], [30, 0], [35, 0], [40, 0], [45, 0], [60, 0]];     // (the Erwin method has its own step kind)
 const buffName = (o) => o[1] ? `Erwin method: 4 copies in pairs, 4 s apart (buff ${o[0]} s)` : `one copy every ${o[0]} s, in turn`;
 const isMoveStep = (st) => st.kind !== "ability" && st.kind !== "buff";
-const isPair = (st) => st.kind === "erwin" || st.kind === "wenda";       // Erwin / Wenda buff: 4 copies, the video's order
+const isPair = (st) => st.kind === "erwin" || st.kind === "wenda";
+// its own timings (Lunoc: curses change how long the buff lasts): the 2nd copy gap s after the 1st (4),
+// the 3rd when the secs-long buff runs out (30)
+const pairGap = (st) => +st.gap || 4, pairSecs = (st) => +st.secs || 30;
+const pairTimes = (st) => pairGap(st) === 4 && pairSecs(st) === 30 ? "" : `, 2nd after ${pairGap(st)} s, 3rd after ${pairSecs(st)} s`;       // Erwin / Wenda buff: 4 copies, the video's order
 const sideIcon = (st) => icon(st.kind === "buff" ? "sparkles" : "zap");
 // the Units page's Timed abilities box: the build order's Ability steps, edited from there too
 function renderAbil() {
@@ -284,7 +288,7 @@ function renderAbil() {
 
 function stepText(st) {
   if (st.kind === "yen") return `Wait until you have ${(+st.amount).toLocaleString("en-US")} yen`;
-  if (isPair(st)) return `${st.kind === "wenda" ? "Wenda" : "Erwin"} buff: slot ${st.slot}, 4 copies as in the video` + (st.up ? `, upgrade each ${st.up < 0 ? "to max" : st.up + (st.up == 1 ? " time" : " times")}` : "");
+  if (isPair(st)) return `${st.kind === "wenda" ? "Wenda" : "Erwin"} buff: slot ${st.slot}, 4 copies as in the video` + pairTimes(st) + (st.up ? `, upgrade each ${st.up < 0 ? "to max" : st.up + (st.up == 1 ? " time" : " times")}` : "");
   if (st.kind === "buff") return `Buff rotation: slot ${st.slot}, ` + (+st.pairs ? `Erwin pairs (4 s apart, buff ${st.secs} s)` : `one copy every ${st.secs} s`);
   if (st.kind === "ability")
     return `Wave ${st.wave}: slot ${st.slot}'s ability, ${+st.units ? st.units + (st.units == 1 ? " unit" : " units") : "all units"}`
@@ -341,7 +345,8 @@ function initBuilder() {
       return;
     }
     if (bKind >= 3) {                       // Erwin / Wenda buff: places 4 copies in the video's order and keeps the buff up
-      add({ kind: bKind === 4 ? "wenda" : "erwin", slot: +$("#bSlot").value + 1, count: 4, up: S.upValues[+$("#bUp").value] || 0, secs: 30 });
+      const gap = Math.max(1, Math.min(30, Math.round(+$("#bGap").value || 4))), secs = Math.max(10, Math.min(120, Math.round(+$("#bSecs").value || 30)));
+      add({ kind: bKind === 4 ? "wenda" : "erwin", slot: +$("#bSlot").value + 1, count: 4, up: S.upValues[+$("#bUp").value] || 0, secs, gap });
       return;
     }
     if (bKind === 2) {                      // Ability: fires at its wave, not in the line
@@ -374,6 +379,7 @@ function builderState() {
   $("#bX").style.display = bKind ? "none" : "";
   $$(".abil-only").forEach((e) => e.style.display = bKind === 2 ? "" : "none");
   $$(".yen-only").forEach((e) => e.style.display = bKind === 5 ? "" : "none");
+  $$(".pair-only").forEach((e) => e.style.display = bKind === 3 || bKind === 4 ? "" : "none");   // Erwin / Wenda: their timings
   $("#bCount").style.display = bKind >= 3 ? "none" : "";       // Erwin / Wenda buff, Wait for yen: no count box
   $("#bSlot").style.display = $("#bUp").style.display = bKind === 5 ? "none" : "";   // Wait for yen: just the amount
   const max = S.maxCount || 6;
@@ -699,7 +705,7 @@ function renderAll() {
 // "AA build: P1x2u2 P6x1umax U5u2"  =  place slot 1 x2 upgrade each 2 times, place slot 6 x1 to max, upgrade slot 5 twice
 function buildCode(list) {
   const up = (n) => (n < 0 ? "max" : n);
-  return "AA build: " + list.map((st) => st.kind === "yen" ? `Y${st.amount}` : st.kind === "buff" ? `B${st.slot}s${st.secs}` + (+st.pairs ? "p" : "") : isPair(st) ? `${st.kind === "wenda" ? "W" : "E"}${st.slot}` + (st.up ? "u" + (st.up < 0 ? "max" : st.up) : "") : st.kind === "ability"
+  return "AA build: " + list.map((st) => st.kind === "yen" ? `Y${st.amount}` : st.kind === "buff" ? `B${st.slot}s${st.secs}` + (+st.pairs ? "p" : "") : isPair(st) ? `${st.kind === "wenda" ? "W" : "E"}${st.slot}` + (st.up ? "u" + (st.up < 0 ? "max" : st.up) : "") + (pairSecs(st) !== 30 ? "s" + pairSecs(st) : "") + (pairGap(st) !== 4 ? "g" + pairGap(st) : "") : st.kind === "ability"
     ? `A${st.slot}w${st.wave}` + (+st.units ? "n" + st.units : "") + (+st.every < 0 ? "a" : +st.every ? "e" + st.every : "")
     : st.kind === "place"
     ? `P${st.slot}x${st.count}` + (st.up ? "u" + up(st.up) : "")
@@ -710,7 +716,7 @@ function parseBuildCode(text) {
   const mv = /^([PU])([1-6])(?:x(\d{1,2}))?(?:n(\d{1,2}))?(?:u(max|\d{1,2}))?$/i, ab = /^A([1-6])w(\d{1,3})(?:n(\d{1,2}))?(?:e(\d{1,2})|(a))?$/i;
   for (const tok of String(text).split(/[\s,]+/)) {
     let m;
-    if ((m = /^([EW])([1-6])(?:u(max|\d{1,2}))?$/i.exec(tok))) { out.push({ kind: m[1].toUpperCase() === "W" ? "wenda" : "erwin", slot: +m[2], count: 4, up: m[3] ? (m[3].toLowerCase() === "max" ? -1 : Math.min(10, +m[3])) : 0, secs: 30 }); continue; }
+    if ((m = /^([EW])([1-6])(?:u(max|\d{1,2}))?(?:s(\d{2,3}))?(?:g(\d{1,2}))?$/i.exec(tok))) { out.push({ kind: m[1].toUpperCase() === "W" ? "wenda" : "erwin", slot: +m[2], count: 4, up: m[3] ? (m[3].toLowerCase() === "max" ? -1 : Math.min(10, +m[3])) : 0, secs: m[4] ? Math.max(10, Math.min(120, +m[4])) : 30, gap: m[5] ? Math.max(1, Math.min(30, +m[5])) : 4 }); continue; }
     if ((m = /^Y(\d{1,6})$/i.exec(tok))) { if (+m[1] > 0) out.push({ kind: "yen", slot: 1, count: 1, up: 0, amount: +m[1] }); continue; }
     if ((m = /^B([1-6])s(\d{2,3})(p?)$/i.exec(tok))) { out.push({ kind: "buff", slot: +m[1], count: 1, up: 0, secs: Math.max(10, Math.min(120, +m[2])), pairs: m[3] ? 1 : 0 }); continue; }
     if ((m = ab.exec(tok))) { out.push({ kind: "ability", slot: +m[1], count: 1, up: 0, wave: Math.max(1, +m[2]), units: Math.min(20, +m[3] || 0), every: m[5] ? -1 : Math.min(50, +m[4] || 0) }); continue; }

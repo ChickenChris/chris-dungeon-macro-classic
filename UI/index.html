@@ -179,6 +179,7 @@
         <div class="builder" style="margin-top:10px">
           <div class="seg" id="bKind"></div>
           <span class="muted abil-only">Wave</span><input type="number" class="abil-only" id="bWave" min="1" max="999" value="10" style="width:64px" title="The wave its ability is used at">
+          <span class="muted pair-only" style="display:none" data-tip="When the 2nd copy's Auto goes on after the 1st's (the video: 4 s)">2nd after</span><input type="number" class="pair-only" id="bGap" min="1" max="30" value="4" style="width:52px;display:none" title="Seconds between the 1st and 2nd copy's Auto (the video: 4). Curses can change how long the buff lasts: set it to what works for you"><span class="muted pair-only" style="display:none">s, 3rd after</span><input type="number" class="pair-only" id="bSecs" min="10" max="120" value="30" style="width:56px;display:none" title="Seconds until the 3rd copy's Auto: when the 1st buff runs out (the video: 30). The 4th follows by the same gap as the 2nd"><span class="muted pair-only" style="display:none">s</span>
           <input type="number" class="yen-only" id="bYen" min="1" max="999999" step="100" value="2000" style="width:96px;display:none" title="The build order waits here until you have this much yen, then goes on with the next step (abilities and buffs keep going meanwhile)"><span class="muted yen-only" style="display:none">yen</span>
           <select id="bSlot"></select>
           <span class="muted" id="bX">×</span>
