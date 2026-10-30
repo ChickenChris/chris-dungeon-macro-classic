@@ -252,7 +252,7 @@ const EVERY = [0, 1, 2, 3, 4, 5, 6, 8, 10, 15, 20, -1];     // -1: switch the ab
 const everyName = (n) => n < 0 ? "turn on Auto" : n ? "again every " + n + (n == 1 ? " wave" : " waves") : "once";
 // Buff steps (Premium): {kind: "buff", slot, secs, pairs}: one copy's ability every secs seconds, in
 // turn; pairs (the Erwin method): 2 copies 4 s apart, the next pair when the buff (secs) runs out
-const BUFF_OPTS = [[30, 1], [25, 1], [20, 1], [20, 0], [25, 0], [30, 0], [35, 0], [40, 0], [45, 0], [60, 0]];
+const BUFF_OPTS = [[20, 0], [25, 0], [30, 0], [35, 0], [40, 0], [45, 0], [60, 0]];     // (the Erwin method has its own step kind)
 const buffName = (o) => o[1] ? `Erwin method: 4 copies in pairs, 4 s apart (buff ${o[0]} s)` : `one copy every ${o[0]} s, in turn`;
 const isMoveStep = (st) => st.kind !== "ability" && st.kind !== "buff";
 const sideIcon = (st) => icon(st.kind === "buff" ? "sparkles" : "zap");
@@ -282,6 +282,7 @@ function renderAbil() {
 }
 
 function stepText(st) {
+  if (st.kind === "erwin") return `Erwin buff: slot ${st.slot}, 4 copies as in the video` + (st.up ? `, upgrade each ${st.up < 0 ? "to max" : st.up + (st.up == 1 ? " time" : " times")}` : "");
   if (st.kind === "buff") return `Buff rotation: slot ${st.slot}, ` + (+st.pairs ? `Erwin pairs (4 s apart, buff ${st.secs} s)` : `one copy every ${st.secs} s`);
   if (st.kind === "ability")
     return `Wave ${st.wave}: slot ${st.slot}'s ability, ${+st.units ? st.units + (st.units == 1 ? " unit" : " units") : "all units"}`
@@ -316,8 +317,8 @@ function renderBuild() {
 
 let bKind = 0;
 function initBuilder() {
-  seg($("#bKind"), ["Place", "Upgrade", "Ability", "Buff"], 0, (i) => {
-    if (i >= 2 && isClassic()) { toast((i === 3 ? "Buff" : "Ability") + " steps are a Premium feature. Premium is in the Chris Macros Discord", "bad"); $$("#bKind button").forEach((b, j) => b.classList.toggle("on", j === bKind)); return; }
+  seg($("#bKind"), ["Place", "Upgrade", "Ability", "Buff", "Erwin buff"], 0, (i) => {
+    if (i >= 2 && isClassic()) { toast((i === 4 ? "Erwin buff" : i === 3 ? "Buff" : "Ability") + " steps are a Premium feature. Premium is in the Chris Macros Discord", "bad"); $$("#bKind button").forEach((b, j) => b.classList.toggle("on", j === bKind)); return; }
     bKind = i; builderState();
   });
   $("#bSlot").innerHTML = options([1, 2, 3, 4, 5, 6].map((n) => "Slot " + n), 0);
@@ -330,6 +331,10 @@ function initBuilder() {
     const el = $("#steps"); el.scrollTop = el.scrollHeight;
   };
   $("#bAdd").onclick = () => {
+    if (bKind === 4) {                      // Erwin buff: places 4 copies in the video's order and keeps the buff up
+      add({ kind: "erwin", slot: +$("#bSlot").value + 1, count: 4, up: S.upValues[+$("#bUp").value] || 0, secs: 30 });
+      return;
+    }
     if (bKind === 3) {                      // Buff: one copy every N seconds, from its first copy down
       const o = BUFF_OPTS[+$("#bUp").value] || BUFF_OPTS[0];
       add({ kind: "buff", slot: +$("#bSlot").value + 1, count: 1, up: 0, secs: o[0], pairs: o[1] });
@@ -364,11 +369,13 @@ function builderState() {
   // Place: how many to place (×N). Upgrade: how many of that slot's units (all, or the first N placed)
   $("#bX").style.display = bKind ? "none" : "";
   $$(".abil-only").forEach((e) => e.style.display = bKind === 2 ? "" : "none");
-  $("#bCount").style.display = bKind === 3 ? "none" : "";       // Buff: the slot and the seconds only
+  $("#bCount").style.display = bKind >= 3 ? "none" : "";       // Buff / Erwin buff: no count box
   const max = S.maxCount || 6;
-  $("#bUp").innerHTML = bKind === 3 ? options(BUFF_OPTS.map(buffName), 0)
+  $("#bUp").innerHTML = bKind === 4 ? options(S.upNames, Math.max(0, S.upValues.indexOf(-1)))
+    : bKind === 3 ? options(BUFF_OPTS.map(buffName), 2)
     : bKind === 2 ? options(EVERY.map(everyName), 0) : options(S.upNames, 0);
-  $("#bUp").title = bKind === 3 ? "Erwin method (Commander): place 4, all in each other's range: 1st, 2nd 4 s later, 3rd when the 1st buff runs out, 4th 4 s after: the 100% buff. Or one copy every N seconds (Windsong). The game's Auto stays off for this slot" : "";
+  $("#bUp").title = bKind === 4 ? "Erwin buff (Commander), as in the video: places 2, uses the 1st one's ability, places the 3rd, the 2nd's ability 4 s after the 1st, places the 4th; then the 3rd when the 1st buff runs out (30 s), the 4th 4 s later, and round again: the 100% buff. Put all 4 in each other's range (Spots). Each one gets upgraded like this"
+    : bKind === 3 ? "Erwin method (Commander): place 4, all in each other's range: 1st, 2nd 4 s later, 3rd when the 1st buff runs out, 4th 4 s after: the 100% buff. Or one copy every N seconds (Windsong). The game's Auto stays off for this slot" : "";
   $("#bCount").innerHTML = bKind
     ? options(["all units", ...Array.from({ length: max }, (_, i) => (i + 1) + (i ? " units" : " unit"))], 0)
     : options(Array.from({ length: max }, (_, i) => String(i + 1)), 0);
@@ -687,7 +694,7 @@ function renderAll() {
 // "AA build: P1x2u2 P6x1umax U5u2"  =  place slot 1 x2 upgrade each 2 times, place slot 6 x1 to max, upgrade slot 5 twice
 function buildCode(list) {
   const up = (n) => (n < 0 ? "max" : n);
-  return "AA build: " + list.map((st) => st.kind === "buff" ? `B${st.slot}s${st.secs}` + (+st.pairs ? "p" : "") : st.kind === "ability"
+  return "AA build: " + list.map((st) => st.kind === "buff" ? `B${st.slot}s${st.secs}` + (+st.pairs ? "p" : "") : st.kind === "erwin" ? `E${st.slot}` + (st.up ? "u" + (st.up < 0 ? "max" : st.up) : "") : st.kind === "ability"
     ? `A${st.slot}w${st.wave}` + (+st.units ? "n" + st.units : "") + (+st.every < 0 ? "a" : +st.every ? "e" + st.every : "")
     : st.kind === "place"
     ? `P${st.slot}x${st.count}` + (st.up ? "u" + up(st.up) : "")
@@ -698,6 +705,7 @@ function parseBuildCode(text) {
   const mv = /^([PU])([1-6])(?:x(\d{1,2}))?(?:n(\d{1,2}))?(?:u(max|\d{1,2}))?$/i, ab = /^A([1-6])w(\d{1,3})(?:n(\d{1,2}))?(?:e(\d{1,2})|(a))?$/i;
   for (const tok of String(text).split(/[\s,]+/)) {
     let m;
+    if ((m = /^E([1-6])(?:u(max|\d{1,2}))?$/i.exec(tok))) { out.push({ kind: "erwin", slot: +m[1], count: 4, up: m[2] ? (m[2].toLowerCase() === "max" ? -1 : Math.min(10, +m[2])) : 0, secs: 30 }); continue; }
     if ((m = /^B([1-6])s(\d{2,3})(p?)$/i.exec(tok))) { out.push({ kind: "buff", slot: +m[1], count: 1, up: 0, secs: Math.max(10, Math.min(120, +m[2])), pairs: m[3] ? 1 : 0 }); continue; }
     if ((m = ab.exec(tok))) { out.push({ kind: "ability", slot: +m[1], count: 1, up: 0, wave: Math.max(1, +m[2]), units: Math.min(20, +m[3] || 0), every: m[5] ? -1 : Math.min(50, +m[4] || 0) }); continue; }
     if (!(m = mv.exec(tok))) continue;
