@@ -14,7 +14,7 @@ def fn(n):
         return m.group(0)
     missing.append(n)
     return n + '(p*) => "MISSING"'
-parts = [fn(n) for n in ["LegendReplay", "CloseTournament", "RedSpotAt", "PadList", "LegendClickStage", "LegendRows", "LegendStageOf", "LegendPickStage", "LegendGuessRow"]]
+parts = [fn(n) for n in ["LegendReplay", "CloseTournament", "RedSpotAt", "PadList", "LegendClickStage", "LegendRows", "LegendStageOf", "LegendPickStage", "LegendGuessRow", "LegendTitleStage"]]
 if missing:
     print("FAIL not defined: " + ", ".join(missing))
 body = r'''#Requires AutoHotkey v2.0
@@ -127,6 +127,19 @@ Reset(), OCR.Q := [Read(St(2, 125), St(3, 160)), Read(), Read(St(2, 125), St(3, 
 Check("stage 1 never read, 2 and 3 are (a player's log): clicked one row above stage 2", LegendClickStage(1) = 1 && calls = "Scroll 289,290,-1;Clk 295,247;", calls)
 Reset()
 Check("nothing read: no scrolling, 0", LegendClickStage(2) = 0 && !InStr(calls, "Scroll"), calls)
+
+; --- the panel's title ("Legend Stage N", big blue on the right) says which stage got picked
+Ti(n) => Read(["Legend Stage " n, 20, 10, 150, 24])
+Reset(), OCR.Q := [Read(St(2, 125), St(3, 160)), Read(), Read(St(2, 125), St(3, 160)), Read(), Ti(2), Ti(1)]
+Check("the guessed spot picked Stage 2 (title): one row up, then the title says 1", LegendClickStage(1) = 1 && calls = "Scroll 289,290,-1;Clk 295,247;Clk 295,212;", calls)
+Reset(), OCR.Q := [Read(St(1, 90), St(2, 125)), Read(), Ti(1)]
+Check("the title agrees: one click", LegendClickStage(1) = 1 && calls = "Clk 295,247;", calls)
+Reset(), OCR.Q := [Read(), Read(), Ti(1)]
+Check("no button read at all: Stage 1's usual spot, confirmed by the title", LegendClickStage(1) = 1 && calls = "Clk 289,240;", calls)
+Reset(), OCR.Q := [Read(), Read(), Ti(1), Ti(2)]
+Check("no button read, Stage 2 wanted: the title says 1, one row down", LegendClickStage(2) = 2 && calls = "Clk 289,275;Clk 289,310;", calls)
+Reset(), OCR.Q := [Read(St(1, 90), St(2, 125)), Read(), Ti(3), Ti(3), Ti(3)]
+Check("the title keeps saying another stage: 0 (Cancel, tried again from the lobby)", LegendClickStage(1) = 0, calls)
 
 FileAppend(fails ? "FAILED " fails "`n" : "ALL PASSED`n", "*", "UTF-8")
 ExitApp fails ? 1 : 0

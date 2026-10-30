@@ -422,20 +422,49 @@ LegendClickStage(want, &read := "") {
         ScrollAt(289, 290, low > want ? -1 : 1)
         Wait(450)
     }
-    ; not read, but its neighbours are: where their spacing puts it (a player's Stage 1, a button
-    ; coloured differently, was never read while Stage 2 and 3 were)
-    if !rows.Has(want) && LegendGuessRow(rows, want, &gx, &gy) {
+    ; where to click: the button read; else where the others' spacing puts it (a player's Stage 1,
+    ; bright yellow, was never read while 2 and 3 were); else, nothing read at all, its usual spot
+    ; (Stage 1 at 289,240, a row every 35 px); else the highest stage (a world with fewer stages)
+    step := 35, pick := want, sure := false
+    if rows.Has(want)
+        x := rows[want][1], y := rows[want][2], sure := true
+    else if LegendGuessRow(rows, want, &x, &y) {
         AddLog("Legend: Stage " want " not read, clicking where it sits next to the others")
-        Clk(gx, gy)
-        return want
+        sure := true
     }
-    seen := []
-    for n in rows
-        seen.Push(n)
-    if !(pick := LegendPickStage(want, seen))
-        return 0
-    Clk(rows[pick][1], rows[pick][2])
-    return pick
+    else if !rows.Count
+        x := 289, y := 240 + (want - 1) * step
+    else {
+        seen := []
+        for n in rows
+            seen.Push(n)
+        if !(pick := LegendPickStage(want, seen))
+            return 0
+        x := rows[pick][1], y := rows[pick][2], sure := true
+    }
+    ; the panel's title says which stage got picked: another one = moved by the rows between them
+    loop 3 {
+        Clk(x, y)
+        got := LegendTitleStage()
+        if got = pick || (!got && sure)         ; right; or the title unread after a read/guessed button: as before
+            return pick
+        if !got || A_Index = 3
+            return 0
+        y += (pick - got) * step
+        if y < 200 || y > 440
+            return 0
+    }
+    return 0
+}
+
+; the stage shown in the panel's title ("Legend Stage 3", big blue letters right of the buttons), 0 unread
+LegendTitleStage() {
+    Wait(400)
+    try {
+        WinGetClientPos &ox, &oy, , , RBX
+        return LegendStageOf(OCR.FromRect(ox + 350, oy + 205, 230, 50, OcrLang(), {scale: 2, grayscale: true}).Text)
+    }
+    return 0
 }
 
 ; where stage `want`'s button is, from two buttons read (same column, even spacing). Only when a
