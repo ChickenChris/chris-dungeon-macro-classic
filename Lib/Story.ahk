@@ -95,39 +95,44 @@ WorldFind(name, names, &x, &y) {
     global worldLastRead
     re := WorldRegex(name)
     ClosePopups()
-    MouseMove 700, 342
-    Sleep 100
-    loop 30 {
-        SendInput "{WheelUp}"
-        Sleep 30
-    }
+    ScrollAt(700, 342, -30)                     ; the top of the list
     Wait(800)
-    prev := ""
-    loop 30 {
-        txt := ""
-        ; the names are blue on busy pictures and the reader gets letters wrong ("WaIIed City",
-        ; "Shlbuya"): a close match counts too, and a second read with the colours flipped
-        for tf in [{scale: 2, grayscale: true}, {scale: 3, grayscale: true, invertcolors: true}] {
-            try {
-                WinGetClientPos &ox, &oy, , , RBX
-                res := OCR.FromRect(ox + 615, oy + 160, 175, 300, OcrLang(), tf)
-                for ln in res.Lines {
-                    txt .= ln.Text "|"
-                    if WorldLineIs(ln.Text, name, names, re) {
-                        x := Round(615 + ln.x + ln.w / 2), y := Round(160 + ln.y + ln.h / 2)
-                        return true
-                    }
+    ; down a notch at a time to the bottom, then back up: a name passed while the list was still
+    ; sliding (a player's Shibuya District, read at the bottom only) gets a second look
+    for dir in [1, -1] {
+        prev := ""
+        loop 30 {
+            if WorldRead(name, names, re, &x, &y, &txt)
+                return true
+            if DeclineTrade()                       ; it covered the list: read again
+                continue
+            if txt = prev && A_Index > 1            ; the list stopped moving: the end
+                break
+            prev := txt, worldLastRead := txt
+            ScrollAt(700, 342, dir)
+            Wait(600)
+        }
+    }
+    return false
+}
+
+; one look at the world list: true (x, y: the line) when the world's name shows. txt: what was read
+WorldRead(name, names, re, &x, &y, &txt) {
+    txt := ""
+    ; the names are blue on busy pictures and the reader gets letters wrong ("WaIIed City",
+    ; "Shlbuya"): a close match counts too, and a second read with the colours flipped
+    for tf in [{scale: 2, grayscale: true}, {scale: 3, grayscale: true, invertcolors: true}] {
+        try {
+            WinGetClientPos &ox, &oy, , , RBX
+            res := OCR.FromRect(ox + 615, oy + 160, 175, 300, OcrLang(), tf)
+            for ln in res.Lines {
+                txt .= ln.Text "|"
+                if WorldLineIs(ln.Text, name, names, re) {
+                    x := Round(615 + ln.x + ln.w / 2), y := Round(160 + ln.y + ln.h / 2)
+                    return true
                 }
             }
         }
-        if DeclineTrade()                            ; it covered the list: read again
-            continue
-        if txt = prev && A_Index > 1                 ; the list stopped moving: the bottom
-            break
-        prev := txt, worldLastRead := txt
-        MouseMove 700, 342
-        SendInput "{WheelDown}"
-        Wait(450)
     }
     return false
 }
