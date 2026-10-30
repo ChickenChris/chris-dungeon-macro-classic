@@ -1134,6 +1134,8 @@ ImportDo(parts) {
                         cfg["spots"][name] := list
                 for name, route in theirs["walks"]
                     cfg["walks"][name] := route
+                if n := UpgradeOldWalks()
+                    AddLog(n " of the imported walks were old ones the macro has replaced: the new ones are used")
                 copyKeys(["useSpots"]), done.Push("spots and walks")
             case "general":
                 copyKeys(["placeSpeed", "zoom", "tpSpawn", "fixOnStart", "tolerance", "hookRuns"]), done.Push("other settings")
@@ -1209,6 +1211,28 @@ SaveShot(*) {
 ; The download ships Chris's own map walks and spots in Lib\defaults.ini. Any map you
 ; haven't recorded yourself gets them; your own recordings always win, so updating the
 ; macro never overwrites what you set up.
+; a shipped walk that was replaced: players still on an old one get the new one (it was saved
+; into their settings, so a new default alone never reached them). Their own recordings stay.
+; Run at start AND after an import: an imported config brought the old walks back for that session
+; (Cr1es: his old Snowy Town walk, "Walked to the Snowy Town spot", then not one unit placed)
+UpgradeOldWalks() {
+    file := A_ScriptDir "\Lib\defaults.ini", n := 0
+    if !FileExist(file)
+        return 0
+    try sec := IniRead(file, "OldWalks")
+    catch
+        sec := ""
+    for line in StrSplit(sec, "`n", "`r") {
+        if !(eq := InStr(line, "="))
+            continue
+        name := SubStr(line, 1, eq - 1)
+        for old in StrSplit(SubStr(line, eq + 1), "|")     ; several old walks: "route1|route2"
+            if cfg["walks"].Has(name) && cfg["walks"][name] == old && (now := IniRead(file, "Walks", name, "")) != ""
+                cfg["walks"][name] := now, n++
+    }
+    return n
+}
+
 LoadShippedWalks() {
     file := A_ScriptDir "\Lib\defaults.ini"
     if !FileExist(file)
@@ -1219,19 +1243,7 @@ LoadShippedWalks() {
     for line in StrSplit(sec, "`n", "`r")
         if (eq := InStr(line, "=")) && SubStr(line, eq + 1) != "" && !cfg["walks"].Has(SubStr(line, 1, eq - 1))
             cfg["walks"][SubStr(line, 1, eq - 1)] := SubStr(line, eq + 1)
-    ; a shipped walk that was replaced: players still on an old one get the new one (it was saved
-    ; into their settings, so a new default alone never reached them). Their own recordings stay
-    try sec := IniRead(file, "OldWalks")
-    catch
-        sec := ""
-    for line in StrSplit(sec, "`n", "`r") {
-        if !(eq := InStr(line, "="))
-            continue
-        name := SubStr(line, 1, eq - 1)
-        for old in StrSplit(SubStr(line, eq + 1), "|")     ; several old walks: "route1|route2"
-            if cfg["walks"].Has(name) && cfg["walks"][name] == old && (now := IniRead(file, "Walks", name, "")) != ""
-                cfg["walks"][name] := now
-    }
+    UpgradeOldWalks()
     try sec := IniRead(file, "Spots")
     catch
         sec := ""
