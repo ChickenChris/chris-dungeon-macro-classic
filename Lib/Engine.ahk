@@ -2738,8 +2738,30 @@ GoToSpot(mapName, walk := true, force := false) {
                 break
         }
     }
-    if tp && walk
+    if tp && walk {
+        ; lost here last time after the walk: the walk went somewhere the enemies never pass
+        ; (Magic Hills in the dungeon: every unit down, 5 defeats in a row, "it puts units behind
+        ; the spawn"). Placed from spawn this time instead
+        if !force && walkLost.Get(mapName, 0) && (cfg["walks"].Has(mapName) || HasBuiltInWalk(mapName)) {
+            AddLog("Lost on " mapName " last time after walking to its spot, so placing from spawn this time "
+                . "(record your own walk for it on the Spots page if spawn doesn't work either)")
+            return
+        }
         WalkRoute(mapName)
+    }
+}
+
+; a stage ended: lost after the walk -> from spawn next time on this map; lost from spawn -> the
+; walk again; a win keeps whatever won. Only for this session (a later update can fix the walk)
+global walkLost := Map()
+WalkLearn() {
+    key := curMap
+    if lastResult != "loss"
+        return
+    if walkedHere
+        walkLost[key] := 1
+    else if walkLost.Has(key)
+        walkLost.Delete(key)
 }
 
 ; the camera is being zoomed: fully zoomed in, Roblox is in first person and a click turns the
@@ -5143,6 +5165,7 @@ RecordRun() {
     else if lastResult = "loss"
         stat.losses++
     stat.streak := lastResult = "win" ? stat.streak + 1 : lastResult = "loss" ? 0 : stat.streak
+    WalkLearn()                                 ; lost after the walk: from spawn next time
     took := FmtTime(A_TickCount - stageStart)
     word := (challengeOn ? "Challenge: " : "") (lastResult = "win" ? "Victory" : lastResult = "loss" ? "Defeat" : "Run finished")
     AddLog(word " on " curMap " in " took)

@@ -872,10 +872,14 @@ SpotClear(name) {
     SendSpots(name)
 }
 
+; the Spots page's walk buttons while the macro is running (paused too) or a walk is going: they
+; did nothing at all (Chris: "I cant even test the walks"), now they say why
+WalkBusy() => Notify(manualRun ? "A walk is already going, wait for it to finish" : "Stop the macro first (F3), then try the walk again")
+
 RecordWalk(name) {
     global manualRun, cancelManual
     if running || manualRun
-        return
+        return WalkBusy()
     if name = "Unknown"
         return Notify("Pick the map first")
     if !WinExist(RBX)
@@ -941,7 +945,7 @@ RecordWalk(name) {
 PickWalk(name) {
     global manualRun, cancelManual
     if running || manualRun
-        return
+        return WalkBusy()
     if name = "" || name = "Unknown"
         return Notify("Pick the map first")
     if !WinExist(RBX)
@@ -967,7 +971,7 @@ PickWalk(name) {
 TestWalk(name) {
     global manualRun, cancelManual
     if running || manualRun
-        return
+        return WalkBusy()
     if !WinExist(RBX)
         return Notify("Open Roblox first")
     manualRun := true, cancelManual := false
