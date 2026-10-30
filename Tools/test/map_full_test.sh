@@ -15,7 +15,7 @@ def fn(n):
 body = r'''#Requires AutoHotkey v2.0
 #Warn VarUnset, StdOut
 OnError((e, m) => (FileAppend("ERROR " e.Message " (line " e.Line ")`n", "*"), ExitApp(3)))
-global fails := 0, logs := "", said := "", mapFull := 0, placedUnits := [], stageStart := 1, slotCap := Map(), slotFull := Map()
+global fails := 0, fool := true, logs := "", said := "", mapFull := 0, placedUnits := [], stageStart := 1, slotCap := Map(), slotFull := Map()
 Check(name, ok, got := "") {
     global fails
     FileAppend((ok ? "PASS " : "FAIL ") name (ok ? "" : " (got " got ")") "`n", "*", "UTF-8")
@@ -30,6 +30,7 @@ AddLog(t) {
     logs .= t "|"
 }
 CountPlaced(n) => 0
+FoolMode() => fool
 CapKey(n) => n
 FindUnseen(p*) => 0
 SaveDebugShot(p*) => 0
@@ -40,6 +41,7 @@ Units(n) {
 }
 '''
 body += "\n".join(fn(n) for n in ["PlaceRefused"]) + "\n"
+body += "global foolOnly := " + ("true" if "!FoolMode() ||" in src else "false") + "\n"
 body += r'''
 said := "Cannot place more than 20 units! Sell some weaker ones to make room."
 Units(0)
@@ -50,7 +52,13 @@ Units(2)
 Check("2 units down: still not", !PlaceRefused(2) && !mapFull, mapFull)
 Sleep 4100
 Units(19)
-Check("19 units down: the map is full", PlaceRefused(3) && mapFull, mapFull)
+if foolOnly {
+    Check("Fool's Hunt, 19 units down: the map is full", PlaceRefused(3) && mapFull, mapFull)
+    Sleep 4100
+    fool := false, mapFull := 0
+    Check("a dungeon, 19 units down: not taken as full (only Fool's Hunt has that cap in players' logs)", !PlaceRefused(4) && !mapFull, mapFull)
+} else
+    Check("Classic (no Fool's Hunt): never taken as a full map, placing goes on", !PlaceRefused(3) && !mapFull, mapFull)
 FileAppend(fails ? "FAILED " fails "`n" : "ALL PASSED`n", "*", "UTF-8")
 ExitApp fails ? 1 : 0
 '''

@@ -4421,9 +4421,10 @@ PlaceRefused(slot) {
     mapWords := RegExMatch(said, "i)sell|weaker|make\s*r|r[o0][o0]m\b|un[il1]ts")
     thisUnit := !mapWords && (RegExMatch(said, "i)th[il1]s\s*un[il1]t|of\s*th[il1]s|of\s*the\s*un") || most && most < 10)
     if msg = "limit" && !thisUnit {
-        ; a full map with fewer than 5 units down can't be: some other red text was read (Ted: "the map
-        ; is full" at the start with 0 placed, every Place step got 0 and the build order ran out)
-        if placedUnits.Length < 5 {
+        ; Classic has no Fool's Hunt, the only mode whose 20-unit cap showed the real message in
+        ; players' logs: anything read as it here was some other red text (Ted and others: "the map is
+        ; full" with 0 placed, every Place step got 0 and the build order ran out). Placing goes on
+        if true {
             static toldEarly := -1
             if toldEarly != stageStart {
                 toldEarly := stageStart
