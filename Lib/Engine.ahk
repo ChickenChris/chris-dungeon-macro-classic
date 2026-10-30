@@ -4495,7 +4495,12 @@ OpenUnit(u) {
     for o in around
         if o[1] != u.dx || o[2] != u.dy
             tries.Push(o)
+    covered := false                            ; a summon (Abyssal Eel) opened instead: the unit is under it
     for o in tries {
+        if covered && MaxShown() && IsSummonMenu() {
+            Clk(325, 185)                       ; the eel's menu off first
+            Sleep(250)
+        }
         Clk(u.x + o[1], u.y + o[2])
         ; the menu can take a moment to slide in: give it a full second before calling it a miss
         if WaitUnitMenu(A_Index = 1 ? 1300 : 1000) || (Sleep(250), UnitMenuOpen()) {
@@ -4512,6 +4517,16 @@ OpenUnit(u) {
             u.misses := 0
             return true
         }
+        if !covered && MaxShown() && IsSummonMenu()
+            covered := true
+    }
+    if covered {
+        ; the unit's there, an eel swims over it: not a miss (it was left for good after 3 of these,
+        ; Chris's slot 2). Tried again on the next visit, when the eel has moved on
+        Clk(325, 185)
+        if !u.HasOwnProp("eelTold")
+            u.eelTold := true, AddLog("Slot " u.slot ": a summon (Abyssal Eel) is over this unit, trying it again later")
+        return false
     }
     u.misses++
     if u.misses >= 3 {
