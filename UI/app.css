@@ -156,7 +156,7 @@ body.fool-units .fool-note { display: block; }
 .build-note { display: none; align-items: center; gap: 12px; color: var(--mist); font-size: 12px; border-color: color-mix(in srgb, var(--acc) 40%, transparent); }
 .build-note b { color: var(--acc); }
 .build-note .btn { flex: none; }
-body.build-on .build-note { display: flex; }
+body.build-on .build-note:not(.empty-note), body.build-empty .build-note.empty-note { display: flex; }
 #slots { transition: opacity .2s, filter .2s; }
 body.build-on:not(.units-unlocked) #slots, body.build-on:not(.units-unlocked) .units-teams { opacity: .38; filter: grayscale(.6); pointer-events: none; }
 #duoInfo .duo-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }

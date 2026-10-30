@@ -100,6 +100,18 @@ const legendBtn = (p) => p.evaluateHandle(() => [...document.querySelectorAll("#
       check("premium: the Until box still saves", await p.evaluate(() => { const s = document.querySelector('.slot[data-i="4"] select[data-p="limit"]'); s.value = "2"; s.dispatchEvent(new Event("change")); return window.__sent.some((m) => m.prop === "limit" && m.value === 2); }));
       await p.evaluate(() => $$("#bKind button")[0].click());
     }
+    // "Use the build order" with no Place / Upgrade steps: the slots still play, and a note says so
+    const notes = await p.evaluate(async () => {
+      const shown = (sel) => getComputedStyle(document.querySelector(sel)).display !== "none";
+      const keep = [S.cfg.useBuild, S.cfg.build];
+      S.cfg.useBuild = 1; S.cfg.build = [{ kind: "buff", slot: 5, count: 1, up: 0, secs: 30, pairs: 1 }]; unitsLockState();
+      const empty = [shown(".build-note.empty-note"), shown(".build-note:not(.empty-note)"), document.body.classList.contains("build-on")];
+      S.cfg.build = [{ kind: "place", slot: 1, count: 2, up: 0, units: 0 }]; unitsLockState();
+      const full = [shown(".build-note.empty-note"), shown(".build-note:not(.empty-note)"), document.body.classList.contains("build-on")];
+      S.cfg.useBuild = keep[0]; S.cfg.build = keep[1]; unitsLockState();
+      return JSON.stringify([empty, full]);
+    });
+    check(tag + ": build order on with no Place steps: the 'no steps' note, slots not greyed; with steps: the usual note", notes === JSON.stringify([[true, false, false], [false, true, true]]), notes);
     // Activity colours: a problem is red even when it has a "good" word in it ("only works when ...")
     const cls = (m) => p.evaluate((m) => { window.ui.log("09:00:00", m); const l = document.querySelector("#log").lastElementChild; return l ? l.className : "?"; }, m);
     for (const [m, want] of [["Multi Roblox only works when it's on before Roblox opens: close every Roblox window, then switch it on", "bad"],

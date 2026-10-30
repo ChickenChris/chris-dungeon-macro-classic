@@ -75,6 +75,8 @@ let unitsUnlocked = false;
 function unitsLockState() {
   const on = !!+S.cfg.useBuild && (S.cfg.build || []).some(isMoveStep);
   document.body.classList.toggle("build-on", on);
+  // switched on with no Place / Upgrade steps (a new team, or only Ability / Buff steps): the slots still play
+  document.body.classList.toggle("build-empty", !!+S.cfg.useBuild && !on);
   document.body.classList.toggle("units-unlocked", on && unitsUnlocked);
   const b = $("#unitsUnlock");
   if (b) {
