@@ -2916,12 +2916,17 @@ MenuSig() {
 ; closed when it's really gone: the Spawn row not on show wasn't enough (a list scrolled to its
 ; top has none, so one missed click counted as closed and placing clicked into it for a stage)
 CloseSettings() {
-    loop 3 {
+    loop 4 {
         Wait(250)
-        Clk(583, 147)
+        ; its X, and if that missed twice (a player's window sat elsewhere: it stayed open the whole
+        ; stage, the camera zoom scrolled the list instead and the camera stayed down behind him) the
+        ; settings gear, which opens and closes it
+        Clk(A_Index <= 2 ? 583 : 26, A_Index <= 2 ? 147 : 570)
         if WaitFor(() => !Det("Spawn"), 500) && !GameSettingsOpen()
             return true
     }
+    AddLog("The game's Settings window wouldn't close. Close it yourself (its X) if it's still open")
+    SaveDebugShot("game_settings")
     return false
 }
 

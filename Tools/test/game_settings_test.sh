@@ -23,15 +23,20 @@ if missing:
 body = r'''#Requires AutoHotkey v2.0
 #Warn VarUnset, StdOut
 OnError((e, m) => (FileAppend("ERROR " e.Message " (line " e.Line ")`n", "*"), ExitApp(3)))
-global fails := 0, open := false, clicks := 0, closesNeeded := 1, spawnShown := false, logs := ""
+global fails := 0, xWorks := true, gears := 0, gearWorks := true, open := false, clicks := 0, closesNeeded := 1, spawnShown := false, logs := ""
 Check(name, ok, got := "") {
     global fails
     FileAppend((ok ? "PASS " : "FAIL ") name (ok ? "" : " (got " got ")") "`n", "*", "UTF-8")
     fails += !ok
 }
 Clk(x, y, *) {
-    global clicks, open, closesNeeded
-    if x = 583 && y = 147 {
+    global clicks, open, closesNeeded, xWorks, gears, gearWorks
+    if x = 26 && y = 570 {
+        gears++
+        if gearWorks
+            open := !open
+    }
+    if x = 583 && y = 147 && xWorks {
         clicks++
         if clicks >= closesNeeded
             open := false
@@ -59,8 +64,11 @@ for t in ["Settings", "Graphics", "Wave 15`n81120/81120", "Upgrade`nSell`nSettin
 open := true, spawnShown := false, clicks := 0, closesNeeded := 2
 ok := CloseSettings()
 Check("closed only once it's really gone (a second click)", ok && !open && clicks = 2, clicks)
-open := true, closesNeeded := 99, clicks := 0
-Check("it won't close: says so", !CloseSettings() && open)
+open := true, closesNeeded := 99, clicks := 0, xWorks := false, gears := 0
+Check("its X misses (the window sits elsewhere): the gear closes it", CloseSettings() && !open && gears = 1, gears)
+open := true, closesNeeded := 99, clicks := 0, xWorks := true, gears := 0, logs := "", gearWorks := false
+Check("it won't close at all: says so", (r := CloseSettings(), !r && InStr(logs, "wouldn't close")), logs)
+xWorks := true
 ; placing: a failed spot with the window up closes it
 open := true, closesNeeded := 1, clicks := 0, logs := ""
 Check("placing failed with the window up: closed", SettingsInTheWay() && !open && InStr(logs, "Settings"), logs)
