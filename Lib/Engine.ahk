@@ -4421,6 +4421,16 @@ PlaceRefused(slot) {
     mapWords := RegExMatch(said, "i)sell|weaker|make\s*r|r[o0][o0]m\b|un[il1]ts")
     thisUnit := !mapWords && (RegExMatch(said, "i)th[il1]s\s*un[il1]t|of\s*th[il1]s|of\s*the\s*un") || most && most < 10)
     if msg = "limit" && !thisUnit {
+        ; a full map with fewer than 5 units down can't be: some other red text was read (Ted: "the map
+        ; is full" at the start with 0 placed, every Place step got 0 and the build order ran out)
+        if placedUnits.Length < 5 {
+            static toldEarly := -1
+            if toldEarly != stageStart {
+                toldEarly := stageStart
+                AddLog("Red text read (" SubStr(RegExReplace(Trim(said), "\s+", " "), 1, 70) ") with " placedUnits.Length " units down: not taken as the map being full")
+            }
+            return false
+        }
         mapFull := A_TickCount
         if toldFull != stageStart {
             toldFull := stageStart
