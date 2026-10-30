@@ -76,13 +76,13 @@ function unitsLockState() {
   const on = !!+S.cfg.useBuild && (S.cfg.build || []).some(isMoveStep);
   document.body.classList.toggle("build-on", on);
   // switched on with no Place / Upgrade steps (a new team, or only Ability / Buff steps): the slots still play
-  document.body.classList.toggle("build-empty", !!+S.cfg.useBuild && !on);
-  document.body.classList.toggle("units-unlocked", on && unitsUnlocked);
-  const b = $("#unitsUnlock");
-  if (b) {
+  const empty = !!+S.cfg.useBuild && !on;
+  document.body.classList.toggle("build-empty", empty);
+  document.body.classList.toggle("units-unlocked", (on || empty) && unitsUnlocked);
+  $$(".unlock-btn").forEach((b) => {
     b.textContent = unitsUnlocked ? "Done" : "Edit anyway";
     b.onclick = () => { unitsUnlocked = !unitsUnlocked; unitsLockState(); };
-  }
+  });
 }
 
 function buildOn() {

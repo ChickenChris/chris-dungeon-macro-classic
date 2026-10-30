@@ -110,7 +110,20 @@ const legendBtn = (p) => p.evaluateHandle(() => [...document.querySelectorAll("#
       S.cfg.useBuild = keep[0]; S.cfg.build = keep[1]; unitsLockState();
       return JSON.stringify([empty, full]);
     });
-    check(tag + ": build order on with no Place steps: the 'no steps' note, slots not greyed; with steps: the usual note", notes === JSON.stringify([[true, false, false], [false, true, true]]), notes);
+    check(tag + ": build order on with no Place steps: the 'no steps' note; with steps: the usual note", notes === JSON.stringify([[true, false, false], [false, true, true]]), notes);
+    const dim = await p.evaluate(async () => {
+      const keep = [S.cfg.useBuild, S.cfg.build];
+      S.cfg.useBuild = 1; S.cfg.build = []; unitsLockState();
+      const a = getComputedStyle($("#slots")).pointerEvents === "none";
+      document.querySelector(".empty-note .unlock-btn").click();
+      const b = getComputedStyle($("#slots")).pointerEvents !== "none";
+      document.querySelector(".empty-note .unlock-btn").click();
+      S.cfg.useBuild = 0; unitsLockState();
+      const c = getComputedStyle($("#slots")).pointerEvents !== "none";
+      S.cfg.useBuild = keep[0]; S.cfg.build = keep[1]; unitsLockState();
+      return [a, b, c].join();
+    });
+    check(tag + ": build order on and empty: the slots are greyed too, Edit anyway opens them, off: normal", dim === "true,true,true", dim);
     // Activity colours: a problem is red even when it has a "good" word in it ("only works when ...")
     const cls = (m) => p.evaluate((m) => { window.ui.log("09:00:00", m); const l = document.querySelector("#log").lastElementChild; return l ? l.className : "?"; }, m);
     for (const [m, want] of [["Multi Roblox only works when it's on before Roblox opens: close every Roblox window, then switch it on", "bad"],
