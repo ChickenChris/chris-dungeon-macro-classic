@@ -300,7 +300,7 @@ function renderBuild() {
   unitsLockState();
   const el = $("#steps");
   el.innerHTML = list.length ? list.map((st, i) => `
-    <div class="item drag ${isMoveStep(st) ? "" : "abil"}" data-i="${i}"><span class="grip">${icon("grip-vertical")}</span><span class="num">${isMoveStep(st) ? i + 1 : sideIcon(st)}</span><span class="txt">${esc(stepText(st))}${st.kind === "ability" ? '<small>fires at its wave, doesn\'t wait for the steps above</small>' : st.kind === "buff" ? '<small>from the slot\'s first copy down, doesn\'t wait for the steps above</small>' : ""}</span>
+    <div class="item drag ${isMoveStep(st) && st.kind !== "erwin" ? "" : "abil"}" data-i="${i}"><span class="grip">${icon("grip-vertical")}</span><span class="num">${st.kind === "erwin" ? icon("sparkles") : isMoveStep(st) ? i + 1 : sideIcon(st)}</span><span class="txt">${esc(stepText(st))}${st.kind === "ability" ? '<small>fires at its wave, doesn\'t wait for the steps above</small>' : st.kind === "buff" ? '<small>from the slot\'s first copy down, doesn\'t wait for the steps above</small>' : st.kind === "erwin" ? '<small>places the 4 Erwins in its turn, then keeps the 100% buff going all round</small>' : ""}</span>
       <span class="acts"><button class="del" data-a="del" aria-label="Remove">${icon("x")}</button></span>
     </div>`).join("")
     : '<div class="empty">No steps yet. Add the first one below, like "Place slot 1 ×2, upgrade each 2 times".</div>';
