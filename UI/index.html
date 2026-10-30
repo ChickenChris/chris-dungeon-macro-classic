@@ -145,17 +145,13 @@
         <label class="toggle" data-key="autoAbility"><span>Turn on auto-abilities<small>Slots with an ability below keep Auto off</small></span><i class="switch"></i></label>
       </div>
       <div class="pane" data-premium="Timed abilities">
-        <div class="lbl abil-h">Timed abilities<small>Uses a unit's ability when a wave starts instead of Auto (like Rukia's). These are the Ability steps of the build order: the same list on both pages, and they work with the build order on or off.</small></div>
+        <div class="lbl abil-h">Timed abilities<small>Uses a unit's ability when a wave starts instead of Auto (like Rukia's). These are the Ability steps of the build order: the same list on both pages, and they work with the build order on or off. Buff steps (added on the Build order page) show here too.</small></div>
         <div class="list" id="abilList" style="margin:8px 0"></div>
         <div class="builder abil-b">
           <span class="muted">Wave</span><input type="number" id="aWave" min="1" max="999" value="10" style="width:64px">
           <select id="aSlot"></select><select id="aCount"></select><select id="aEvery"></select>
           <button class="btn acc" id="aAdd"><svg class="i" data-icon="plus"></svg>Add</button>
         </div>
-      </div>
-      <div class="pane" data-premium="Buff rotation">
-        <div class="lbl abil-h">Buff rotation<small>For buff units like Windsong and Commander: presses one copy's ability every N seconds, in turn, so the buff never drops (30 s with 2 or more copies). The game's Auto stays off for that slot. Works with the build order on or off.</small></div>
-        <div class="buff-grid" id="buffGrid"></div>
       </div>
     </section>
 
@@ -189,7 +185,6 @@
           <button class="btn acc" id="bAdd"><svg class="i" data-icon="plus"></svg>Add step</button>
         </div>
       </div>
-      <p class="hint">Each step finishes before the next one starts, waiting for yen if it has to. “To max” means the unit’s real max. Units you don’t put in a step aren’t placed. <b>Ability</b> steps don’t wait their turn: they fire when their wave starts, even with the build order off.</p>
     </section>
 
     <!-- Spots -->

@@ -81,18 +81,24 @@ const legendBtn = (p) => p.evaluateHandle(() => [...document.querySelectorAll("#
       await legendBtn(p).then((h) => h.evaluate((x) => x.click())); await p.waitForTimeout(150);
     }
     await p.screenshot({ path: `${out}/legend_${tag}.png`, clip: { x: 0, y: 0, width: 1423, height: 300 } });
-    // Buff rotation: its own pane on the Units tab (usable with the build order on), Premium only
+    // Buff rotation: a Buff step in the build order (Premium): slot + seconds, in the code, listed on the Units tab too
     await p.evaluate(() => { window.__sent = []; });
-    check(tag + ": a Buff box for each of the 6 slots", await p.evaluate(() => $$("#buffGrid select").length === 6));
-    const buffOpts = await p.evaluate(() => [...(document.querySelector('#buffGrid select[data-i="4"]')?.options || [])].map((o) => o.textContent));
-    check(tag + ": Off, then 20 to 60 seconds", JSON.stringify(buffOpts) === JSON.stringify(["Off", "20 s", "25 s", "30 s", "35 s", "40 s", "45 s", "60 s"]), JSON.stringify(buffOpts));
-    check(tag + ": not inside the slot cards (greyed out with the build order on)", await p.evaluate(() => !document.querySelector("#slots #buffGrid")));
-    if (edition) check("classic: Buff rotation is locked", await p.evaluate(() => !!document.querySelector("#buffGrid")?.closest("[data-premium]")));
+    const kinds = await p.evaluate(() => $$("#bKind button").map((b) => b.textContent.trim()));
+    check(tag + ": the build order's step kinds include Buff", JSON.stringify(kinds) === JSON.stringify(["Place", "Upgrade", "Ability", "Buff"]), JSON.stringify(kinds));
+    await p.evaluate(() => $$("#bKind button")[3].click()); await p.waitForTimeout(100);
+    if (edition) check("classic: Buff steps are locked", await p.evaluate(() => $$("#bKind button")[3].classList.contains("on") === false));
     else {
-      await p.evaluate(() => { const s = document.querySelector('#buffGrid select[data-i="4"]'); s.value = "3"; s.dispatchEvent(new Event("change")); });
-      check("premium: picking 30 s for slot 5 saves it", (await p.evaluate(() => window.__sent)).some((m) => m.cmd === "slot" && m.i === 5 && m.prop === "buff" && m.value === 30), JSON.stringify(await p.evaluate(() => window.__sent)));
-      const limitSent = await p.evaluate(() => { const s = document.querySelector('.slot[data-i="4"] select[data-p="limit"]'); s.value = "2"; s.dispatchEvent(new Event("change")); return window.__sent.some((m) => m.prop === "limit" && m.value === 2); });
-      check("premium: the Until box still saves", limitSent);
+      const ui = await p.evaluate(() => ({ count: getComputedStyle($("#bCount")).display, up: [...$("#bUp").options].map((o) => o.textContent), sel: $("#bUp").value }));
+      check("premium: Buff: no count box, the seconds (30 s picked)", ui.count === "none" && ui.up.length === 7 && ui.up[2] === "one copy every 30 s, in turn" && ui.sel === "2", JSON.stringify(ui));
+      await p.evaluate(() => { $("#bSlot").value = "4"; $("#bAdd").click(); }); await p.waitForTimeout(100);
+      const sent = await p.evaluate(() => window.__sent.filter((m) => m.cmd === "build").pop());
+      const st = sent && sent.steps[sent.steps.length - 1];
+      check("premium: added as {kind: buff, slot 5, 30 s}", !!st && st.kind === "buff" && st.slot === 5 && st.secs === 30, JSON.stringify(st));
+      check("premium: the step reads 'Buff rotation: slot 5, one copy every 30 s'", await p.evaluate(() => $$("#steps .item .txt").some((t) => t.textContent.startsWith("Buff rotation: slot 5, one copy every 30 s"))));
+      check("premium: listed on the Units tab's Timed abilities too", await p.evaluate(() => $$("#abilList .item .txt").some((t) => t.textContent.startsWith("Buff rotation: slot 5"))));
+      check("premium: in the share code as B5s30, and read back", await p.evaluate(() => buildCode(S.cfg.build).includes("B5s30") && parseBuildCode("AA build: P1x2 B5s30").some((x) => x.kind === "buff" && x.slot === 5 && x.secs === 30)));
+      check("premium: the Until box still saves", await p.evaluate(() => { const s = document.querySelector('.slot[data-i="4"] select[data-p="limit"]'); s.value = "2"; s.dispatchEvent(new Event("change")); return window.__sent.some((m) => m.prop === "limit" && m.value === 2); }));
+      await p.evaluate(() => $$("#bKind button")[0].click());
     }
     // Activity colours: a problem is red even when it has a "good" word in it ("only works when ...")
     const cls = (m) => p.evaluate((m) => { window.ui.log("09:00:00", m); const l = document.querySelector("#log").lastElementChild; return l ? l.className : "?"; }, m);

@@ -166,18 +166,8 @@ function sortable(list, onMove) {
 }
 
 // ---------------------------------------------------------------- pages
-// Buff rotation (Premium): one copy's ability every N seconds, in turn (Windsong, Commander)
-const BUFF_SECS = [0, 20, 25, 30, 35, 40, 45, 60];
 function renderUnits() {
   const lim = ["Max", ...Array.from({ length: 9 }, (_, i) => "Level " + (i + 1))];
-  const buffs = BUFF_SECS.map((v) => v ? v + " s" : "Off");
-  // Buff rotation: its own pane (the slot cards are greyed out while the build order is on)
-  $("#buffGrid").innerHTML = S.cfg.slots.map((s, i) =>
-    `<label class="buff-cell"><span class="lbl">Slot ${i + 1}</span><select data-i="${i}">${options(buffs, Math.max(0, BUFF_SECS.indexOf(+s.buff || 0)))}</select></label>`).join("");
-  $$("#buffGrid select").forEach((sel) => sel.onchange = () => {
-    const i = +sel.dataset.i, v = BUFF_SECS[+sel.value] || 0;
-    S.cfg.slots[i].buff = v; send("slot", { i: i + 1, prop: "buff", value: v });
-  });
   $("#slots").innerHTML = S.cfg.slots.map((s, i) => `
     <div class="pane slot ${s.on ? "" : "off"}" data-i="${i}">
       <div class="slot-top"><kbd>${i + 1}</kbd><b>Slot ${i + 1}</b><i class="switch ${s.on ? "on" : ""}" data-p="on"></i></div>
@@ -258,12 +248,15 @@ function renderTeams() {
 // Ability steps (Premium): {kind: "ability", slot, units (0 = all), wave, every (0 = once)}
 const EVERY = [0, 1, 2, 3, 4, 5, 6, 8, 10, 15, 20, -1];     // -1: switch the ability to Auto at that wave
 const everyName = (n) => n < 0 ? "turn on Auto" : n ? "again every " + n + (n == 1 ? " wave" : " waves") : "once";
-const isMoveStep = (st) => st.kind !== "ability";
+// Buff steps (Premium): {kind: "buff", slot, secs}: one copy's ability every secs seconds, in turn
+const BUFF_SECS = [20, 25, 30, 35, 40, 45, 60];
+const isMoveStep = (st) => st.kind !== "ability" && st.kind !== "buff";
+const sideIcon = (st) => icon(st.kind === "buff" ? "sparkles" : "zap");
 // the Units page's Timed abilities box: the build order's Ability steps, edited from there too
 function renderAbil() {
   const el = $("#abilList"); if (!el) return;
-  const list = S.cfg.build, idx = list.map((st, i) => st.kind === "ability" ? i : -1).filter((i) => i >= 0);
-  el.innerHTML = idx.length ? idx.map((i) => `<div class="item abil" data-i="${i}"><span class="num">${icon("zap")}</span><span class="txt">${esc(stepText(list[i]))}</span>
+  const list = S.cfg.build, idx = list.map((st, i) => isMoveStep(st) ? -1 : i).filter((i) => i >= 0);
+  el.innerHTML = idx.length ? idx.map((i) => `<div class="item abil" data-i="${i}"><span class="num">${sideIcon(list[i])}</span><span class="txt">${esc(stepText(list[i]))}</span>
       <span class="acts"><button class="del" data-a="del" aria-label="Remove">${icon("x")}</button></span></div>`).join("")
     : '<div class="empty">No timed abilities yet. Add one below, like "Wave 13: slot 3\'s ability, 1 unit".</div>';
   el.onclick = (e) => {
@@ -285,6 +278,7 @@ function renderAbil() {
 }
 
 function stepText(st) {
+  if (st.kind === "buff") return `Buff rotation: slot ${st.slot}, one copy every ${st.secs} s`;
   if (st.kind === "ability")
     return `Wave ${st.wave}: slot ${st.slot}'s ability, ${+st.units ? st.units + (st.units == 1 ? " unit" : " units") : "all units"}`
       + (+st.every < 0 ? ", switched to Auto from then" : +st.every ? `, again every ${st.every} wave${st.every == 1 ? "" : "s"}` : ", once");
@@ -301,7 +295,7 @@ function renderBuild() {
   unitsLockState();
   const el = $("#steps");
   el.innerHTML = list.length ? list.map((st, i) => `
-    <div class="item drag ${st.kind === "ability" ? "abil" : ""}" data-i="${i}"><span class="grip">${icon("grip-vertical")}</span><span class="num">${st.kind === "ability" ? icon("zap") : i + 1}</span><span class="txt">${esc(stepText(st))}${st.kind === "ability" ? '<small>fires at its wave, doesn\'t wait for the steps above</small>' : ""}</span>
+    <div class="item drag ${isMoveStep(st) ? "" : "abil"}" data-i="${i}"><span class="grip">${icon("grip-vertical")}</span><span class="num">${isMoveStep(st) ? i + 1 : sideIcon(st)}</span><span class="txt">${esc(stepText(st))}${st.kind === "ability" ? '<small>fires at its wave, doesn\'t wait for the steps above</small>' : st.kind === "buff" ? '<small>from the slot\'s first copy down, doesn\'t wait for the steps above</small>' : ""}</span>
       <span class="acts"><button class="del" data-a="del" aria-label="Remove">${icon("x")}</button></span>
     </div>`).join("")
     : '<div class="empty">No steps yet. Add the first one below, like "Place slot 1 ×2, upgrade each 2 times".</div>';
@@ -318,8 +312,8 @@ function renderBuild() {
 
 let bKind = 0;
 function initBuilder() {
-  seg($("#bKind"), ["Place", "Upgrade", "Ability"], 0, (i) => {
-    if (i === 2 && isClassic()) { toast("Ability steps are a Premium feature. Premium is in the Chris Macros Discord", "bad"); $$("#bKind button").forEach((b, j) => b.classList.toggle("on", j === bKind)); return; }
+  seg($("#bKind"), ["Place", "Upgrade", "Ability", "Buff"], 0, (i) => {
+    if (i >= 2 && isClassic()) { toast((i === 3 ? "Buff" : "Ability") + " steps are a Premium feature. Premium is in the Chris Macros Discord", "bad"); $$("#bKind button").forEach((b, j) => b.classList.toggle("on", j === bKind)); return; }
     bKind = i; builderState();
   });
   $("#bSlot").innerHTML = options([1, 2, 3, 4, 5, 6].map((n) => "Slot " + n), 0);
@@ -332,6 +326,10 @@ function initBuilder() {
     const el = $("#steps"); el.scrollTop = el.scrollHeight;
   };
   $("#bAdd").onclick = () => {
+    if (bKind === 3) {                      // Buff: one copy every N seconds, from its first copy down
+      add({ kind: "buff", slot: +$("#bSlot").value + 1, count: 1, up: 0, secs: BUFF_SECS[+$("#bUp").value] || 30 });
+      return;
+    }
     if (bKind === 2) {                      // Ability: fires at its wave, not in the line
       const w = Math.max(1, Math.min(999, Math.round(+$("#bWave").value || 0)));
       if (!$("#bWave").value) return toast("Pick the wave", "bad");
@@ -361,8 +359,11 @@ function builderState() {
   // Place: how many to place (×N). Upgrade: how many of that slot's units (all, or the first N placed)
   $("#bX").style.display = bKind ? "none" : "";
   $$(".abil-only").forEach((e) => e.style.display = bKind === 2 ? "" : "none");
+  $("#bCount").style.display = bKind === 3 ? "none" : "";       // Buff: the slot and the seconds only
   const max = S.maxCount || 6;
-  $("#bUp").innerHTML = bKind === 2 ? options(EVERY.map(everyName), 0) : options(S.upNames, 0);
+  $("#bUp").innerHTML = bKind === 3 ? options(BUFF_SECS.map((v) => "one copy every " + v + " s, in turn"), BUFF_SECS.indexOf(30))
+    : bKind === 2 ? options(EVERY.map(everyName), 0) : options(S.upNames, 0);
+  $("#bUp").title = bKind === 3 ? "Windsong, Commander: 30 s with 2 or more copies keeps the buff up. The game's Auto stays off for this slot" : "";
   $("#bCount").innerHTML = bKind
     ? options(["all units", ...Array.from({ length: max }, (_, i) => (i + 1) + (i ? " units" : " unit"))], 0)
     : options(Array.from({ length: max }, (_, i) => String(i + 1)), 0);
@@ -681,7 +682,7 @@ function renderAll() {
 // "AA build: P1x2u2 P6x1umax U5u2"  =  place slot 1 x2 upgrade each 2 times, place slot 6 x1 to max, upgrade slot 5 twice
 function buildCode(list) {
   const up = (n) => (n < 0 ? "max" : n);
-  return "AA build: " + list.map((st) => st.kind === "ability"
+  return "AA build: " + list.map((st) => st.kind === "buff" ? `B${st.slot}s${st.secs}` : st.kind === "ability"
     ? `A${st.slot}w${st.wave}` + (+st.units ? "n" + st.units : "") + (+st.every < 0 ? "a" : +st.every ? "e" + st.every : "")
     : st.kind === "place"
     ? `P${st.slot}x${st.count}` + (st.up ? "u" + up(st.up) : "")
@@ -692,6 +693,7 @@ function parseBuildCode(text) {
   const mv = /^([PU])([1-6])(?:x(\d{1,2}))?(?:n(\d{1,2}))?(?:u(max|\d{1,2}))?$/i, ab = /^A([1-6])w(\d{1,3})(?:n(\d{1,2}))?(?:e(\d{1,2})|(a))?$/i;
   for (const tok of String(text).split(/[\s,]+/)) {
     let m;
+    if ((m = /^B([1-6])s(\d{2,3})$/i.exec(tok))) { out.push({ kind: "buff", slot: +m[1], count: 1, up: 0, secs: Math.max(10, Math.min(120, +m[2])) }); continue; }
     if ((m = ab.exec(tok))) { out.push({ kind: "ability", slot: +m[1], count: 1, up: 0, wave: Math.max(1, +m[2]), units: Math.min(20, +m[3] || 0), every: m[5] ? -1 : Math.min(50, +m[4] || 0) }); continue; }
     if (!(m = mv.exec(tok))) continue;
     const kind = m[1].toUpperCase() === "P" ? "place" : "upgrade";
