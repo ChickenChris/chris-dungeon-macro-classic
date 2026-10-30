@@ -248,8 +248,10 @@ function renderTeams() {
 // Ability steps (Premium): {kind: "ability", slot, units (0 = all), wave, every (0 = once)}
 const EVERY = [0, 1, 2, 3, 4, 5, 6, 8, 10, 15, 20, -1];     // -1: switch the ability to Auto at that wave
 const everyName = (n) => n < 0 ? "turn on Auto" : n ? "again every " + n + (n == 1 ? " wave" : " waves") : "once";
-// Buff steps (Premium): {kind: "buff", slot, secs}: one copy's ability every secs seconds, in turn
-const BUFF_SECS = [20, 25, 30, 35, 40, 45, 60];
+// Buff steps (Premium): {kind: "buff", slot, secs, pairs}: one copy's ability every secs seconds, in
+// turn; pairs (the Erwin method): 2 copies 4 s apart, the next pair when the buff (secs) runs out
+const BUFF_OPTS = [[30, 1], [25, 1], [20, 1], [20, 0], [25, 0], [30, 0], [35, 0], [40, 0], [45, 0], [60, 0]];
+const buffName = (o) => o[1] ? `Erwin method: 4 copies in pairs, 4 s apart (buff ${o[0]} s)` : `one copy every ${o[0]} s, in turn`;
 const isMoveStep = (st) => st.kind !== "ability" && st.kind !== "buff";
 const sideIcon = (st) => icon(st.kind === "buff" ? "sparkles" : "zap");
 // the Units page's Timed abilities box: the build order's Ability steps, edited from there too
@@ -278,7 +280,7 @@ function renderAbil() {
 }
 
 function stepText(st) {
-  if (st.kind === "buff") return `Buff rotation: slot ${st.slot}, one copy every ${st.secs} s`;
+  if (st.kind === "buff") return `Buff rotation: slot ${st.slot}, ` + (+st.pairs ? `Erwin pairs (4 s apart, buff ${st.secs} s)` : `one copy every ${st.secs} s`);
   if (st.kind === "ability")
     return `Wave ${st.wave}: slot ${st.slot}'s ability, ${+st.units ? st.units + (st.units == 1 ? " unit" : " units") : "all units"}`
       + (+st.every < 0 ? ", switched to Auto from then" : +st.every ? `, again every ${st.every} wave${st.every == 1 ? "" : "s"}` : ", once");
@@ -327,7 +329,8 @@ function initBuilder() {
   };
   $("#bAdd").onclick = () => {
     if (bKind === 3) {                      // Buff: one copy every N seconds, from its first copy down
-      add({ kind: "buff", slot: +$("#bSlot").value + 1, count: 1, up: 0, secs: BUFF_SECS[+$("#bUp").value] || 30 });
+      const o = BUFF_OPTS[+$("#bUp").value] || BUFF_OPTS[0];
+      add({ kind: "buff", slot: +$("#bSlot").value + 1, count: 1, up: 0, secs: o[0], pairs: o[1] });
       return;
     }
     if (bKind === 2) {                      // Ability: fires at its wave, not in the line
@@ -361,9 +364,9 @@ function builderState() {
   $$(".abil-only").forEach((e) => e.style.display = bKind === 2 ? "" : "none");
   $("#bCount").style.display = bKind === 3 ? "none" : "";       // Buff: the slot and the seconds only
   const max = S.maxCount || 6;
-  $("#bUp").innerHTML = bKind === 3 ? options(BUFF_SECS.map((v) => "one copy every " + v + " s, in turn"), BUFF_SECS.indexOf(30))
+  $("#bUp").innerHTML = bKind === 3 ? options(BUFF_OPTS.map(buffName), 0)
     : bKind === 2 ? options(EVERY.map(everyName), 0) : options(S.upNames, 0);
-  $("#bUp").title = bKind === 3 ? "Windsong, Commander: 30 s with 2 or more copies keeps the buff up. The game's Auto stays off for this slot" : "";
+  $("#bUp").title = bKind === 3 ? "Erwin method (Commander): place 4, all in each other's range: 1st, 2nd 4 s later, 3rd when the 1st buff runs out, 4th 4 s after: the 100% buff. Or one copy every N seconds (Windsong). The game's Auto stays off for this slot" : "";
   $("#bCount").innerHTML = bKind
     ? options(["all units", ...Array.from({ length: max }, (_, i) => (i + 1) + (i ? " units" : " unit"))], 0)
     : options(Array.from({ length: max }, (_, i) => String(i + 1)), 0);
@@ -682,7 +685,7 @@ function renderAll() {
 // "AA build: P1x2u2 P6x1umax U5u2"  =  place slot 1 x2 upgrade each 2 times, place slot 6 x1 to max, upgrade slot 5 twice
 function buildCode(list) {
   const up = (n) => (n < 0 ? "max" : n);
-  return "AA build: " + list.map((st) => st.kind === "buff" ? `B${st.slot}s${st.secs}` : st.kind === "ability"
+  return "AA build: " + list.map((st) => st.kind === "buff" ? `B${st.slot}s${st.secs}` + (+st.pairs ? "p" : "") : st.kind === "ability"
     ? `A${st.slot}w${st.wave}` + (+st.units ? "n" + st.units : "") + (+st.every < 0 ? "a" : +st.every ? "e" + st.every : "")
     : st.kind === "place"
     ? `P${st.slot}x${st.count}` + (st.up ? "u" + up(st.up) : "")
@@ -693,7 +696,7 @@ function parseBuildCode(text) {
   const mv = /^([PU])([1-6])(?:x(\d{1,2}))?(?:n(\d{1,2}))?(?:u(max|\d{1,2}))?$/i, ab = /^A([1-6])w(\d{1,3})(?:n(\d{1,2}))?(?:e(\d{1,2})|(a))?$/i;
   for (const tok of String(text).split(/[\s,]+/)) {
     let m;
-    if ((m = /^B([1-6])s(\d{2,3})$/i.exec(tok))) { out.push({ kind: "buff", slot: +m[1], count: 1, up: 0, secs: Math.max(10, Math.min(120, +m[2])) }); continue; }
+    if ((m = /^B([1-6])s(\d{2,3})(p?)$/i.exec(tok))) { out.push({ kind: "buff", slot: +m[1], count: 1, up: 0, secs: Math.max(10, Math.min(120, +m[2])), pairs: m[3] ? 1 : 0 }); continue; }
     if ((m = ab.exec(tok))) { out.push({ kind: "ability", slot: +m[1], count: 1, up: 0, wave: Math.max(1, +m[2]), units: Math.min(20, +m[3] || 0), every: m[5] ? -1 : Math.min(50, +m[4] || 0) }); continue; }
     if (!(m = mv.exec(tok))) continue;
     const kind = m[1].toUpperCase() === "P" ? "place" : "upgrade";
