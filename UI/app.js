@@ -255,6 +255,7 @@ const everyName = (n) => n < 0 ? "turn on Auto" : n ? "again every " + n + (n ==
 const BUFF_OPTS = [[20, 0], [25, 0], [30, 0], [35, 0], [40, 0], [45, 0], [60, 0]];     // (the Erwin method has its own step kind)
 const buffName = (o) => o[1] ? `Erwin method: 4 copies in pairs, 4 s apart (buff ${o[0]} s)` : `one copy every ${o[0]} s, in turn`;
 const isMoveStep = (st) => st.kind !== "ability" && st.kind !== "buff";
+const isPair = (st) => st.kind === "erwin" || st.kind === "wenda";       // Erwin / Wenda buff: 4 copies, the video's order
 const sideIcon = (st) => icon(st.kind === "buff" ? "sparkles" : "zap");
 // the Units page's Timed abilities box: the build order's Ability steps, edited from there too
 function renderAbil() {
@@ -282,7 +283,7 @@ function renderAbil() {
 }
 
 function stepText(st) {
-  if (st.kind === "erwin") return `Erwin buff: slot ${st.slot}, 4 copies as in the video` + (st.up ? `, upgrade each ${st.up < 0 ? "to max" : st.up + (st.up == 1 ? " time" : " times")}` : "");
+  if (isPair(st)) return `${st.kind === "wenda" ? "Wenda" : "Erwin"} buff: slot ${st.slot}, 4 copies as in the video` + (st.up ? `, upgrade each ${st.up < 0 ? "to max" : st.up + (st.up == 1 ? " time" : " times")}` : "");
   if (st.kind === "buff") return `Buff rotation: slot ${st.slot}, ` + (+st.pairs ? `Erwin pairs (4 s apart, buff ${st.secs} s)` : `one copy every ${st.secs} s`);
   if (st.kind === "ability")
     return `Wave ${st.wave}: slot ${st.slot}'s ability, ${+st.units ? st.units + (st.units == 1 ? " unit" : " units") : "all units"}`
@@ -300,7 +301,7 @@ function renderBuild() {
   unitsLockState();
   const el = $("#steps");
   el.innerHTML = list.length ? list.map((st, i) => `
-    <div class="item drag ${isMoveStep(st) && st.kind !== "erwin" ? "" : "abil"}" data-i="${i}"><span class="grip">${icon("grip-vertical")}</span><span class="num">${st.kind === "erwin" ? icon("sparkles") : isMoveStep(st) ? i + 1 : sideIcon(st)}</span><span class="txt">${esc(stepText(st))}${st.kind === "ability" ? '<small>fires at its wave, doesn\'t wait for the steps above</small>' : st.kind === "buff" ? '<small>from the slot\'s first copy down, doesn\'t wait for the steps above</small>' : st.kind === "erwin" ? '<small>places the 4 Erwins in its turn, then keeps the 100% buff going all round</small>' : ""}</span>
+    <div class="item drag ${isMoveStep(st) && !isPair(st) ? "" : "abil"}" data-i="${i}"><span class="grip">${icon("grip-vertical")}</span><span class="num">${isPair(st) ? icon("sparkles") : isMoveStep(st) ? i + 1 : sideIcon(st)}</span><span class="txt">${esc(stepText(st))}${st.kind === "ability" ? '<small>fires at its wave, doesn\'t wait for the steps above</small>' : st.kind === "buff" ? '<small>from the slot\'s first copy down, doesn\'t wait for the steps above</small>' : isPair(st) ? `<small>places the 4 ${st.kind === "wenda" ? "Wendas" : "Erwins"} in its turn, then keeps the 100% buff going all round</small>` : ""}</span>
       <span class="acts"><button class="del" data-a="del" aria-label="Remove">${icon("x")}</button></span>
     </div>`).join("")
     : '<div class="empty">No steps yet. Add the first one below, like "Place slot 1 ×2, upgrade each 2 times".</div>';
@@ -318,8 +319,8 @@ function renderBuild() {
 let bKind = 0;
 function initBuilder() {
   // (a plain Buff step, one copy every N s, is still read from settings and codes; it's not offered for now)
-  seg($("#bKind"), ["Place", "Upgrade", "Ability", "Erwin buff"], 0, (i) => {
-    if (i >= 2 && isClassic()) { toast((i === 3 ? "Erwin buff" : "Ability") + " steps are a Premium feature. Premium is in the Chris Macros Discord", "bad"); $$("#bKind button").forEach((b, j) => b.classList.toggle("on", j === bKind)); return; }
+  seg($("#bKind"), ["Place", "Upgrade", "Ability", "Erwin buff", "Wenda buff"], 0, (i) => {
+    if (i >= 2 && isClassic()) { toast((i === 4 ? "Wenda buff" : i === 3 ? "Erwin buff" : "Ability") + " steps are a Premium feature. Premium is in the Chris Macros Discord", "bad"); $$("#bKind button").forEach((b, j) => b.classList.toggle("on", j === bKind)); return; }
     bKind = i; builderState();
   });
   $("#bSlot").innerHTML = options([1, 2, 3, 4, 5, 6].map((n) => "Slot " + n), 0);
@@ -332,8 +333,8 @@ function initBuilder() {
     const el = $("#steps"); el.scrollTop = el.scrollHeight;
   };
   $("#bAdd").onclick = () => {
-    if (bKind === 3) {                      // Erwin buff: places 4 copies in the video's order and keeps the buff up
-      add({ kind: "erwin", slot: +$("#bSlot").value + 1, count: 4, up: S.upValues[+$("#bUp").value] || 0, secs: 30 });
+    if (bKind >= 3) {                       // Erwin / Wenda buff: places 4 copies in the video's order and keeps the buff up
+      add({ kind: bKind === 4 ? "wenda" : "erwin", slot: +$("#bSlot").value + 1, count: 4, up: S.upValues[+$("#bUp").value] || 0, secs: 30 });
       return;
     }
     if (bKind === 2) {                      // Ability: fires at its wave, not in the line
@@ -365,11 +366,12 @@ function builderState() {
   // Place: how many to place (×N). Upgrade: how many of that slot's units (all, or the first N placed)
   $("#bX").style.display = bKind ? "none" : "";
   $$(".abil-only").forEach((e) => e.style.display = bKind === 2 ? "" : "none");
-  $("#bCount").style.display = bKind === 3 ? "none" : "";      // Erwin buff: no count box
+  $("#bCount").style.display = bKind >= 3 ? "none" : "";       // Erwin / Wenda buff: no count box
   const max = S.maxCount || 6;
-  $("#bUp").innerHTML = bKind === 3 ? options(S.upNames, Math.max(0, S.upValues.indexOf(-1)))
+  $("#bUp").innerHTML = bKind >= 3 ? options(S.upNames, Math.max(0, S.upValues.indexOf(-1)))
     : bKind === 2 ? options(EVERY.map(everyName), 0) : options(S.upNames, 0);
-  $("#bUp").title = bKind === 3 ? "Erwin buff (Commander), as in the video: places 2, switches the 1st one's Auto on, places the 3rd, the 2nd's Auto 4 s after the 1st, places the 4th; then the 3rd's Auto when the 1st buff runs out (30 s), the 4th's 4 s later. From then the game's Auto keeps the 100% buff going. Put all 4 in each other's range (Spots). Each one gets upgraded like this" : "";
+  $("#bUp").title = bKind === 4 ? "Wenda buff: the same as Erwin's (players' guides): places 2, switches the 1st one's Auto on, places the 3rd, the 2nd's Auto 4 s after the 1st, places the 4th; then the 3rd's Auto when the 1st buff runs out (30 s), the 4th's 4 s later. From then the game's Auto keeps the 100% buff going. Put all 4 in each other's range (Spots). Each one gets upgraded like this"
+    : bKind === 3 ? "Erwin buff (Commander), as in the video: places 2, switches the 1st one's Auto on, places the 3rd, the 2nd's Auto 4 s after the 1st, places the 4th; then the 3rd's Auto when the 1st buff runs out (30 s), the 4th's 4 s later. From then the game's Auto keeps the 100% buff going. Put all 4 in each other's range (Spots). Each one gets upgraded like this" : "";
   $("#bCount").innerHTML = bKind
     ? options(["all units", ...Array.from({ length: max }, (_, i) => (i + 1) + (i ? " units" : " unit"))], 0)
     : options(Array.from({ length: max }, (_, i) => String(i + 1)), 0);
@@ -688,7 +690,7 @@ function renderAll() {
 // "AA build: P1x2u2 P6x1umax U5u2"  =  place slot 1 x2 upgrade each 2 times, place slot 6 x1 to max, upgrade slot 5 twice
 function buildCode(list) {
   const up = (n) => (n < 0 ? "max" : n);
-  return "AA build: " + list.map((st) => st.kind === "buff" ? `B${st.slot}s${st.secs}` + (+st.pairs ? "p" : "") : st.kind === "erwin" ? `E${st.slot}` + (st.up ? "u" + (st.up < 0 ? "max" : st.up) : "") : st.kind === "ability"
+  return "AA build: " + list.map((st) => st.kind === "buff" ? `B${st.slot}s${st.secs}` + (+st.pairs ? "p" : "") : isPair(st) ? `${st.kind === "wenda" ? "W" : "E"}${st.slot}` + (st.up ? "u" + (st.up < 0 ? "max" : st.up) : "") : st.kind === "ability"
     ? `A${st.slot}w${st.wave}` + (+st.units ? "n" + st.units : "") + (+st.every < 0 ? "a" : +st.every ? "e" + st.every : "")
     : st.kind === "place"
     ? `P${st.slot}x${st.count}` + (st.up ? "u" + up(st.up) : "")
@@ -699,7 +701,7 @@ function parseBuildCode(text) {
   const mv = /^([PU])([1-6])(?:x(\d{1,2}))?(?:n(\d{1,2}))?(?:u(max|\d{1,2}))?$/i, ab = /^A([1-6])w(\d{1,3})(?:n(\d{1,2}))?(?:e(\d{1,2})|(a))?$/i;
   for (const tok of String(text).split(/[\s,]+/)) {
     let m;
-    if ((m = /^E([1-6])(?:u(max|\d{1,2}))?$/i.exec(tok))) { out.push({ kind: "erwin", slot: +m[1], count: 4, up: m[2] ? (m[2].toLowerCase() === "max" ? -1 : Math.min(10, +m[2])) : 0, secs: 30 }); continue; }
+    if ((m = /^([EW])([1-6])(?:u(max|\d{1,2}))?$/i.exec(tok))) { out.push({ kind: m[1].toUpperCase() === "W" ? "wenda" : "erwin", slot: +m[2], count: 4, up: m[3] ? (m[3].toLowerCase() === "max" ? -1 : Math.min(10, +m[3])) : 0, secs: 30 }); continue; }
     if ((m = /^B([1-6])s(\d{2,3})(p?)$/i.exec(tok))) { out.push({ kind: "buff", slot: +m[1], count: 1, up: 0, secs: Math.max(10, Math.min(120, +m[2])), pairs: m[3] ? 1 : 0 }); continue; }
     if ((m = ab.exec(tok))) { out.push({ kind: "ability", slot: +m[1], count: 1, up: 0, wave: Math.max(1, +m[2]), units: Math.min(20, +m[3] || 0), every: m[5] ? -1 : Math.min(50, +m[4] || 0) }); continue; }
     if (!(m = mv.exec(tok))) continue;

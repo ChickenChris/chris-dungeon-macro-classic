@@ -84,7 +84,7 @@ const legendBtn = (p) => p.evaluateHandle(() => [...document.querySelectorAll("#
     // the Erwin buff step in the build order (Premium): slot + upgrades, in the share code, a step in the line
     await p.evaluate(() => { window.__sent = []; });
     const kinds = await p.evaluate(() => $$("#bKind button").map((b) => b.textContent.trim()));
-    check(tag + ": the build order's step kinds: Place, Upgrade, Ability, Erwin buff (no plain Buff for now)", JSON.stringify(kinds) === JSON.stringify(["Place", "Upgrade", "Ability", "Erwin buff"]), JSON.stringify(kinds));
+    check(tag + ": the build order's step kinds: Place, Upgrade, Ability, Erwin buff, Wenda buff", JSON.stringify(kinds) === JSON.stringify(["Place", "Upgrade", "Ability", "Erwin buff", "Wenda buff"]), JSON.stringify(kinds));
     await p.evaluate(() => $$("#bKind button")[3].click()); await p.waitForTimeout(100);
     if (edition) check("classic: Erwin buff steps are locked", await p.evaluate(() => $$("#bKind button")[3].classList.contains("on") === false));
     else {
@@ -95,6 +95,11 @@ const legendBtn = (p) => p.evaluateHandle(() => [...document.querySelectorAll("#
       check("premium: added as {kind: erwin, slot 2, 4 copies, to max}", !!es && es.kind === "erwin" && es.slot === 2 && es.count === 4 && es.up === -1, JSON.stringify(es));
       check("premium: the step reads 'Erwin buff: slot 2, 4 copies as in the video, upgrade each to max', golden with its sparkle", await p.evaluate(() => $$("#steps .item").some((it) => /^Erwin buff: slot 2, 4 copies as in the video, upgrade each to max/.test($(".txt", it).textContent) && it.classList.contains("abil") && !!$(".num svg", it))));
       check("premium: in the share code as E2umax, and read back", await p.evaluate(() => buildCode(S.cfg.build).includes("E2umax") && parseBuildCode("E2umax E3u2").some((x) => x.kind === "erwin" && x.slot === 2 && x.up === -1) && parseBuildCode("E3u2")[0].up === 2));
+      await p.evaluate(() => { window.__sent = []; $$("#bKind button")[4].click(); $("#bSlot").value = "2"; $("#bAdd").click(); }); await p.waitForTimeout(100);
+      const ws = await p.evaluate(() => { const m = window.__sent.filter((m) => m.cmd === "build").pop(); return m && m.steps[m.steps.length - 1]; });
+      check("premium: Wenda buff added as {kind: wenda, slot 3, 4 copies, to max}", !!ws && ws.kind === "wenda" && ws.slot === 3 && ws.count === 4 && ws.up === -1, JSON.stringify(ws));
+      check("premium: it reads 'Wenda buff: slot 3, ...', golden, 'places the 4 Wendas'", await p.evaluate(() => $$("#steps .item").some((it) => /^Wenda buff: slot 3, 4 copies as in the video/.test($(".txt", it).textContent) && /4 Wendas/.test($(".txt", it).textContent) && it.classList.contains("abil"))));
+      check("premium: Wenda in the share code as W3umax, and read back", await p.evaluate(() => buildCode(S.cfg.build).includes("W3umax") && parseBuildCode("W3umax")[0].kind === "wenda" && parseBuildCode("W3umax")[0].slot === 3 && parseBuildCode("E2u2")[0].kind === "erwin" && parseBuildCode("E2u2")[0].up === 2));
       check("premium: an older Buff step still reads and shows", await p.evaluate(() => parseBuildCode("B5s30")[0].kind === "buff" && stepText({ kind: "buff", slot: 5, secs: 30 }) === "Buff rotation: slot 5, one copy every 30 s"));
       check("premium: the Until box still saves", await p.evaluate(() => { const s = document.querySelector('.slot[data-i="4"] select[data-p="limit"]'); s.value = "2"; s.dispatchEvent(new Event("change")); return window.__sent.some((m) => m.prop === "limit" && m.value === 2); }));
       await p.evaluate(() => $$("#bKind button")[0].click());
