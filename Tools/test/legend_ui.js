@@ -81,31 +81,21 @@ const legendBtn = (p) => p.evaluateHandle(() => [...document.querySelectorAll("#
       await legendBtn(p).then((h) => h.evaluate((x) => x.click())); await p.waitForTimeout(150);
     }
     await p.screenshot({ path: `${out}/legend_${tag}.png`, clip: { x: 0, y: 0, width: 1423, height: 300 } });
-    // Buff rotation: a Buff step in the build order (Premium): slot + seconds, in the code, listed on the Units tab too
+    // the Erwin buff step in the build order (Premium): slot + upgrades, in the share code, a step in the line
     await p.evaluate(() => { window.__sent = []; });
     const kinds = await p.evaluate(() => $$("#bKind button").map((b) => b.textContent.trim()));
-    check(tag + ": the build order's step kinds include Buff and Erwin buff", JSON.stringify(kinds) === JSON.stringify(["Place", "Upgrade", "Ability", "Buff", "Erwin buff"]), JSON.stringify(kinds));
+    check(tag + ": the build order's step kinds: Place, Upgrade, Ability, Erwin buff (no plain Buff for now)", JSON.stringify(kinds) === JSON.stringify(["Place", "Upgrade", "Ability", "Erwin buff"]), JSON.stringify(kinds));
     await p.evaluate(() => $$("#bKind button")[3].click()); await p.waitForTimeout(100);
-    if (edition) check("classic: Buff steps are locked", await p.evaluate(() => $$("#bKind button")[3].classList.contains("on") === false));
+    if (edition) check("classic: Erwin buff steps are locked", await p.evaluate(() => $$("#bKind button")[3].classList.contains("on") === false));
     else {
-      const ui = await p.evaluate(() => ({ count: getComputedStyle($("#bCount")).display, up: [...$("#bUp").options].map((o) => o.textContent), sel: $("#bUp").value }));
-      check("premium: Buff: no count box, one copy every N s (30 s picked)", ui.count === "none" && ui.up.length === 7 && ui.up[2] === "one copy every 30 s, in turn" && ui.sel === "2", JSON.stringify(ui));
-      await p.evaluate(() => { $("#bSlot").value = "4"; $("#bAdd").click(); }); await p.waitForTimeout(100);
-      const sent = await p.evaluate(() => window.__sent.filter((m) => m.cmd === "build").pop());
-      const st = sent && sent.steps[sent.steps.length - 1];
-      check("premium: added as {kind: buff, slot 5, 30 s}", !!st && st.kind === "buff" && st.slot === 5 && st.secs === 30 && !st.pairs, JSON.stringify(st));
-      check("premium: the step reads 'Buff rotation: slot 5, one copy every 30 s'", await p.evaluate(() => $$("#steps .item .txt").some((t) => t.textContent.startsWith("Buff rotation: slot 5, one copy every 30 s"))));
-      // the Erwin buff step: slot + upgrades (to max picked), a step in the line
-      await p.evaluate(() => { window.__sent = []; $$("#bKind button")[4].click(); });
       const eu = await p.evaluate(() => ({ count: getComputedStyle($("#bCount")).display, up: $("#bUp").selectedOptions[0].textContent }));
       check("premium: Erwin buff: the slot and the upgrades (to max picked), no count box", eu.count === "none" && /max/i.test(eu.up), JSON.stringify(eu));
       await p.evaluate(() => { $("#bSlot").value = "1"; $("#bAdd").click(); }); await p.waitForTimeout(100);
       const es = await p.evaluate(() => { const m = window.__sent.filter((m) => m.cmd === "build").pop(); return m && m.steps[m.steps.length - 1]; });
       check("premium: added as {kind: erwin, slot 2, 4 copies, to max}", !!es && es.kind === "erwin" && es.slot === 2 && es.count === 4 && es.up === -1, JSON.stringify(es));
       check("premium: the step reads 'Erwin buff: slot 2, 4 copies as in the video, upgrade each to max', numbered", await p.evaluate(() => $$("#steps .item").some((it) => /^Erwin buff: slot 2, 4 copies as in the video, upgrade each to max/.test($(".txt", it).textContent) && /^\d+$/.test($(".num", it).textContent.trim()))));
-      check("premium: the Erwin step in the share code as E2umax, and read back", await p.evaluate(() => buildCode(S.cfg.build).includes("E2umax") && parseBuildCode("E2umax E3u2").some((x) => x.kind === "erwin" && x.slot === 2 && x.up === -1) && parseBuildCode("E3u2")[0].up === 2));
-      check("premium: listed on the Units tab's Timed abilities too", await p.evaluate(() => $$("#abilList .item .txt").some((t) => t.textContent.startsWith("Buff rotation: slot 5"))));
-      check("premium: in the share code as B5s30, and read back (older B5s30p too)", await p.evaluate(() => buildCode(S.cfg.build).includes("B5s30") && parseBuildCode("AA build: P1x2 B5s30p B4s25").some((x) => x.kind === "buff" && x.slot === 5 && x.secs === 30 && x.pairs === 1) && parseBuildCode("B4s25").some((x) => x.slot === 4 && x.secs === 25 && !x.pairs)));
+      check("premium: in the share code as E2umax, and read back", await p.evaluate(() => buildCode(S.cfg.build).includes("E2umax") && parseBuildCode("E2umax E3u2").some((x) => x.kind === "erwin" && x.slot === 2 && x.up === -1) && parseBuildCode("E3u2")[0].up === 2));
+      check("premium: an older Buff step still reads and shows", await p.evaluate(() => parseBuildCode("B5s30")[0].kind === "buff" && stepText({ kind: "buff", slot: 5, secs: 30 }) === "Buff rotation: slot 5, one copy every 30 s"));
       check("premium: the Until box still saves", await p.evaluate(() => { const s = document.querySelector('.slot[data-i="4"] select[data-p="limit"]'); s.value = "2"; s.dispatchEvent(new Event("change")); return window.__sent.some((m) => m.prop === "limit" && m.value === 2); }));
       await p.evaluate(() => $$("#bKind button")[0].click());
     }

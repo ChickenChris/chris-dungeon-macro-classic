@@ -317,8 +317,9 @@ function renderBuild() {
 
 let bKind = 0;
 function initBuilder() {
-  seg($("#bKind"), ["Place", "Upgrade", "Ability", "Buff", "Erwin buff"], 0, (i) => {
-    if (i >= 2 && isClassic()) { toast((i === 4 ? "Erwin buff" : i === 3 ? "Buff" : "Ability") + " steps are a Premium feature. Premium is in the Chris Macros Discord", "bad"); $$("#bKind button").forEach((b, j) => b.classList.toggle("on", j === bKind)); return; }
+  // (a plain Buff step, one copy every N s, is still read from settings and codes; it's not offered for now)
+  seg($("#bKind"), ["Place", "Upgrade", "Ability", "Erwin buff"], 0, (i) => {
+    if (i >= 2 && isClassic()) { toast((i === 3 ? "Erwin buff" : "Ability") + " steps are a Premium feature. Premium is in the Chris Macros Discord", "bad"); $$("#bKind button").forEach((b, j) => b.classList.toggle("on", j === bKind)); return; }
     bKind = i; builderState();
   });
   $("#bSlot").innerHTML = options([1, 2, 3, 4, 5, 6].map((n) => "Slot " + n), 0);
@@ -331,13 +332,8 @@ function initBuilder() {
     const el = $("#steps"); el.scrollTop = el.scrollHeight;
   };
   $("#bAdd").onclick = () => {
-    if (bKind === 4) {                      // Erwin buff: places 4 copies in the video's order and keeps the buff up
+    if (bKind === 3) {                      // Erwin buff: places 4 copies in the video's order and keeps the buff up
       add({ kind: "erwin", slot: +$("#bSlot").value + 1, count: 4, up: S.upValues[+$("#bUp").value] || 0, secs: 30 });
-      return;
-    }
-    if (bKind === 3) {                      // Buff: one copy every N seconds, from its first copy down
-      const o = BUFF_OPTS[+$("#bUp").value] || BUFF_OPTS[0];
-      add({ kind: "buff", slot: +$("#bSlot").value + 1, count: 1, up: 0, secs: o[0], pairs: o[1] });
       return;
     }
     if (bKind === 2) {                      // Ability: fires at its wave, not in the line
@@ -369,13 +365,11 @@ function builderState() {
   // Place: how many to place (×N). Upgrade: how many of that slot's units (all, or the first N placed)
   $("#bX").style.display = bKind ? "none" : "";
   $$(".abil-only").forEach((e) => e.style.display = bKind === 2 ? "" : "none");
-  $("#bCount").style.display = bKind >= 3 ? "none" : "";       // Buff / Erwin buff: no count box
+  $("#bCount").style.display = bKind === 3 ? "none" : "";      // Erwin buff: no count box
   const max = S.maxCount || 6;
-  $("#bUp").innerHTML = bKind === 4 ? options(S.upNames, Math.max(0, S.upValues.indexOf(-1)))
-    : bKind === 3 ? options(BUFF_OPTS.map(buffName), 2)
+  $("#bUp").innerHTML = bKind === 3 ? options(S.upNames, Math.max(0, S.upValues.indexOf(-1)))
     : bKind === 2 ? options(EVERY.map(everyName), 0) : options(S.upNames, 0);
-  $("#bUp").title = bKind === 4 ? "Erwin buff (Commander), as in the video: places 2, uses the 1st one's ability, places the 3rd, the 2nd's ability 4 s after the 1st, places the 4th; then the 3rd when the 1st buff runs out (30 s), the 4th 4 s later, and round again: the 100% buff. Put all 4 in each other's range (Spots). Each one gets upgraded like this"
-    : bKind === 3 ? "Erwin method (Commander): place 4, all in each other's range: 1st, 2nd 4 s later, 3rd when the 1st buff runs out, 4th 4 s after: the 100% buff. Or one copy every N seconds (Windsong). The game's Auto stays off for this slot" : "";
+  $("#bUp").title = bKind === 3 ? "Erwin buff (Commander), as in the video: places 2, uses the 1st one's ability, places the 3rd, the 2nd's ability 4 s after the 1st, places the 4th; then the 3rd when the 1st buff runs out (30 s), the 4th 4 s later, and round again: the 100% buff. Put all 4 in each other's range (Spots). Each one gets upgraded like this" : "";
   $("#bCount").innerHTML = bKind
     ? options(["all units", ...Array.from({ length: max }, (_, i) => (i + 1) + (i ? " units" : " unit"))], 0)
     : options(Array.from({ length: max }, (_, i) => String(i + 1)), 0);
