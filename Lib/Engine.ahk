@@ -4310,25 +4310,28 @@ TryPlace(x, y, slot) {
     Clk(x, y)
     Sleep 50
     Keys("q")                               ; cancels the placing if the spot was refused (the path)
-    ; the game's red refusals ("Unique units may not be placed with others of its kind",
-    ; "Cannot place more than 3 of this unit!") show straight away and fade, so look first
-    Sleep 120
-    if PlaceRefused(slot)
-        return false
+    ; Kept simple, as before 25 Oct (Chris: placing was fluid then): the game's red "Cannot place..."
+    ; message is only looked for in Fool's Hunt (its 20-unit cap). Looking for it after every try
+    ; (a read of half the screen each time) made a slower PC take ~40 s per unit (a player's log)
+    refusals := false
+    if refusals {
+        Sleep 120
+        if PlaceRefused(slot)
+            return false
+    }
     ; Placed = the unit's upgrade menu opens on the left, checked by the menu's own parts (see
     ; MenuParts): the yen can't be read reliably. The game lags now and then, so a late menu
     ; gets extra time.
     how := ""
     if WaitUnitMenu(autoOpenOff ? 300 : PlaceTimeout())
         how := "auto"
-    else if PlaceRefused(slot)
+    else if refusals && PlaceRefused(slot)
         return false
-    else if !NearUnit(x, y, 22) {
+    else if (!autoOpenSeen || autoOpenOff) && !NearUnit(x, y, 22) {
         ; No menu: nothing was placed, or the menu didn't open (the game's 'Disable Auto-Open
         ; Upgrade UI' setting, or it was just slow). Clicking the spot opens a new unit's menu;
-        ; an empty spot does nothing. (It used to click only before any menu had opened by itself
-        ; and not within 45 px of a known unit: spots are 40 px apart, so a unit placed next to
-        ; another one was never seen, and never upgraded)
+        ; an empty spot does nothing. Only while the menu isn't known to open by itself (as before):
+        ; clicking every failed spot cost 0.7 s each, and most tries are failed spots
         Clk(x, y)
         if WaitUnitMenu(700)
             how := "click"
