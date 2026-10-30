@@ -309,7 +309,8 @@ LEGEND_STAGE() => cfg.Has("legendStage") && IsInteger(cfg["legendStage"]) ? Max(
 ; "Legend Stage 13" doesn't exist, so it isn't 1
 LegendStageOf(text) {
     text := RegExReplace(text, "(?<=[A-Za-z])\s+(?=[a-z])")          ; "Legen d" -> "Legend"
-    if !RegExMatch(text, "i)legend\s*stage\s*([1-6Il|Зз])(?![\dA-Za-z])", &m)
+    ; a letter of "Stage" misread ("Stoge", "Stoqe", "5tage": a player's Stage 2 was never found)
+    if !RegExMatch(text, "i)legend\s*[s5]t[a-z][gq9][a-z]\s*([1-6Il|Зз])(?![\dA-Za-z])", &m)
         return 0
     d := m[1]
     return IsInteger(d) ? Integer(d) : InStr("Зз", d) ? 3 : 1
@@ -467,9 +468,9 @@ LegendTitleStage() {
     return 0
 }
 
-; where stage `want`'s button is, from two buttons read (same column, even spacing). Only when a
-; higher stage was read (so it exists: a world with fewer stages plays its highest instead). False
-; when fewer than two were read, their spacing is odd, or it would be off the list
+; where stage `want`'s button is, from the buttons read (same column, even spacing; one read: 35 px a
+; row). Only when a higher stage was read (so it exists: a world with fewer stages plays its highest
+; instead). False when none was read, their spacing is odd, or it would be off the list
 LegendGuessRow(rows, want, &x, &y) {
     a := 0, b := 0, higher := false
     for n in rows {
@@ -479,9 +480,10 @@ LegendGuessRow(rows, want, &x, &y) {
         else if !b
             b := n
     }
-    if !b || !higher
+    if !a || !higher
         return false
-    step := (rows[b][2] - rows[a][2]) / (b - a)
+    ; two read: their spacing; one read: the usual 35 px a row
+    step := b ? (rows[b][2] - rows[a][2]) / (b - a) : 35
     if step < 25 || step > 100
         return false
     x := rows[a][1], y := Round(rows[a][2] + (want - a) * step)

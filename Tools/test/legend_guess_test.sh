@@ -37,7 +37,7 @@ Check("stage 1 above stage 2 by their spacing", LegendGuessRow(rows, 1, &gx, &gy
 Check("stage 4 when only 2 and 3 show: no guess (a world with fewer stages plays its highest)", !LegendGuessRow(rows, 4, &gx, &gy))
 rows := Map(1, [290, 200], 3, [290, 300])
 Check("stage 2 between 1 and 3", LegendGuessRow(rows, 2, &gx, &gy) && gy = 250, gy)
-Check("one button read: no guess (no spacing)", !LegendGuessRow(Map(2, [290, 250]), 1, &gx, &gy))
+Check("one button read (Stage 3 only, 'Legend Stoge 2' misread): the usual 35 px a row", LegendGuessRow(Map(3, [290, 310]), 1, &gx, &gy) && gy = 240, gy)
 Check("nothing read: no guess", !LegendGuessRow(Map(), 1, &gx, &gy))
 Check("off the list (stage 6 far below): no guess", !LegendGuessRow(Map(1, [290, 200], 2, [290, 250]), 6, &gx, &gy) || gy <= 450, gy)
 Check("odd spacing (a misread line): no guess", !LegendGuessRow(Map(2, [290, 250], 3, [290, 255]), 1, &gx, &gy))
