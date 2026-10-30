@@ -81,6 +81,15 @@ const legendBtn = (p) => p.evaluateHandle(() => [...document.querySelectorAll("#
       await legendBtn(p).then((h) => h.evaluate((x) => x.click())); await p.waitForTimeout(150);
     }
     await p.screenshot({ path: `${out}/legend_${tag}.png`, clip: { x: 0, y: 0, width: 1423, height: 300 } });
+    // Activity colours: a problem is red even when it has a "good" word in it ("only works when ...")
+    const cls = (m) => p.evaluate((m) => { window.ui.log("09:00:00", m); const l = document.querySelector("#log").lastElementChild; return l ? l.className : "?"; }, m);
+    for (const [m, want] of [["Multi Roblox only works when it's on before Roblox opens: close every Roblox window, then switch it on", "bad"],
+        ["Portal: no Shibuya Portal seen in your items, looking once more", "bad"],
+        ["Legend: couldn't find Legend Stage 1 (read: ...). Send Logs\\legend_stage_....bmp in Discord", "bad"],
+        ["Saved a screenshot of it: Logs\\legend_stage_....bmp", "warn"],
+        ["Victory on Snowy Town in 13m 04s", "good"], ["Dungeon cleared!", "good"], ["Opened 4 chests", "good"],
+        ["Skipping Chest room (curse of Health)", "warn"], ["Placed slot 4  (1/3)", ""]])
+      check(tag + `: '${m.slice(0, 40)}' is ${want || "plain"}`, (await cls(m)) === want, await cls(m));
     check(tag + ": no page errors", !p.errors.length, p.errors.join("; "));
     await p.close();
   }

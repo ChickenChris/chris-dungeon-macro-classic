@@ -641,9 +641,10 @@ function logLine(time, msg) {
   const el = $("#log"), atEnd = el.scrollHeight - el.scrollTop - el.clientHeight < 30;
   const d = document.createElement("div");
   const t = msg.toLowerCase();
-  d.className = /victory|cleared|opened|saved|works|snapped/.test(t) ? "good"
-    : /defeat|couldn't|wouldn't|failed|lost|error|disconnect/.test(t) ? "bad"
-    : /curse|shrine|skipping|denied|no preferred|paused/.test(t) ? "warn" : "";
+  // problems first: "Multi Roblox only works when..." was green for its "works"
+  d.className = /defeat|couldn't|wouldn't|can't|didn't|doesn't|won't|failed|lost|error|disconnect|stuck|only works|send logs|not seen|no .+ seen|not found/.test(t) ? "bad"
+    : /curse|shrine|skipping|denied|no preferred|paused|screenshot/.test(t) ? "warn"
+    : /victory|cleared|opened|saved|works|snapped/.test(t) ? "good" : "";
   d.innerHTML = `<span>${esc(time)}</span><span title="${esc(msg)}">${esc(msg)}</span>`;
   el.appendChild(d);
   while (el.children.length > 300) el.firstChild.remove();
