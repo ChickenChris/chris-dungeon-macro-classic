@@ -43,6 +43,7 @@ global mapHow := ""             ; how the map was recognised (shown in the log)
 global dungeonTotal := 20       ; rooms in a dungeon run (read from "DEPTH: 14/20" when possible)
 global curDepth := ""          ; dungeon room depth read from the loading screen
 global icFloor := 0             ; Infinity Castle floor as the game shows it (0 = not read yet)
+global icFloors := 0            ; Infinity Castle floors cleared this session
 global lastMapRaw := ""
 global lastCurseRaw := ""      ; the text last read while looking for a room's curse (for the log)        ; the last text read while looking for the map name (for the log)
 global placedUnits := []
@@ -273,11 +274,12 @@ DetectAll() {
 ;  Main loop
 ; =====================================================================
 EngineRun() {
-    global running, idleSince, slotStops, slotCap, slotOne, slotFull, autoOpenSeen, autoOpenOff, clickOpened
+    global running, idleSince, slotStops, slotCap, slotOne, slotFull, autoOpenSeen, autoOpenOff, clickOpened, icFloors, icFloor
     errors := 0
     idleSince := 0
     global goodSpots := Map(), teamLoaded := 0  ; which team the game has isn't known at Start
     slotStops := Map(), slotCap := Map(), slotOne := Map(), slotFull := Map(), autoOpenSeen := false, autoOpenOff := false, clickOpened := 0
+    icFloors := 0, icFloor := 0
     loop {
         try {
             Chk()
@@ -416,7 +418,7 @@ Tick() {
         WaitFor(() => ScanRooms().Length || SpecialScreen(), 3000)
         return
     }
-    if LegendMode() && FoolJoinUp() {         ; "Join Matchmaking?" left open: Play Here
+    if (ICMode() || LegendMode()) && FoolJoinUp() {   ; "Join Matchmaking?" left open: Play Here
         idleSince := 0
         Clk(330, 325)
         Wait(800)
@@ -426,6 +428,8 @@ Tick() {
         idleSince := 0
         if ChallengeLobby()                  ; Auto challenge: a new one goes first
             StartChallenge()
+        else if ICMode()
+            StartInfinityCastle()
         else if LegendMode()
             StartLegend()
         else
@@ -438,6 +442,80 @@ Tick() {
         return
     }
     IdleTick()
+}
+
+; =====================================================================
+;  Infinity Castle (free in Classic since 3.0.100, the same as Premium)
+; =====================================================================
+ICMode() => cfg.Has("mode") && cfg["mode"] = "Infinity Castle"
+
+; From the lobby: the Areas button, the Infinity Castle area, then a short walk to the entrance
+; (the route from Ryn's macro). The entrance window is recognised by its Cancel button; then
+; it picks the difficulty and presses Start, just above Cancel.
+StartInfinityCastle() {
+    Step("lobby: going to Infinity Castle")
+    AddLog("In the lobby, going to Infinity Castle (" (cfg["icHard"] ? "Hard" : "Normal") ")")
+    Clk(400, 340), Clk(400, 390)
+    CloseChat()
+    loop 3 {
+        if FT(&fx, &fy, 325, 520, 489, 587, 0, 0, ModeCancel)
+            break
+        before := SceneSig()
+        Clk(765, 475)                           ; Areas
+        Wait(300)
+        Clk(370, 330)                           ; the Infinity Castle area
+        ; the game takes a few seconds to move the player there: walking straight away walked
+        ; the lobby, then the teleport landed and the player just stood there
+        Step("lobby: waiting for the teleport to Infinity Castle")
+        WaitAreaTeleport(before)
+        FocusRoblox()
+        SendKeys("{w down}")
+        Wait(500)
+        SendKeys("{w up}")
+        Wait(500)
+        SendKeys("{a down}")
+        Wait(4000)
+        SendKeys("{a up}")
+        Wait(500)
+        Stale()
+    }
+    if !FT(&fx, &fy, 325, 520, 489, 587, 0, 0, ModeCancel) {
+        AddLog("Couldn't reach the Infinity Castle entrance. Send Logs\inf_castle_....bmp in Discord so it can be fixed")
+        SaveDebugShot("inf_castle")
+        Wait(3000)
+        return
+    }
+    Clk(cfg["icHard"] ? 485 : 418, 375)         ; Normal / Hard
+    Wait(400)
+    Stale()
+    t0 := A_TickCount
+    while A_TickCount - t0 < 8000 {
+        ; the game added matchmaking to Infinity Castle too: Start brings up "Join Matchmaking?"
+        ; (the same window as Fool's Hunt). Play Here starts it alone, like Start used to
+        if FoolJoinUp() {
+            Clk(330, 325)                       ; Play Here
+            Wait(800)
+            Stale()
+            continue
+        }
+        if !FT(&fx, &fy, 325, 520, 489, 587, 0, 0, ModeCancel)
+            break
+        Clk(fx - 10, fy - 120)                  ; Start
+        Wait(800)
+        Stale()
+    }
+    AddLog("Infinity Castle started")
+    ; the lobby stays on screen while the stage loads: don't walk the lobby again meanwhile
+    Step("waiting for Infinity Castle to load")
+    t0 := A_TickCount
+    while A_TickCount - t0 < 30000 {
+        Stale()
+        if !Det("Lobby")
+            break
+        Wait(500)
+    }
+    if !Det("Lobby")
+        LoadStage()                             ; reads the floor's map off the loading screen, then plays
 }
 
 IdleTick() {
@@ -2642,6 +2720,7 @@ MapNames() {
     names := []
     for name in LoadingScreens()
         names.Push(name)
+    names.Push("Infinity Castle")           ; its own walks and spots, for a floor whose map isn't read
     names.Push("Unknown")
     return names
 }
@@ -2664,6 +2743,10 @@ PlayStage() {
                 }
                 Wait(250)
             }
+        }
+        if ICMode() && curMap = "Unknown" {
+            curMap := "Infinity Castle"            ; couldn't read the floor's map: its own walk/spots
+            UpdateMapLabel()
         }
         postStage := 0
         stageActive := true
@@ -4903,6 +4986,30 @@ ReadResult() {
         lastResult := "loss"
     else if (k := TitleColour()) != ""
         lastResult := k                       ; the gold VICTORY / red DEFEAT title, by colour
+    if ICMode() && lastResult = "win"
+        IcReadUnlocked()
+}
+
+; Infinity Castle on Hard: one win unlocks 2 rooms ("Room completed! Room 42 unlocked!" twice, under
+; the VICTORY box), so the session counted 14 floors where 28 were cleared. The green lines are read
+; while the results show: how many rooms opened, and the highest one (the floor you're on next).
+; Read once per stage; when they can't be read, Hard counts 2 and Normal 1
+global icUnlocked := 0, icUnlockedTop := 0
+IcReadUnlocked() {
+    global icUnlocked, icUnlockedTop
+    static stageMark := -1
+    if stageMark = stageStart && icUnlocked
+        return
+    stageMark := stageStart
+    try {
+        WinGetClientPos &ox, &oy, , , RBX
+        txt := OCR.FromRect(ox + 150, oy + 330, 500, 200, OcrLang(), {scale: 2, grayscale: true}).Text
+        n := 0, top := 0, pos := 1
+        while pos := RegExMatch(txt, "i)r[o0]{2}m\W*(\d{1,4})\W*un[l1i]ock", &m, pos)
+            n++, top := Max(top, Integer(m[1])), pos += m.Len
+        if n
+            icUnlocked := n, icUnlockedTop := top
+    }
 }
 
 ; counts the stage once (win / loss / time), whichever end screen shows first
@@ -4916,6 +5023,7 @@ FinishStage() {
 }
 
 HandleEnd() {
+    global icFloors, icFloor
     ReadResult()
     FinishStage()
     if challengeOn {                            ; Auto challenge: back to the lobby, then farming
@@ -4931,6 +5039,43 @@ HandleEnd() {
     }
     if LegendMode() {
         LegendReplay()
+        return
+    }
+    if ICMode() {
+        ; the results screen's yellow button is "next floor" after a win and "replay" after a loss
+        if lastResult = "win" {
+            global icUnlocked, icUnlockedTop
+            n := icUnlocked ? icUnlocked : cfg["icHard"] ? 2 : 1    ; Hard: a win opens 2 rooms
+            icFloors += n
+            if icUnlockedTop
+                icFloor := icUnlockedTop        ; "Room 43 unlocked": the next floor
+            else if icFloor
+                icFloor += n                    ; on to the next floor (the loading screen corrects it)
+            AddLog("Infinity Castle" (cfg["icHard"] ? " (Hard)" : "") ": " (n = 1 ? "floor" : n " floors") " cleared"
+                . (icUnlockedTop ? ", room " icUnlockedTop " unlocked" : "") " (" icFloors " this session)")
+            icUnlocked := 0, icUnlockedTop := 0
+            UpdateMapLabel(), UpdateStats()
+            if cfg["icStopFloors"] && icFloors >= cfg["icStopFloors"] {
+                AddLog("Cleared " icFloors " floors, stopping (Stop after on the Dungeon tab)")
+                SendWebhook("Infinity Castle: " icFloors " floors cleared", Summary(), 0x22C55E)
+                StopMacro()
+                Chk()
+            }
+        }
+        if ChallengeLeave()                     ; a new challenge is up: the lobby instead
+            return
+        Step(lastResult = "win" ? "going to the next floor" : "trying the floor again")
+        ClickOpenDungeon()
+        Wait(800)
+        t0 := A_TickCount
+        while A_TickCount - t0 < 10000 {
+            Stale()
+            if !Det("EndScreen")
+                break
+            Wait(250)
+        }
+        if !Det("EndScreen")
+            LoadStage()                         ; each floor can be a different map: read it
         return
     }
     Step("opening the dungeon for the next room")

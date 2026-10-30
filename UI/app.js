@@ -400,7 +400,7 @@ function renderSpotsPage() {
 
 // Farm mode: one switch on the start page, one on the Dungeon page, kept in step
 const MODES = ["Dungeon", "Infinity Castle", "Fool's Hunt", "Infinite", "Legend", "Portal"];
-const FREE_MODES = ["Dungeon", "Legend"];   // the ones Classic has
+const FREE_MODES = ["Dungeon", "Infinity Castle", "Legend"];   // the ones Classic has (Infinity Castle free since 3.0.100)
 const isInf = () => S.cfg.mode === "Infinite";
 const isLegend = () => S.cfg.mode === "Legend";
 const isPortal = () => S.cfg.mode === "Portal";

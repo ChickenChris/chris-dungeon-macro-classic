@@ -61,6 +61,16 @@ const legendBtn = (p) => p.evaluateHandle(() => [...document.querySelectorAll("#
       check("premium: greyed in Fool's Hunt", await p.evaluate((q) => !!document.querySelector(q)?.classList.contains("dim"), ac));
       await legendBtn(p).then((h) => h.evaluate((x) => x.click())); await p.waitForTimeout(150);
     }
+    // Infinity Castle: free in Classic too (Chris), with its Normal / Hard and Stop after
+    const icb = await p.evaluateHandle(() => [...document.querySelectorAll("#segModeHome button")].find((b) => b.textContent.trim() === "Infinity Castle"));
+    check(tag + ": Infinity Castle isn't locked", await icb.evaluate((x) => !!x && !x.dataset.premium && !x.querySelector("svg")));
+    await p.evaluate(() => { window.__sent = []; }); await icb.evaluate((x) => x.click()); await p.waitForTimeout(150);
+    check(tag + ": picking Infinity Castle sets the mode and opens its panel", (await p.evaluate(() => window.__sent)).some((m) => m.cmd === "set" && m.key === "mode" && m.value === "Infinity Castle")
+      && await p.evaluate(() => !!document.querySelector("#modeSub")?.classList.contains("open")));
+    await p.evaluate(() => $$("#segIcDiff button")[1].click()); await p.waitForTimeout(50);
+    check(tag + ": Hard is saved", (await p.evaluate(() => window.__sent)).some((m) => m.cmd === "set" && m.key === "icHard" && m.value === 1));
+    if (edition) check("classic: Fool's Hunt is still locked", await p.evaluate(() => [...document.querySelectorAll("#segModeHome button")].find((b) => b.textContent.trim() === "Fool's Hunt")?.dataset.premium === "Fool's Hunt"));
+    await legendBtn(p).then((h) => h.evaluate((x) => x.click())); await p.waitForTimeout(150);
     // Portal mode: Premium only (locked in Classic), a name box
     const portal = await p.evaluateHandle(() => [...document.querySelectorAll("#segModeHome button")].find((b) => b.textContent.trim() === "Portal"));
     check(tag + ": a Portal button in the mode row", await portal.evaluate((x) => !!x));
