@@ -1228,7 +1228,7 @@ EnterRoom() {
         bossDone := true
         AddLog("Final room (depth " depth ")")
     }
-    LoadStage(roomMap, depth)
+    LoadStage(roomMap, depth, false, true)
 }
 
 ; =====================================================================
@@ -2129,7 +2129,7 @@ HandleDungeonPopups() {
 ; =====================================================================
 ; lenient: the round may already be playing (loaded behind Fool's Hunt's freeze), so the green
 ; wave bar counts as loaded too (by its colour range; otherwise only right after a teleport)
-LoadStage(knownMap := "", knownDepth := "", lenient := false) {
+LoadStage(knownMap := "", knownDepth := "", lenient := false, fromRoom := false) {
     global curMap, curDepth, mapHow, stageActive
     ; a new stage: fresh units, vote and placing. (A stage stopped half-way with F3 stayed
     ; "active", so the next stage skipped the vote and placing and looked for the old units)
@@ -2163,12 +2163,18 @@ LoadStage(knownMap := "", knownDepth := "", lenient := false) {
                 }
             }
         }
-        if IsLoaded() || (lenient && InStageWorld())
+        ; dungeon: the room's Enter button still showing means not in yet, whatever else looks like a stage
+        ; (a log: Enter didn't take, the panel stayed open, and nothing happened for 1.5 min)
+        enterUp := fromRoom && Det("Enter")
+        if (IsLoaded() && !enterUp) || (lenient && InStageWorld())
             break
         ; the room picker stays up for a moment after pressing Enter, so only treat it
         ; as "we didn't actually enter" once a few seconds have passed
-        if A_TickCount - t0 > 6000 && (SpecialScreen() || ScanRooms().Length || Det("FinishDungeon"))
+        if A_TickCount - t0 > 6000 && (enterUp || SpecialScreen() || ScanRooms().Length || Det("FinishDungeon")) {
+            if enterUp
+                AddLog("The room's Enter button is still there (it didn't go in): picking the room again")
             return
+        }
         if A_TickCount - t0 > 30000 && !waitShot {
             waitShot := true                    ; a picture of what it's waiting on
             AddLog("Still waiting for the stage after 30s. Send Logs\load_wait_....bmp in Discord if it stays like this")
