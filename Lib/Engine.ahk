@@ -42,6 +42,7 @@ global curMap := "Unknown"
 global mapHow := ""             ; how the map was recognised (shown in the log)
 global dungeonTotal := 20       ; rooms in a dungeon run (read from "DEPTH: 14/20" when possible)
 global curDepth := ""          ; dungeon room depth read from the loading screen
+global prevDepth := ""         ; the room before this one (a misread room number is checked against it)
 global icFloor := 0             ; Infinity Castle floor as the game shows it (0 = not read yet)
 global icFloors := 0            ; Infinity Castle floors cleared this session
 global lastMapRaw := ""
@@ -2134,7 +2135,8 @@ LoadStage(knownMap := "", knownDepth := "", lenient := false) {
     ; "active", so the next stage skipped the vote and placing and looked for the old units)
     stageActive := false
     Step("loading the map")
-    curMap := knownMap != "" ? knownMap : "Unknown", curDepth := knownDepth
+    global prevDepth := curDepth
+    curMap := knownMap != "" ? knownMap : "Unknown", curDepth := SaneDepth(knownDepth)
     UpdateMapLabel()
     if knownMap != ""
         AddLog("Map: " knownMap (knownDepth != "" ? ", depth " knownDepth : "") "  (from the room panel)")
@@ -2353,7 +2355,7 @@ MapFromBanner() {
         name := MapFromScreenText(150, 85, 500, 150, &depth, &raw, tf)
         if name != "" {
             if depth != ""
-                curDepth := depth
+                curDepth := SaneDepth(depth)
             return name
         }
     }
@@ -2410,6 +2412,37 @@ MapFromScreenText(x, y, w, h, &depth := "", &raw := "", tf := "") {
     return MatchMapName(raw)
 }
 
+; The small room font makes an 8 look like a 0 (Alex: "every room 18 it thinks it's room 10"),
+; a 3, 6 or 9. Rooms only go up by one (or the same room again after a loss), so a number that
+; doesn't fit, but does with one of those digits swapped, is taken as the swapped one.
+; A new dungeon (room 1) is never changed.
+SaneDepth(d) {
+    static alike := Map("0", "8", "8", "0369", "3", "8", "6", "8", "9", "8")
+    static told := ""
+    if !IsInteger(d) || Integer(d) = 1
+        return d
+    wants := []                                 ; the room before + 1, it again, and this room (read earlier)
+    for r in [prevDepth, curDepth]
+        if IsInteger(r) && r != ""
+            wants.Push(Integer(r) + 1, Integer(r))
+    n := Integer(d), s := String(n)
+    for w in wants
+        if n = w
+            return d
+    for want in wants
+        loop StrLen(s) {
+            i := A_Index, ch := SubStr(s, i, 1)
+            if alike.Has(ch)
+                for alt in StrSplit(alike[ch])
+                    if Integer(SubStr(s, 1, i - 1) alt SubStr(s, i + 1)) = want {
+                        if told != n "/" want
+                            told := n "/" want, AddLog("Room number read as " n ", taken as " want " (rooms go up one at a time)")
+                        return want
+                    }
+        }
+    return d
+}
+
 ; reads the top-left of the loading screen: "Traveling to...", the map name, "Dungeon Room (Depth N)"
 MapFromLoadingText() {
     global curDepth, icFloor
@@ -2428,7 +2461,7 @@ MapFromLoadingText() {
         return ""
     }
     if RegExMatch(txt, "i)depth\D{0,4}(\d+)", &m)
-        curDepth := m[1]
+        curDepth := SaneDepth(m[1])
     if RegExMatch(txt, "i)f[il1]oor\D{0,4}(\d+)", &m)
         icFloor := Integer(m[1])
     name := MatchMapName(txt)
