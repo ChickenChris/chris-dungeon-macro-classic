@@ -3425,7 +3425,7 @@ PlaceSlot(ctx, n, need) {
     need := SlotRoom(n, need)
     lv := ctx.lv, pts := ctx.pts
     newUnits := []
-    got := 0, stuck := 0, greySince := 0
+    got := 0, stuck := 0, greySince := 0, poorRounds := 0
     while got < need {
         if StageOver() {
             ctx.over := true
@@ -3460,7 +3460,7 @@ PlaceSlot(ctx, n, need) {
             }
         }
         greySince := 0
-        before := got, misses := 0, tried := 0, attempts := 0
+        before := got, misses := 0, tried := 0, attempts := 0, poor := false
         ; spots where this slot landed before on this map, first: a unit that only goes on hills
         ; spent ages on ground spots every stage, now only the first time
         for p in goodSpots.Get(CapKey(n), []).Clone() {
@@ -3481,14 +3481,19 @@ PlaceSlot(ctx, n, need) {
                 placedUnits.Push(u), newUnits.Push(u)
                 AddLog("Placed slot " n "  (" got "/" need ")")
             } else {
-                ctx.fails[key "|" n] := 1
+                took := 0
                 for u in TakeUnseen(n)
-                    newUnits.Push(u), got++, AddLog("Placed slot " n "  (" got "/" need ", found on the map)")
+                    newUnits.Push(u), got++, took++, AddLog("Placed slot " n "  (" got "/" need ", found on the map)")
+                if !took && poorRounds < 60 && !EnoughYen(n) {
+                    poor := true                ; not enough yen yet: the spot isn't bad, wait for the yen
+                    break
+                }
+                ctx.fails[key "|" n] := 1
                 if !SlotRoom(n, 1)
                     return newUnits
             }
         }
-        while got < need && misses < lv[1] && tried < pts.Length {
+        while !poor && got < need && misses < lv[1] && tried < pts.Length {
             p := pts[ctx.cursor], key := p.x "," p.y
             ctx.cursor := Mod(ctx.cursor, pts.Length) + 1
             tried++
@@ -3509,13 +3514,24 @@ PlaceSlot(ctx, n, need) {
                 placedUnits.Push(u), newUnits.Push(u)
                 AddLog("Placed slot " n "  (" got "/" need ")")
             } else {
+                took := 0
+                for u in TakeUnseen(n)
+                    newUnits.Push(u), got++, took++, AddLog("Placed slot " n "  (" got "/" need ", found on the map)")
+                if !took && poorRounds < 60 && !EnoughYen(n) {
+                    poor := true                ; not enough yen yet: the spot isn't bad, wait for the yen
+                    break
+                }
                 ctx.fails[key] := ctx.fails.Get(key, 0) + 1
                 misses++
-                for u in TakeUnseen(n)
-                    newUnits.Push(u), got++, AddLog("Placed slot " n "  (" got "/" need ", found on the map)")
                 if !SlotRoom(n, 1)
                     return newUnits                 ; the game's limit for this unit
             }
+        }
+        if poor && got < need {                 ; a try failed for want of yen: wait for it, then go on
+            poorRounds++
+            Step("waiting for yen to place slot " n "  (" got "/" need ")")
+            Wait(1000)
+            continue
         }
         if !attempts && got < need
             ctx.fails := Map()                 ; every spot is used or failed twice: give them another go
@@ -4155,9 +4171,19 @@ SlotReady(n) {
             if A_Index = n
                 mine := bright
         }
-        return mine >= 4 || !barShown
+        return barShown ? mine >= 4 : EnoughYen(n)     ; bar not seen: the yen against the price (Soru)
     }
     return true
+}
+
+; enough yen for slot n's price? True when either can't be read. A try without the yen fails, and
+; each failed try marked a good spot as bad, until there was "no place left to place the units" (Soru)
+EnoughYen(n) {
+    cost := SlotCost(n)
+    if cost <= 0
+        return true
+    y := ReadYen()
+    return y < 0 || y >= cost
 }
 
 ; slot n's price from the unit bar (read once per stage), or -1
