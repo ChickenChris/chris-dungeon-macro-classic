@@ -81,6 +81,16 @@ bad := 0
 for k, v in ctx.fails
     bad += v
 Check("card looks ready without the yen: still places all 4, no spot marked bad", got.Length = 4 && bad = 0, got.Length " placed, " bad " bad")
+Check("and no try at all without the yen (it waits first)", tries = 4, tries)
+Check("the 4 nearest spots, not a bigger circle every time", ctx.used.Has("40,300") && ctx.used.Has("160,300") && !ctx.used.Has("200,300"), ctx.used.Count)
+; a price misread far too high: waits 2 min at most, then tries like before
+yen := 0, now := 0, tries := 0, placedUnits := [], cost := 600, rate := 100
+global realCost := 600
+cost := 60000
+ctx := NewCtx()
+TryPlace2 := 0
+Check("a misread price: tries after 2 min at most", (PlaceSlot(ctx, 1, 1), tries) >= 1 && now <= 125000, tries " " now)
+cost := 600
 barShown := false
 ; the yen can't be read: tries as before
 yen := 0, now := 0, tries := 0, placedUnits := [], cost := -1

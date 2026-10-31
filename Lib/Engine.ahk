@@ -3432,8 +3432,14 @@ PlaceSlot(ctx, n, need) {
             return newUnits
         }
         ; the game greys out a unit's card when it can't be placed right now. Don't try spots
-        ; then (that marked good spots as bad and ended the step early): wait for yen instead
-        if !SlotReady(n) {
+        ; then (that marked good spots as bad and ended the step early): wait for yen instead.
+        ; The card can look ready without the yen (Soru: "it's just doing a bigger circle every time
+        ; even if I don't have yen"): the yen against the price says wait too (2 min at most, in
+        ; case a price is misread)
+        ready := SlotReady(n)
+        if ready && poorRounds < 120 && !EnoughYen(n)
+            ready := false, poorRounds++
+        if !ready {
             yen := ReadYen(), cost := SlotCost(n)
             if yen >= 0 && cost > 0 && yen >= cost && !greySince && CountPlaced(n) >= 1 && ReadYen() >= cost {
                 ; enough yen but still greyed out: that's the game's limit for this unit
@@ -3480,11 +3486,15 @@ PlaceSlot(ctx, n, need) {
                 u := {x: p.x, y: p.y, slot: n, maxed: false, capped: false, dx: 0, dy: -3, misses: 0, lost: false}
                 placedUnits.Push(u), newUnits.Push(u)
                 AddLog("Placed slot " n "  (" got "/" need ")")
+                if got < need && poorRounds < 120 && !EnoughYen(n) {
+                    poor := true                ; that one spent the yen: wait for the next one's
+                    break
+                }
             } else {
                 took := 0
                 for u in TakeUnseen(n)
                     newUnits.Push(u), got++, took++, AddLog("Placed slot " n "  (" got "/" need ", found on the map)")
-                if !took && poorRounds < 60 && !EnoughYen(n) {
+                if !took && poorRounds < 120 && !EnoughYen(n) {
                     poor := true                ; not enough yen yet: the spot isn't bad, wait for the yen
                     break
                 }
@@ -3494,7 +3504,7 @@ PlaceSlot(ctx, n, need) {
             }
         }
         while !poor && got < need && misses < lv[1] && tried < pts.Length {
-            p := pts[ctx.cursor], key := p.x "," p.y
+            here := ctx.cursor, p := pts[here], key := p.x "," p.y
             ctx.cursor := Mod(ctx.cursor, pts.Length) + 1
             tried++
             if ctx.used.Has(key) || ctx.fails.Get(key, 0) >= 2 || NextToUnit(p.x, p.y)
@@ -3513,12 +3523,17 @@ PlaceSlot(ctx, n, need) {
                 u := {x: p.x, y: p.y, slot: n, maxed: false, capped: false, dx: 0, dy: -3, misses: 0, lost: false}
                 placedUnits.Push(u), newUnits.Push(u)
                 AddLog("Placed slot " n "  (" got "/" need ")")
+                if got < need && poorRounds < 120 && !EnoughYen(n) {
+                    poor := true                ; that one spent the yen: wait for the next one's
+                    break
+                }
             } else {
                 took := 0
                 for u in TakeUnseen(n)
                     newUnits.Push(u), got++, took++, AddLog("Placed slot " n "  (" got "/" need ", found on the map)")
-                if !took && poorRounds < 60 && !EnoughYen(n) {
+                if !took && poorRounds < 120 && !EnoughYen(n) {
                     poor := true                ; not enough yen yet: the spot isn't bad, wait for the yen
+                    ctx.cursor := here          ; and it's tried again (not the next spot out: a bigger circle every time)
                     break
                 }
                 ctx.fails[key] := ctx.fails.Get(key, 0) + 1
