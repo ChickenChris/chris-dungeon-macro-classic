@@ -734,9 +734,26 @@ ScanRooms() {
     return found
 }
 
+; A unit's menu left open over the room picker (the round ended while it was being upgraded): its
+; green Max button was taken for the room's Enter button and the clicks on the rooms hit the menu,
+; round and round ("No Enter button, closing the room picker": a player's video). Closed first
+CloseUnitPanel() {
+    loop 3 {
+        Stale()
+        ; its X and its own parts (Max / Upgrade N / its buttons): the room's panel has a red X too
+        if !Det("UnitExit", &fx, &fy) || !(MaxShown() || ReadLevel() >= 0 || MenuButtons())
+            return
+        if A_Index = 1
+            AddLog("A unit's menu is open over the room picker, closing it")
+        Clk(fx - 4, fy - 35)
+        Wait(400)
+    }
+}
+
 ChooseRoom(rooms) {
     global roomBoosts := []
     Step("choosing a room")
+    CloseUnitPanel()
     ; shops / shrines / chests can pop up a moment after the map appears
     if WaitFor(() => SpecialScreen(), 1200)
         return
@@ -1166,6 +1183,7 @@ CurseBadness(name) {
 EnterRoom() {
     global bossDone, stageActive, dungeonTotal, closeStreak
     Step("entering the room")
+    CloseUnitPanel()
     if !WaitDet("Enter", 5000, &ex, &ey) {
         ; maybe it isn't the room picker at all (a shrine / chest screen the pictures missed)
         Stale()
