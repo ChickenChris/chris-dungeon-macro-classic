@@ -6193,9 +6193,12 @@ StartSummerHunt() {
         Wait(3000)
         return
     }
-    Clk(330, 325)                               ; Play Here
-    Wait(800)
-    SummerOpenPortal()
+    matched := cfg.Has("foolMatch") && cfg["foolMatch"] && FoolFindMatch()   ; Global Matchmaking: you type the number
+    if !matched {
+        Clk(330, 325)                           ; Play Here
+        Wait(800)
+        SummerOpenPortal()
+    }
     AddLog("Summer Hunt started")
     Step("waiting for Summer Hunt to start")
     t0 := A_TickCount, backSince := 0, started := 0
@@ -6205,7 +6208,7 @@ StartSummerHunt() {
             LoadStage()
             return
         }
-        if started < 5 && SummerStartUp() {     ; "Game will begin soon...": Start
+        if !matched && started < 5 && SummerStartUp() {     ; "Game will begin soon...": Start
             started++
             Clk(401, 463)
             Wait(1500)
@@ -6228,6 +6231,12 @@ StartSummerHunt() {
 
 ; the end of a round: Replay (the yellow button), then the next round loads
 SummerReplay() {
+    if cfg.Has("foolMatch") && cfg["foolMatch"] {   ; Find Match: back to the lobby for a new match
+        AddLog("Summer Hunt: " (lastResult = "win" ? "won" : lastResult = "loss" ? "lost" : "round over") ", back to the lobby to Find Match again")
+        BackToLobby()
+        Wait(800)
+        return
+    }
     AddLog("Summer Hunt: " (lastResult = "win" ? "won" : lastResult = "loss" ? "lost" : "round over") ", replaying")
     Step("replaying Summer Hunt")
     ClickOpenDungeon()                          ; the yellow Replay
@@ -6524,5 +6533,45 @@ FoolToPad() {
     if FoolJoinUp()
         return true
     SaveDebugShot("fools_entry")
+    return false
+}
+
+FoolFindMatch() {
+    Step("Summer Hunt: Find Match, waiting for you to type the number")
+    Clk(460, 330)                               ; Find Match
+    Wait(1500)
+    if !CaptchaUp() {
+        AddLog("Find Match: no number window came up, using Play Here")
+        return false
+    }
+    AddLog("Find Match: type the number in Roblox yourself and press Submit. The macro waits up to 3 minutes")
+    Notify("Find Match: type the number in Roblox", "bad")
+    SendWebhook("Find Match needs you", "Type the matchmaking number in Roblox, the macro is waiting (3 minutes).", 0xF59E0B, "", "", false)
+    t0 := A_TickCount, gone := 0, lastBeep := 0
+    while A_TickCount - t0 < 180000 {
+        if A_TickCount - lastBeep > 20000 {     ; a beep now and then until it's done
+            lastBeep := A_TickCount
+            try SoundPlay "*48"
+        }
+        Wait(1000)
+        gone := CaptchaUp() ? 0 : gone + 1
+        if gone >= 3 {                          ; typed and submitted
+            AddLog("Find Match: number entered, matching")
+            return true
+        }
+    }
+    AddLog("Find Match: nobody typed the number in 3 minutes, using Play Here instead")
+    Clk(586, 192)                               ; its red X
+    Wait(1000)
+    return false
+}
+
+CaptchaUp() {
+    try {
+        WinGetClientPos &ox, &oy, , , RBX
+        txt := OCR.FromRect(ox + 244, oy + 260, 300, 50, OcrLang(), {grayscale: true, scale: 2}).Text
+        n := StrLen(RegExReplace(StrSplit(txt, "`n")[1], "[^\d]"))
+        return n >= 5 && n <= 7
+    }
     return false
 }

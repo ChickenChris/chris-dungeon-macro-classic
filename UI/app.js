@@ -445,7 +445,11 @@ function renderMode() {
   const ls = $("#legendStage"), stages = [1, 2, 3, 4, 5, 6].map((n) => "Stage " + n);
   ls.innerHTML = options(stages, Math.min(5, Math.max(0, (+S.cfg.legendStage || 1) - 1)));
   ls.onchange = () => { setVal("legendStage", +ls.value + 1); if (run) setRun(run); };
-  // Find Match: gone in the Summer Hunt (UPD 21), the macro always uses Play Here
+  // Find Match: back since the game's next update (Global Matchmaking, the player types the number)
+  seg($("#segFoolJoin"), ["Play Here", "Find Match"], +S.cfg.foolMatch ? 1 : 0, (i) => {
+    setVal("foolMatch", i);
+    if (i && +S.cfg.foolOwnTeam) toast("Find Match plays alone. Pick Play Here to use your alts");
+  });
   seg($("#segIcDiff"), ["Normal", "Hard"], +S.cfg.icHard ? 1 : 0, (i) => setVal("icHard", i));
   stepper($("#icStop"), +S.cfg.icStopFloors || 0, 0, 500, (v) => setVal("icStopFloors", v));
   stepper($("#foolAccounts"), +S.cfg.foolAccounts || 2, 2, 6, (v) => setVal("foolAccounts", v));
