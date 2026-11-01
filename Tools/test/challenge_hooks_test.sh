@@ -72,7 +72,7 @@ InfTick()
 Check("Infinite round: waves read as before", InStr(calls, "ReadWave"), calls)
 }
 c := Round_("Fool's Hunt", false)
-Check("Fool's Hunt: as before (no challenge)", InStr(c, "ClickOpenDungeon;") && !InStr(c, "Leave"), c)
+Check("Fool's Hunt: as before (no challenge)", (InStr(c, "ClickOpenDungeon;") || InStr(c, "SummerReplay;")) && !InStr(c, "Leave"), c)
 FileAppend(fails ? "FAILED " fails "`n" : "ALL PASSED`n", "*", "UTF-8")
 ExitApp fails ? 1 : 0
 '''

@@ -439,6 +439,8 @@ Tick() {
             StartInfinityCastle()
         else if LegendMode()
             StartLegend()
+        else if FoolMode()
+            StartSummerHunt()
         else
             OpenDungeonFromLobby()
         return
@@ -5234,12 +5236,16 @@ HandleEnd() {
         ChallengeEnded()
         return
     }
-    if lastResult = "loss" && cfg["stopAfterDefeat"] {
+    if lastResult = "loss" && cfg["stopAfterDefeat"] && !FoolMode() {   ; a Summer Hunt always ends in a defeat
         AddLog("Defeat, stopping (Stop after a defeat is on)")
         SendWebhook("Stopped after a defeat", Summary(), 0xDC2626)
         ClickDet("EndScreen", 0, -35)
         StopMacro()
         Chk()
+    }
+    if FoolMode() {
+        SummerReplay()
+        return
     }
     if LegendMode() {
         LegendReplay()
@@ -5868,16 +5874,9 @@ PixelIs(x, y, color) {
 ; =====================================================================
 ;  Waiting and clicking
 ; =====================================================================
-; Fool's Hunt is Premium only: these keep the code shared with Premium the same
-FoolRandom() => false
-FoolTick() => 0
-FoolWaitHook() => 0
-PlaceKey(mapName) => mapName
+; Premium-only parts: these keep the code shared with Premium the same
 ShowcaseDrop(unit, kind := "chest") => 0    ; Premium: posts a Secret unit in Chris's Discord           ; Premium: Fool's Hunt keeps its own spots and walks
 RelinkRoblox() => 0                 ; Premium: finds the main's new window after a reopen
-VoteOnScreen() => false              ; Premium: a Fool's Hunt card vote is up
-ClearVote() => 0
-global foolVotes := 0              ; Premium counts its Fool's Hunt card votes (none here)
 
 Chk() {
     if (!running && !manualRun) || (manualRun && cancelManual)
@@ -6157,4 +6156,356 @@ BuiltInWalks() {
         {checks: [], route: "d+0,w+0,d-4000,w-4000,d+5000,d-6900,w+7900,w-9900,end@10900"}
     ]
     return m
+}
+
+; =====================================================================
+;  Summer Hunt (UPD 21, free in Classic since Nov 2026; Premium adds your alts). The same code as
+;  Premium's, solo: Play, walk ahead to the portal, Play Here, Open, Start; your own units; the card
+;  votes ("Most SummerPearls" or your card list); Replay at the end
+; =====================================================================
+FoolMode() => cfg.Has("mode") && cfg["mode"] = "Fool's Hunt"
+global foolBusy := false, foolVotes := 0
+FoolRandom() => false
+FoolWaitHook() => 0
+PlaceKey(mapName) => mapName
+FoolTick() {
+    global foolBusy
+    static last := 0
+    if foolBusy || camBusy || !FoolMode() || !stageActive || A_TickCount - last < 1500
+        return
+    last := A_TickCount
+    foolBusy := true
+    try FoolCards()
+    finally foolBusy := false
+}
+VoteOnScreen() => FoolMode() && FoolVoteUp()
+ClearVote() {
+    if VoteOnScreen()
+        FoolCardsNow(6000)
+}
+
+StartSummerHunt() {
+    Step("lobby: going to Summer Hunt")
+    AddLog("In the lobby, going to Summer Hunt")
+    if !FoolToPad() {
+        AddLog("Couldn't reach the Summer Hunt portal. Send Logs\fools_entry_....bmp in Discord so it can be fixed")
+        Wait(3000)
+        return
+    }
+    Clk(330, 325)                               ; Play Here
+    Wait(800)
+    SummerOpenPortal()
+    AddLog("Summer Hunt started")
+    Step("waiting for Summer Hunt to start")
+    t0 := A_TickCount, backSince := 0, started := 0
+    while A_TickCount - t0 < 150000 {
+        Stale()
+        if !FoolGear() {                        ; the loading screen hides the settings gear
+            LoadStage()
+            return
+        }
+        if started < 5 && SummerStartUp() {     ; "Game will begin soon...": Start
+            started++
+            Clk(401, 463)
+            Wait(1500)
+            continue
+        }
+        if A_TickCount - t0 > 4000 && Det("Lobby") {
+            if !backSince
+                backSince := A_TickCount
+            else if A_TickCount - backSince > 45000 {
+                AddLog("The Summer Hunt didn't start, back in the lobby. Trying again")
+                SaveDebugShot("fools_queue")
+                return
+            }
+        }
+        Wait(250)
+    }
+    AddLog("Summer Hunt didn't start within 2.5 minutes. Trying again")
+    SaveDebugShot("fools_queue")
+}
+
+; the end of a round: Replay (the yellow button), then the next round loads
+SummerReplay() {
+    AddLog("Summer Hunt: " (lastResult = "win" ? "won" : lastResult = "loss" ? "lost" : "round over") ", replaying")
+    Step("replaying Summer Hunt")
+    ClickOpenDungeon()                          ; the yellow Replay
+    Wait(800)
+    t0 := A_TickCount
+    while A_TickCount - t0 < 10000 {
+        Stale()
+        if !Det("EndScreen")
+            break
+        Wait(250)
+    }
+    if !Det("EndScreen")
+        LoadStage()
+}
+
+CardPearls(cx) {
+    t := ""
+    try {
+        WinGetClientPos &ox, &oy, , , RBX
+        t := OCR.FromRect(ox + cx - 75, oy + 246, 150, 22, OcrLang(), {scale: 3, grayscale: true}).Text
+    }
+    t := StrReplace(StrReplace(t, "O", "0"), "o", "0")
+    if RegExMatch(t, "(\d{1,3})\s*%", &m) && Integer(m[1]) >= 5
+        return Integer(m[1])
+    if RegExMatch(t, "i)pearl|summer")
+        return 30                               ; the line is there but its number wasn't read: the usual +30%
+    return 0
+}
+
+global voteNew := false          ; the vote panel since UPD 21 (Summer Hunt): taller cards, further apart
+
+FoolVoteDy() {
+    global voteNew
+    white := (r, g, b) => r > 220 && g > 220 && b > 220
+    ; since UPD 21: "Vote ends in" at 340-462 x 457-473 and the title ("Choose a card..." or "The weather
+    ; shifts...") at 317-487 x 154-171 (Chris's screenshots, 0.27+ and 0.21+ white; none without a vote)
+    if ColorShare(340, 457, 462, 473, white) >= 0.13 && ColorShare(317, 154, 487, 171, white) >= 0.12 {
+        voteNew := true
+        return 0
+    }
+    voteNew := false
+    best := 0, bestDy := 0
+    for dy in [0, 6, -6, 12, 18, 24, 30, 36, 42, 48, -12, -18]
+        if (sh := ColorShare(327, 408 + dy, 477, 426 + dy, white)) > best {
+            best := sh, bestDy := dy
+            if dy = 0 && sh >= 0.13
+                break
+        }
+    if best < 0.13
+        return ""
+    return ColorShare(272, 128 + bestDy, 527, 160 + bestDy, white) >= 0.12 ? bestDy : ""
+}
+
+FoolVoteUp() => FoolVoteDy() != ""
+
+FoolCardsNow(maxMs) {
+    global foolBusy
+    if foolBusy
+        return
+    foolBusy := true
+    try {
+        t0 := A_TickCount
+        while A_TickCount - t0 < maxMs && FoolVoteUp() {
+            FoolCards()
+            Wait(300)
+        }
+    } finally foolBusy := false
+}
+
+FoolCards() {
+    global foolVotes
+    ; "Enemy Health I" is too long for the box and reads as "Enemy Heat*'"; "Boss Damage" is an
+    ; enemy card, checked before "damage" (it counted as your +Attack)
+    static words := [["boss", "boss"], ["shield", "shield"], ["regen", "regen"], ["health|enemy\s*hea|\bhp\b", "health"], ["speed", "speed"],
+        ["\byen\b|¥", "yen"], ["range", "range"], ["cool|\bcd\b", "cooldown"], ["attack|\batk\b|damage", "attack"],
+        ["explo", "explosive"], ["resist", "resistant"], ["spell|proof", "spellproof"], ["plate", "plated"]]
+    if (dy := FoolVoteDy()) = ""
+        return false
+    Step("Summer Hunt: picking a card")
+    ; a unit's menu open on the left covers the first card: close it first
+    if UnitMenuOpen() {
+        CloseMenuClick()
+        Wait(400)
+        Stale()
+        if (dy := FoolVoteDy()) = ""
+            return false
+    }
+    cards := [], shown := ""
+    ; since UPD 21 the cards are at 223 / 401 / 578, the name on 218-233 and "+30% SummerPearls" (yellow)
+    ; on 251-264 under it: that number is read off each card, so any card counts, weather ones too
+    for cx in voteNew ? [223, 401, 578] : [258, 398, 544] {
+        txt := "", pearls := -1
+        try {
+            WinGetClientPos &ox, &oy, , , RBX
+            txt := voteNew ? OCR.FromRect(ox + cx - 75, oy + 214, 150, 22, OcrLang(), {scale: 3, grayscale: true}).Text
+                : OCR.FromRect(ox + cx - 68, oy + 225 + dy, 136, 32, OcrLang(), {scale: 3, grayscale: true}).Text
+            txt := Trim(RegExReplace(txt, "\s+", " "))
+        }
+        if voteNew
+            pearls := CardPearls(cx)
+        key := ""
+        for w in words
+            if RegExMatch(txt, "i)" w[1]) {
+                key := w[2]
+                break
+            }
+        ; its level: the I / II / III at the end of the name (read as I, l, 1 or |)
+        lvl := RegExMatch(txt, "[Il1|]{1,3}(?=\W*$)", &lm) ? StrLen(lm[0]) : 1
+        cards.Push({x: cx, key: key, txt: txt, lvl: lvl, pearls: pearls})
+        shown .= (shown = "" ? "" : " | ") (txt = "" ? "?" : txt) (pearls > 0 ? " +" pearls "%" : "")
+    }
+    ; a card it can't read counts as the middle of your list: it used to count for nothing, so
+    ; "Enemy Health (unread) | Spellproof | ?" picked Spellproof, #11 of 12
+    best := 0, bestRank := 99, known := 0, mid := cfg["foolCards"].Length / 2 + 0.5
+    ; the same card twice (Range I and Range II): the higher level wins (it took the leftmost).
+    ; "Most AprilCoins" on: the card with the most coins first (enemy cards +30%, level II +70%,
+    ; your own buffs none), the list decides between equal ones
+    static enemy := "|boss|shield|regen|health|speed|explosive|resistant|spellproof|plated|"
+    coinsFirst := cfg.Has("foolCoins") && cfg["foolCoins"]
+    for c in cards {
+        rk := c.key != "" ? IndexOf(cfg["foolCards"], c.key) : 0
+        known += rk ? 1 : 0
+        coins := c.pearls >= 0 ? c.pearls : c.key != "" && InStr(enemy, "|" c.key "|") ? [30, 70, 110][Min(3, c.lvl)] : 0
+        score := (coinsFirst ? -coins * 100 : 0) + (rk || mid) - c.lvl * 0.01
+        if score < bestRank
+            best := c, bestRank := score
+    }
+    readCoins := 0
+    for c in cards
+        readCoins += c.pearls > 0
+    if !known && !(coinsFirst && readCoins) {
+        best := cards[2]                        ; couldn't read any: the middle one
+        static told := false
+        if !told {
+            told := true
+            SaveDebugShot("fool_cards")
+        }
+    }
+    confirmed := FoolVoteAt(best.x, dy)
+    foolVotes++
+    AddLog("Card: " (best.txt != "" ? best.txt : "the middle one") "  (cards: " shown ")"
+        . (confirmed ? "" : "  [Confirm button not seen, clicked where it usually is]"))
+    t0 := A_TickCount
+    while A_TickCount - t0 < 12000 {
+        Wait(400)
+        Stale()
+        if !FoolVoteUp()
+            break
+    }
+    return true
+}
+
+FoolVoteAt(x, dy) {
+    Clk(x, (voteNew ? 280 : 241) + dy)
+    Wait(150)
+    Clk(x, (voteNew ? 330 : 300) + dy)
+    t1 := A_TickCount
+    while A_TickCount - t1 < 1500 {
+        Wait(250)
+        if voteNew ? VoteButton(&bx, &by) : FoolConfirm(x, &bx, &by, dy) {
+            Clk(bx, by)
+            return true
+        }
+    }
+    Clk(voteNew ? 339 : x, (voteNew ? 496 : 364) + dy)   ; where it was on the recording (UPD 21: Vote, under the cards)
+    return false
+}
+
+VoteButton(&bx, &by) {
+    if ColorShare(285, 486, 392, 506, (r, g, b) => g > 170 && r < 120 && b < 100 && g - r > 70) < 0.3
+        return false
+    bx := 339, by := 496
+    return true
+}
+
+FoolConfirm(cx, &bx, &by, dy := 0) {
+    try {
+        WinGetClientPos &ox, &oy, , , RBX
+        Fresh()
+        scr := FindText()
+        n := 0, sx := 0, sy := 0
+        y := (voteNew ? 330 : 340) + dy         ; UPD 21: the cards reach down to 423
+        while y <= (voteNew ? 440 : 392) + dy {
+            x := cx - 66
+            while x <= cx + 66 {
+                col := scr.GetColor(ox + x, oy + y, 0)
+                r := (col >> 16) & 0xFF, g := (col >> 8) & 0xFF, b := col & 0xFF
+                if g > 170 && r < 120 && b < 100 && g - r > 70    ; ~100 dots on it, under 20 on the map
+                    n++, sx += x, sy += y
+                x += 3
+            }
+            y += 3
+        }
+        if n >= 40 {
+            bx := Round(sx / n), by := Round(sy / n)
+            return true
+        }
+    }
+    return false
+}
+
+SummerPortalUp() => ColorShare(190, 334, 310, 366, (r, g, b) => g >= 200 && r <= 140 && b <= 120) >= 0.2
+    && ColorShare(354, 334, 478, 366, (r, g, b) => r >= 200 && g >= 150 && b <= 90) >= 0.2
+    && ColorShare(494, 334, 610, 366, (r, g, b) => r >= 190 && g <= 60 && b <= 60) >= 0.15
+
+SummerStartUp() => ColorShare(320, 436, 482, 488, (r, g, b) => g >= 200 && r <= 140 && b <= 120) >= 0.2
+
+SummerOpenPortal() {
+    t0 := A_TickCount
+    while A_TickCount - t0 < 2500 {
+        Stale()
+        if SummerPortalUp() {
+            Clk(400, 350)                       ; Open (Friends Only): only your friends can join
+            Wait(1000)
+            return true
+        }
+        Wait(250)
+    }
+    return false
+}
+
+FoolToPad() {
+    ; still on a round's end screen (the macro was stopped there, e.g. the alt after a stop):
+    ; Play can't work from there, it kept saying "Play didn't teleport". Back to the lobby first
+    if !Det("Lobby") && !FoolJoinUp()
+        BackToLobby()
+    Clk(400, 340), Clk(400, 390)
+    CloseChat()
+    loop 2 {
+        if FoolJoinUp()
+            break
+        ; Play teleports to the play area. A click right after switching Roblox windows was
+        ; sometimes lost, and the character then walked off in the lobby: check it teleported
+        moved := false
+        loop 3 {
+            before := SceneSig()
+            Clk(85, 295)                        ; Play
+            Step("lobby: waiting for the teleport")
+            if WaitAreaTeleport(before) || FoolJoinUp() {
+                moved := true
+                break
+            }
+        }
+        if !moved {
+            AddLog("Play didn't teleport (3 tries)")
+            break
+        }
+        FocusRoblox()
+        Step("walking to Summer Hunt")              ; the Summer Hunt portal is straight ahead (W) from where Play lands
+        SendKeys("{w down}")
+        t0 := A_TickCount, sig0 := SceneSig(), checkAt := A_TickCount + 2000, nudged := 0
+        while A_TickCount - t0 < 12000 {
+            Wait(250)
+            Stale()
+            if FoolJoinUp()
+                break
+            ; walking changes the picture a lot (40+ on your recording), standing still with
+            ; effects under 10. Right after switching Roblox windows the first A was sometimes
+            ; ignored and the character just stood there: click into the game, press A again
+            if checkAt && A_TickCount >= checkAt {
+                if SigDiff(SceneSig(), sig0) >= 20 || nudged >= 2
+                    checkAt := 0                    ; it's walking (or it tried enough)
+                else {
+                    nudged++
+                    SendKeys("{w up}")
+                    Clk(400, 470)
+                    Wait(200)
+                    FocusRoblox()
+                    SendKeys("{w down}")
+                    t0 := A_TickCount, sig0 := SceneSig(), checkAt := A_TickCount + 2000
+                }
+            }
+        }
+        SendKeys("{w up}")
+        Wait(500)
+        Stale()
+    }
+    if FoolJoinUp()
+        return true
+    SaveDebugShot("fools_entry")
+    return false
 }

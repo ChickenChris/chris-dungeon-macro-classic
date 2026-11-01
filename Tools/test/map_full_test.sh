@@ -41,7 +41,7 @@ Units(n) {
 }
 '''
 body += "\n".join(fn(n) for n in ["PlaceRefused"]) + "\n"
-body += "global foolOnly := " + ("true" if "!FoolMode() ||" in src else "false") + "\n"
+body += "global foolOnly := " + ("true" if "if !FoolMode() || placedUnits.Length < 5" in src else "false") + "\n"
 body += r'''
 said := "Cannot place more than 20 units! Sell some weaker ones to make room."
 Units(0)

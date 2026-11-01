@@ -69,7 +69,7 @@ const legendBtn = (p) => p.evaluateHandle(() => [...document.querySelectorAll("#
       && await p.evaluate(() => !!document.querySelector("#modeSub")?.classList.contains("open")));
     await p.evaluate(() => $$("#segIcDiff button")[1].click()); await p.waitForTimeout(50);
     check(tag + ": Hard is saved", (await p.evaluate(() => window.__sent)).some((m) => m.cmd === "set" && m.key === "icHard" && m.value === 1));
-    if (edition) check("classic: Fool's Hunt is still locked", await p.evaluate(() => [...document.querySelectorAll("#segModeHome button")].find((b) => b.textContent.trim() === "Summer Hunt")?.dataset.premium === "Summer Hunt"));
+    if (edition) check("classic: Summer Hunt is free (since UPD 21)", await p.evaluate(() => { const b = [...document.querySelectorAll("#segModeHome button")].find((x) => x.textContent.trim() === "Summer Hunt"); return !!b && !b.dataset.premium; }));
     await legendBtn(p).then((h) => h.evaluate((x) => x.click())); await p.waitForTimeout(150);
     // Portal mode: Premium only (locked in Classic), a name box
     const portal = await p.evaluateHandle(() => [...document.querySelectorAll("#segModeHome button")].find((b) => b.textContent.trim() === "Portal"));

@@ -361,6 +361,18 @@ HandleMessage(msg) {
             if cfg["denyShrine"].Has(name)
                 cfg["denyShrine"][name] := m.Get("value", 0) ? 1 : 0, SaveConfig()
         case "build": SetBuild(m.Get("steps", []))
+        case "foolCards":                       ; the Summer Hunt card list (dragged into order)
+            list := m.Get("list", [])
+            ok := list is Array && list.Length = FOOL_CARDS().Length
+            if ok
+                for v in FOOL_CARDS()
+                    ok := ok && IndexOf(list, v)
+            if ok {
+                cfg["foolCards"] := []
+                for v in list
+                    cfg["foolCards"].Push(v)
+                SaveConfig()
+            }
         case "team": UseTeam(IsInteger(v := m.Get("i", 1)) ? Integer(v) : 1)
         case "teamAdd": AddTeam()
         case "teamDel": DelTeam(IsInteger(v := m.Get("i", 0)) ? Integer(v) : 0)
@@ -417,8 +429,9 @@ UiState() {
     for k in ["route", "curseRank", "denyShrine", "slots", "build", "shopRank", "shopOff"]
         c[k] := cfg[k]
     ; Premium's parts show locked on the page, with what Classic does there
+    c["foolCards"] := cfg["foolCards"]           ; the Summer Hunt's card list (free since UPD 21)
     for k, v in Map("foolMatch", 0, "foolOwnTeam", 0, "foolFreeze", 80,
-        "foolAccounts", 2, "foolCards", FOOL_CARDS(), "showcase", 0, "showcaseName", "", "showcaseDiscord", "",
+        "foolAccounts", 2, "showcase", 0, "showcaseName", "", "showcaseDiscord", "",
         "lookAhead", 0, "dmgType", "Both", "shopUnknown", 1, "shopMinCoins", 0)
         c[k] := v
     return Map("version", APP_VER, "edition", "classic", "maps", MapNames(), "patterns", PATTERNS,
@@ -440,7 +453,7 @@ SetCfg(key, value) {
         value := String(value)
     if key = "keyboard" && !IndexOf(["Auto", "QWERTY", "AZERTY", "QWERTZ", "Non-Latin"], value)
         return
-    if key = "mode" && !IndexOf(["Dungeon", "Legend", "Infinity Castle"], value)   ; the other modes are in Premium
+    if key = "mode" && !IndexOf(["Dungeon", "Legend", "Infinity Castle", "Fool's Hunt"], value)   ; the other modes are in Premium (Fool's Hunt: the Summer Hunt)
         return
     cfg[key] := value
     SaveConfig()
@@ -1334,7 +1347,7 @@ DefaultConfig() {
         "denyAllShrines", 0, "denyUnknownShrine", 1, "stopAfterDefeat", 0,
         "placeSpeed", 1, "webhook", "", "hookRuns", 1, "psLink", "", "fixOnStart", 1, "tolerance", 2, "retries", 3, "useBuild", 0,
         "bgStrength", 3, "bgGif", "", "accent", "Crimson",
-        "bgOpacity", 70, "bgBlur", 0, "glass", 60, "bgAnimate", 1, "bgFile", "", "bgName", "", "lastSpotMap", "", "elemTeams", 0, "keyboard", "Auto", "mode", "Dungeon", "legendWorld", "Magic Hills (Elf Invasion)", "legendStage", 1, "autoChallenge", 0, "challengeSlot", 0, "icHard", 0, "icStopFloors", 0, "team", 1, "teamDefault", 1, "teams", [],
+        "bgOpacity", 70, "bgBlur", 0, "glass", 60, "bgAnimate", 1, "bgFile", "", "bgName", "", "lastSpotMap", "", "elemTeams", 0, "keyboard", "Auto", "mode", "Dungeon", "legendWorld", "Magic Hills (Elf Invasion)", "legendStage", 1, "autoChallenge", 0, "challengeSlot", 0, "icHard", 0, "icStopFloors", 0, "foolCoins", 0, "team", 1, "teamDefault", 1, "teams", [],
         "route", ["Rare_Chest", "Chest", "Shop", "Hoard", "Shrine", "Boss"],
         "avoid", Map("Flying", 1, "Wind", 0, "Money", 1, "Health", 1, "Exploding", 0, "Shielding", 1, "Regen", 1),
         "curseRank", ["Flying", "Money", "Health", "Shielding", "Regen", "Wind", "Exploding"], "skipWorst", 5,
@@ -1466,7 +1479,7 @@ class IniDoc {
 
 ScalarKeys() => ["pattern", "useSpots", "saveForTop", "autoAbility", "zoom", "tpSpawn", "saveChests", "buyShop",
     "denyAllShrines", "denyUnknownShrine", "stopAfterDefeat", "placeSpeed", "webhook", "hookRuns", "psLink", "fixOnStart", "tolerance", "skipWorst", "retries", "useBuild",
-    "bgStrength", "bgGif", "accent", "bgOpacity", "bgBlur", "glass", "bgAnimate", "bgFile", "bgName", "lastSpotMap", "elemTeams", "keyboard", "mode", "legendWorld", "legendStage", "autoChallenge", "challengeSlot", "icHard", "icStopFloors"]
+    "bgStrength", "bgGif", "accent", "bgOpacity", "bgBlur", "glass", "bgAnimate", "bgFile", "bgName", "lastSpotMap", "elemTeams", "keyboard", "mode", "legendWorld", "legendStage", "autoChallenge", "challengeSlot", "icHard", "icStopFloors", "foolCoins"]
 
 ; Fool's Hunt cards (Premium): only shown, locked, on the Dungeon page
 FOOL_CARDS() => ["shield", "regen", "health", "speed", "yen", "range", "cooldown", "attack", "explosive", "resistant", "spellproof", "plated", "boss"]
@@ -1555,8 +1568,18 @@ LoadConfig() {
         for name in [list*]
             if InStr(name, "(Fool's Hunt)")
                 list.Delete(name)
-    if !IndexOf(["Dungeon", "Legend", "Infinity Castle"], cfg["mode"])   ; a Premium mode from copied settings
+    if !IndexOf(["Dungeon", "Legend", "Infinity Castle", "Fool's Hunt"], cfg["mode"])   ; a Premium mode from copied settings
         cfg["mode"] := "Dungeon"
+    fc := []                                    ; the Summer Hunt card list, best first
+    loop FOOL_CARDS().Length {
+        v := IniRead(cfgFile, "Fool", "Card" A_Index, "")
+        if IndexOf(FOOL_CARDS(), v) && !IndexOf(fc, v)
+            fc.Push(v)
+    }
+    for v in FOOL_CARDS()
+        if !IndexOf(fc, v)
+            fc.Push(v)
+    cfg["foolCards"] := fc
 }
 
 ; quick clicks on the Units / Build pages (1 to 17 units = 16 clicks) saved 16 times: now once,
@@ -1601,6 +1624,9 @@ SaveConfig(*) {
                 str .= (A_Index > 1 ? "|" : "") p.x "," p.y
             ini.Set("Spots", name, str)
         }
+        ini.Drop("Fool")
+        for i, v in cfg["foolCards"]
+            ini.Set("Fool", "Card" i, v)
         ini.Drop("Walks")
         for name, route in cfg["walks"]
             ini.Set("Walks", name, route)
