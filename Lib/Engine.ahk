@@ -2631,7 +2631,19 @@ MapFromLoadingText() {
 ; came out half garbled, e.g. on a PC whose text reader isn't English) the forgiving one
 MatchMapName(txt) {
     name := MatchMapStrict(txt)
-    return name != "" ? name : MatchMapLoose(txt)
+    name := name != "" ? name : MatchMapLoose(txt)
+    ; Snowy Kingdom and Fabled Kingdom share "Kingdom": a garbled first word picked the wrong one (a
+    ; player's Snowy Kingdom room read as Fabled Kingdom, Chris). Their own first word decides
+    if RegExMatch(name, "^(Snowy|Fabled) Kingdom") {
+        snowy := RegExMatch(txt, "i)sn[o0]w|n[o0]wy|[o0]wy\b"), fabled := RegExMatch(txt, "i)fab|ab[l1I]ed|b[l1I]ed\b")
+        if snowy && !fabled
+            name := RegExReplace(name, "^Fabled", "Snowy")
+        else if fabled && !snowy
+            name := RegExReplace(name, "^Snowy", "Fabled")
+        else if !snowy && !fabled
+            return ""                           ; can't tell which: leave it to the next look
+    }
+    return name
 }
 
 MatchMapStrict(txt) {
