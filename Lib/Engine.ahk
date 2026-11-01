@@ -383,7 +383,7 @@ Tick() {
         HandleShrine()
         return
     }
-    if Det("Chest") {
+    if ChestUp() {                              ; (UPD 21: its new screen by its green Continue + "chests")
         idleSince := 0
         HandleChests()
         return
@@ -1737,7 +1737,7 @@ HandleChests() {
         ; if this was the last room the game now asks "Leave Dungeon?" - the popup
         ; handler cancels that and comes back here to open the chests first
         ClickDungeonContinue()
-        WaitFor(() => !Det("Chest") || LeavePopupUp(), 1500)
+        WaitFor(() => !ChestUp() || LeavePopupUp(), 1500)
         return
     }
     Step("opening chests")
@@ -1747,7 +1747,7 @@ HandleChests() {
     AddLog("Opened " n " chest" (n = 1 ? "" : "s"))
     chestsDone := true
     ClickDungeonContinue()
-    WaitFor(() => !Det("Chest") || LeavePopupUp(), 1500)
+    WaitFor(() => !ChestUp() || LeavePopupUp(), 1500)
 }
 
 OpenChestSlot(x, y) {
@@ -1755,7 +1755,7 @@ OpenChestSlot(x, y) {
     loop 30 {
         Clk(x, y)
         ; still on the chest screen after a moment = this chest is empty
-        if !WaitFor(() => !Det("Chest"), 1500)
+        if !WaitFor(() => !ChestUp(), 1500)
             break
         CollectRewards()                        ; what it gave (read before it's clicked away)
         opened++
@@ -1982,6 +1982,35 @@ ClaimReward() {
 
 ; presses Continue on the chest / shop screen. Stops if the "Leave Dungeon?" popup comes up:
 ; whether to Finish or Cancel there is up to HandleDungeonPopups.
+; UPD 21's "Open Chests" screen (inside the "DUNGEON RUN" frame): its big green Continue (about
+; 400-565 x 390-427 on a player's screenshot) and "OPEN CHESTS" in the corner. Its middle in bx, by
+ContinueGreen(&bx, &by) {
+    try {
+        WinGetClientPos &ox, &oy, , , RBX
+        Fresh()
+        scr := FindText()
+        n := 0, sx := 0, sy := 0, y := 370
+        while y <= 450 {
+            x := 360
+            while x <= 600 {
+                col := scr.GetColor(ox + x, oy + y, 0)
+                r := (col >> 16) & 0xFF, g := (col >> 8) & 0xFF, b := col & 0xFF
+                if g >= 150 && r <= 70 && b <= 70
+                    n++, sx += x, sy += y
+                x += 5
+            }
+            y += 4
+        }
+        if n >= 80 {
+            bx := Round(sx / n), by := Round(sy / n)
+            return true
+        }
+    }
+    return false
+}
+ChestScreenUp() => ContinueGreen(&cx, &cy) && OcrFindWord(120, 160, 320, 70, "i)chest", &wx, &wy)
+ChestUp() => Det("Chest") || ChestScreenUp()
+
 ClickDungeonContinue() {
     t0 := A_TickCount, clicked := false
     loop {
@@ -1990,17 +2019,17 @@ ClickDungeonContinue() {
         if Det("DungeonContinue", &fx, &fy) {
             Clk(fx - 3, fy - 35)
             WaitFor(() => !Det("DungeonContinue") || LeavePopupUp(), 1000)
-        } else if OcrFindWord(200, 260, 420, 280, "i)^c[o0]nt[il1|]nue", &cx, &cy) {
+        } else if ContinueGreen(&cx, &cy) || OcrFindWord(200, 260, 420, 280, "i)^c[o0]nt[il1|]nue", &cx, &cy) {
             ; UPD 21's new dungeon screens: the Continue button's picture no longer matched, so after
             ; "Saving chests for after the boss" it just sat there (Ren). Its word is found instead
             Clk(cx, cy), clicked := true
-            WaitFor(() => !Det("Chest") || LeavePopupUp(), 1500)
+            WaitFor(() => !ChestUp() || LeavePopupUp(), 1500)
         } else {
-            if !clicked && A_TickCount - t0 < 1500 && Det("Chest") {
+            if !clicked && A_TickCount - t0 < 1500 && ChestUp() {
                 Wait(300)                       ; the button can show a moment after the panel
                 continue
             }
-            if Det("Chest")
+            if ChestUp()
                 SaveDebugShot("chest_continue")     ; still on the chests: a picture for fixing it
             break
         }
