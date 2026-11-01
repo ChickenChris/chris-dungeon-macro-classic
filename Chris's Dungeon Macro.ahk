@@ -143,6 +143,25 @@ F3::StopMacro()
 #MaxThreadsPerHotkey 2
 F4::TogglePause()
 #MaxThreadsPerHotkey 1
+F8::ShotNow()
+
+; F8: a picture of the game as the macro sees it, saved in Logs (exact pixels, for fixing detection
+; after a game update: "UPD 21: the unit menu looks different")
+ShotNow() {
+    if !WinExist(RBX) {
+        Notify("Roblox isn't open", "bad")
+        return
+    }
+    try {
+        DirCreate A_ScriptDir "\Logs"
+        WinGetPos &wx, &wy, &ww, &wh, RBX
+        file := "shot_" FormatTime(, "yyyyMMdd_HHmmss") "_" Mod(A_TickCount, 1000) ".bmp"
+        FindText().SavePic(A_ScriptDir "\Logs\" file, wx, wy, wx + ww - 1, wy + wh - 1, 1)
+        AddLog("F8: saved Logs\" file)
+        Notify("Screenshot saved (Logs\" file ")", "good")
+    } catch as err
+        Notify("Couldn't save the screenshot: " err.Message, "bad")
+}
 
 ; =====================================================================
 ;  WebView2 page
