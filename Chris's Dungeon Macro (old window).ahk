@@ -1653,3 +1653,6 @@ DefaultGif(*) {
 
 ; Element teams live in the new window only (the engine asks for this when switching teams)
 UseTeam(i, quiet := false) => 0
+
+; the Summer Hunt card list (as in the new window)
+FOOL_CARDS() => ["shield", "regen", "health", "speed", "yen", "range", "cooldown", "attack", "explosive", "resistant", "spellproof", "plated", "boss"]

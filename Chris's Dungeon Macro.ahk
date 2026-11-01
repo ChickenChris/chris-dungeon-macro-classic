@@ -429,7 +429,7 @@ UiState() {
     for k in ["route", "curseRank", "denyShrine", "slots", "build", "shopRank", "shopOff"]
         c[k] := cfg[k]
     ; Premium's parts show locked on the page, with what Classic does there
-    c["foolCards"] := cfg["foolCards"]           ; the Summer Hunt's card list (free since UPD 21)
+    c["foolCards"] := cfg.Has("foolCards") ? cfg["foolCards"] : FOOL_CARDS()   ; the Summer Hunt's card list (free since UPD 21)
     for k, v in Map("foolOwnTeam", 0, "foolFreeze", 80,
         "foolAccounts", 2, "showcase", 0, "showcaseName", "", "showcaseDiscord", "",
         "lookAhead", 0, "dmgType", "Both", "shopUnknown", 1, "shopMinCoins", 0)
@@ -1347,7 +1347,7 @@ DefaultConfig() {
         "denyAllShrines", 0, "denyUnknownShrine", 1, "stopAfterDefeat", 0,
         "placeSpeed", 1, "webhook", "", "hookRuns", 1, "psLink", "", "fixOnStart", 1, "tolerance", 2, "retries", 3, "useBuild", 0,
         "bgStrength", 3, "bgGif", "", "accent", "Crimson",
-        "bgOpacity", 70, "bgBlur", 0, "glass", 60, "bgAnimate", 1, "bgFile", "", "bgName", "", "lastSpotMap", "", "elemTeams", 0, "keyboard", "Auto", "mode", "Dungeon", "legendWorld", "Magic Hills (Elf Invasion)", "legendStage", 1, "autoChallenge", 0, "challengeSlot", 0, "icHard", 0, "icStopFloors", 0, "foolCoins", 0, "foolMatch", 0, "team", 1, "teamDefault", 1, "teams", [],
+        "bgOpacity", 70, "bgBlur", 0, "glass", 60, "bgAnimate", 1, "bgFile", "", "bgName", "", "lastSpotMap", "", "elemTeams", 0, "keyboard", "Auto", "mode", "Dungeon", "legendWorld", "Magic Hills (Elf Invasion)", "legendStage", 1, "autoChallenge", 0, "challengeSlot", 0, "icHard", 0, "icStopFloors", 0, "foolCoins", 0, "foolMatch", 0, "foolCards", FOOL_CARDS(), "team", 1, "teamDefault", 1, "teams", [],
         "route", ["Rare_Chest", "Chest", "Shop", "Hoard", "Shrine", "Boss"],
         "avoid", Map("Flying", 1, "Wind", 0, "Money", 1, "Health", 1, "Exploding", 0, "Shielding", 1, "Regen", 1),
         "curseRank", ["Flying", "Money", "Health", "Shielding", "Regen", "Wind", "Exploding"], "skipWorst", 5,
@@ -1562,12 +1562,11 @@ LoadConfig() {
         if list.Length
             cfg["spots"][name] := list
     }
-    ; Premium's Fool's Hunt keeps its own spots and walks ("Navy Bay (Fool's Hunt)"). Settings
-    ; imported or copied from Premium bring them along: Classic has no Fool's Hunt, so leave them out
-    for list in [cfg["spots"], cfg["walks"]]
-        for name in [list*]
-            if InStr(name, "(Fool's Hunt)")
-                list.Delete(name)
+    ; Summer Hunt walks ("Haunted Mansion (Fool's Hunt)") are kept: Classic has the Summer Hunt too since
+    ; UPD 21. Its own spots aren't used here, so those are left out
+    for name in [cfg["spots"]*]
+        if InStr(name, "(Fool's Hunt)")
+            cfg["spots"].Delete(name)
     if !IndexOf(["Dungeon", "Legend", "Infinity Castle", "Fool's Hunt"], cfg["mode"])   ; a Premium mode from copied settings
         cfg["mode"] := "Dungeon"
     fc := []                                    ; the Summer Hunt card list, best first

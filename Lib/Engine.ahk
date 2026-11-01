@@ -2791,7 +2791,7 @@ LoadingScreens() {
         "Magic Hills", ["magichills", "magichills2", "magichill3"], "Magic Town", ["magictown"],
         "Mountain Temple", ["mountaintemple"], "Navy Bay", ["navybay"],
         "Nightmare Train", ["nightmaretrain"], "Otherwordly Plane", ["otherwordlyplane"],   ; new in UPD 21 (the game spells it so)
-        "Planet Greenie", ["planetgreenie"], "Planet Greenie (Summer)", [], "Alien Spaceship (Underwater)", [],
+        "Planet Greenie", ["planetgreenie"], "Planet Greenie (Summer)", [], "Alien Spaceship (Underwater)", [], "Haunted Academy (Summer)", [],
         "Puppet Island", ["puppetisland"], "Rain Village", ["rainvillage", "rainvillage2"],
         "Ruined City", ["ruinedcity"], "Sacred Planet", ["sacredplanet"],
         "Sand Village", ["sandvillage"], "Shibuya District", ["shibuyadistrict"], "Sky Island", ["skyisland"],
@@ -2846,9 +2846,11 @@ PlayStage() {
         if FoolMode() && curMap != "Unknown" && mapHow != "map banner" {
             ; Fool's Hunt's loading screen can name another map than the one that loads (it said
             ; Mountain Temple on another map, so it walked to the wrong spot): the blue map banner
-            ; in the round itself has the last word
+            ; in the round itself has the last word. With Find Match the loading screen names the hour's
+            ; map, while the match can be on another one (Planet Greenie (Summer) on the loading screen,
+            ; Haunted Academy (Summer) in the round): the banner is looked for up to 7 s
             t0 := A_TickCount
-            while A_TickCount - t0 < 3000 {
+            while A_TickCount - t0 < 7000 {
                 if (name := MapFromBanner()) != "" {
                     if name != curMap {
                         AddLog("The loading screen said " curMap ", the map banner says " name ". Going with " name)
@@ -4555,7 +4557,12 @@ PlaceRefused(slot) {
         return false
     lastAt := A_TickCount, lastSlot := slot
     if msg = "unique" {                         ; a unique unit: one of it (Wagwan: it kept placing it)
-        have := Max(1, CountPlaced(slot))
+        have := CountPlaced(slot)
+        if have < 1 {                           ; one is down but its menu didn't show: find it, upgrade it too
+            found := FindUnseen(slot, 1)
+            have := 1
+            AddLog("Slot " slot ": unique unit, already placed (its menu didn't show in time)" (found ? ", found where it is" : ""))
+        }
         slotCap[CapKey(slot)] := have, slotFull[slot] := stageStart
         static toldUnique := Map()
         if !toldUnique.Has(slot)
@@ -6276,7 +6283,11 @@ FoolMode() => cfg.Has("mode") && cfg["mode"] = "Fool's Hunt"
 global foolBusy := false, foolVotes := 0
 FoolRandom() => false
 FoolWaitHook() => 0
-PlaceKey(mapName) => mapName
+; a map's own Summer Hunt walk ("Haunted Mansion (Fool's Hunt)") when there is one, else the map's
+PlaceKey(mapName) => FoolMode() && mapName != "" && cfg["walks"].Has(mapName " (Fool's Hunt)") ? mapName " (Fool's Hunt)"
+    : FoolMode() && VariantBase(mapName) != "" && cfg["walks"].Has(VariantBase(mapName) " (Fool's Hunt)") ? VariantBase(mapName) " (Fool's Hunt)" : mapName
+; "Haunted Mansion (Summer)" -> "Haunted Mansion" (its Summer walk recorded under the plain name); "" otherwise
+VariantBase(mapName) => RegExMatch(mapName, "^(.+?) \((?!Fool's Hunt)[A-Za-z]+\)$", &m) ? m[1] : ""
 FoolTick() {
     global foolBusy
     static last := 0
@@ -6392,6 +6403,10 @@ FoolVoteDy() {
         return 0
     }
     voteNew := false
+    return ""                                   ; (the April Fool's Hunt layout is gone: its looser check
+}                                               ;  passed on the boss bar and held every click)
+FoolVoteDyOld() {
+    white := (r, g, b) => r > 220 && g > 220 && b > 220
     best := 0, bestDy := 0
     for dy in [0, 6, -6, 12, 18, 24, 30, 36, 42, 48, -12, -18]
         if (sh := ColorShare(327, 408 + dy, 477, 426 + dy, white)) > best {
@@ -6482,6 +6497,8 @@ FoolCards() {
     }
     ; a card it can't read counts as the middle of your list: it used to count for nothing, so
     ; "Enemy Health (unread) | Spellproof | ?" picked Spellproof, #11 of 12
+    if !cfg.Has("foolCards")
+        cfg["foolCards"] := FOOL_CARDS()
     best := 0, bestRank := 99, known := 0, mid := cfg["foolCards"].Length / 2 + 0.5
     ; the same card twice (Range I and Range II): the higher level wins (it took the leftmost).
     ; "Most AprilCoins" on: the card with the most coins first (enemy cards +30%, level II +70%,
