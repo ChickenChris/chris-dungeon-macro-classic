@@ -4945,6 +4945,16 @@ UpgradeUnit(u, presses := 3, useLimit := true) {
     u.lvlOpen := lvl                            ; the level as the menu opened (-1 = couldn't read it)
     if lvl >= 0
         u.lvl := lvl
+    ; maxed already as its menu opens ("Max Upgrade"): done, no presses (a maxed Bulma was pressed
+    ; and waited on for yen again and again, Chris 3.2.74)
+    Stale()
+    if NewMax() && !IsSummonMenu() {
+        u.maxed := true
+        AddLog("Slot " u.slot " is fully upgraded")
+        CloseMenuClick()
+        ClickAway()
+        return 1
+    }
     gained := 0
     loop presses {
         if lim && (lvl >= 0 ? lvl >= lim : AtUpgradeLevel(lim)) {
@@ -4986,6 +4996,7 @@ UpgradeUnit(u, presses := 3, useLimit := true) {
 
 MaxReached() {
     Wait(400)
+    Stale()
     return (MaxShown() || (NewMenu() && InStr(NewMenuLabel(), "MAX"))) && !IsSummonMenu()
 }
 
@@ -5028,6 +5039,11 @@ NewMenuLabel() {
 }
 ; the level in "UPG [N]", -1 when it can't be read
 NewLevel() {
+    ; the digits in "[N]" are orange like the yen: read on their own (client 174-207 x 235-250), the
+    ; whole bar read as text came back empty on Chris's PC ("Its menu says ''")
+    v := ReadYellowNumber(174, 235, 34, 16)
+    if v >= 0 && v <= 20
+        return v
     t := NewMenuLabel()
     if RegExMatch(t, "[\[\(\{]\s*([0-9lI]{1,2})\s*[\]\)\}]", &m) || RegExMatch(t, "i)UP\w?\W{0,3}([0-9]{1,2})(?!\d)", &m) {
         v := StrReplace(StrReplace(m[1], "l", "1"), "I", "1")
@@ -6275,7 +6291,12 @@ FoolVoteDy() {
     white := (r, g, b) => r > 220 && g > 220 && b > 220
     ; since UPD 21: "Vote ends in" at 340-462 x 457-473 and the title ("Choose a card..." or "The weather
     ; shifts...") at 317-487 x 154-171 (Chris's screenshots, 0.27+ and 0.21+ white; none without a vote)
-    if ColorShare(340, 457, 462, 473, white) >= 0.13 && ColorShare(317, 154, 487, 171, white) >= 0.12 {
+    ; and the 3 cards' dark insides (1.00 on every vote, never all three on other screens: the white
+    ; Start text in the lobby passed for a vote and a card was "picked" there, Chris 3.2.74)
+    dark := (r, g, b) => r + g + b < 150
+    if ColorShare(340, 457, 462, 473, white) >= 0.13 && ColorShare(317, 154, 487, 171, white) >= 0.12
+        && ColorShare(172, 330, 272, 410, dark) >= 0.9 && ColorShare(350, 330, 450, 410, dark) >= 0.9
+        && ColorShare(527, 330, 627, 410, dark) >= 0.9 {
         voteNew := true
         return 0
     }
@@ -6407,10 +6428,30 @@ FoolCards() {
 }
 
 FoolVoteAt(x, dy) {
-    Clk(x, (voteNew ? 300 : 241) + dy)
+    if voteNew {
+        ; one click picks a card, a 2nd click unpicks it (Chris), and a click meant for a unit can have
+        ; picked one already: click ours only while it isn't the highlighted one, then Vote
+        loop 3 {
+            Stale()
+            if CardPicked(x)
+                break
+            Clk(x, 300)
+            Wait(450)
+        }
+        t1 := A_TickCount
+        while A_TickCount - t1 < 1500 {
+            Stale()
+            if VoteButton(&bx, &by) {
+                Clk(bx, by)
+                return true
+            }
+            Wait(250)
+        }
+        return false                            ; no blind click: it landed on the unit bar
+    }
+    Clk(x, 241 + dy)
     Wait(150)
-    if !voteNew                                 ; UPD 21: one click picks the card, a 2nd one unpicks it (Chris)
-        Clk(x, 300 + dy)
+    Clk(x, 300 + dy)
     t1 := A_TickCount
     while A_TickCount - t1 < 1500 {
         Wait(250)
@@ -6420,6 +6461,27 @@ FoolVoteAt(x, dy) {
         }
     }
     Clk(voteNew ? 339 : x, (voteNew ? 496 : 364) + dy)   ; where it was on the recording (UPD 21: Vote, under the cards)
+    return false
+}
+
+; UPD 21: the picked card has a white frame (its left edge)
+CardPicked(cx) {
+    try {
+        WinGetClientPos &ox, &oy, , , RBX
+        Fresh()
+        scr := FindText()
+        x := cx - 82
+        while x <= cx - 75 {
+            hit := 0, n := 0, y := 220
+            while y <= 400 {
+                c := scr.GetColor(ox + x, oy + y, 0)
+                hit += ((c >> 16) & 0xFF) > 200 && ((c >> 8) & 0xFF) > 200 && (c & 0xFF) > 200, n++, y += 4
+            }
+            if hit / n >= 0.7
+                return true
+            x++
+        }
+    }
     return false
 }
 
