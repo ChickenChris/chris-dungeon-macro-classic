@@ -4791,7 +4791,7 @@ OpenUnit(u) {
     if A_TickCount - toldAt > 60000 {
         toldAt := A_TickCount
         AddLog("Slot " u.slot ": its menu didn't open at " u.x "," u.y " (menu " (NewMenu() ? "seen" : "not seen") ", summon " (IsSummonMenu() ? "yes" : "no") ")")
-        SaveDebugShot("open_miss_" FormatTime(, "HHmmss"))
+        SaveDebugShot("open_miss")
     }
     u.misses++
     if u.misses >= 3 {
