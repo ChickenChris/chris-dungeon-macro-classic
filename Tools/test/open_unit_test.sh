@@ -27,6 +27,7 @@ ClearVote() => 0
 AutoOffSeen() => false
 ClickAuto() => Clk(373, 237)
 NewMax() => false
+MaxHere() => false
 NewLevel() => -1
 NewMenuLabel() => ""
 CloseMenuClick() => Clk(325, 185)

@@ -4759,7 +4759,7 @@ OpenUnit(u) {
         Clk(u.x + o[1], u.y + o[2])
         ; the menu can take a moment to slide in: give it a full second before calling it a miss.
         ; A maxed UPD 21 menu counts as opened too (a maxed Bulma's menu was missed this way, Chris)
-        if WaitUnitMenu(A_Index = 1 ? 1300 : 1000) || (Sleep(250), UnitMenuOpen()) || (Stale(), NewMax() && !IsSummonMenu()) {
+        if WaitUnitMenu(A_Index = 1 ? 1300 : 1000) || (Sleep(250), UnitMenuOpen()) || (Stale(), (NewMax() || MaxHere()) && !IsSummonMenu()) {
             if A_Index > 1 {
                 ; only move the remembered spot after the old one missed twice in a row
                 u.offMiss := (u.HasOwnProp("offMiss") ? u.offMiss : 0) + 1
@@ -4785,7 +4785,7 @@ OpenUnit(u) {
         return false
     }
     Stale()
-    if NewMax() && !IsSummonMenu()              ; its menu is up and maxed after all: that's the unit
+    if (NewMax() || MaxHere()) && !IsSummonMenu()              ; its menu is up and maxed after all: that's the unit
         return true
     static toldAt := -60000
     if A_TickCount - toldAt > 60000 {
@@ -4968,7 +4968,7 @@ UpgradeUnit(u, presses := 3, useLimit := true) {
         static missAt := -30000
         if NewMenu() && A_TickCount - missAt > 30000    ; a menu is open but wasn't taken as this unit's
             missAt := A_TickCount, AddLog("Slot " u.slot ": its menu showed but wasn't taken (Max " (NewMax() ? "seen" : "not seen") ", summon " (IsSummonMenu() ? "yes" : "no") ")")
-        if NewMax() && !IsSummonMenu() {        ; a maxed menu is a maxed menu, however it opened
+        if (NewMax() || MaxHere()) && !IsSummonMenu() {        ; a maxed menu is a maxed menu, however it opened
             u.maxed := true
             AddLog("Slot " u.slot " is fully upgraded")
             CloseMenuClick()
@@ -4983,9 +4983,9 @@ UpgradeUnit(u, presses := 3, useLimit := true) {
     ; maxed already as its menu opens ("Max Upgrade"): done, no presses (a maxed Bulma was pressed
     ; and waited on for yen again and again, Chris 3.2.74). Looked at twice: the menu slides in
     Stale()
-    if !NewMax()
+    if !NewMax() && !MaxHere()
         Wait(300), Stale()
-    if NewMax() && !IsSummonMenu() {
+    if (NewMax() || MaxHere()) && !IsSummonMenu() {
         u.maxed := true
         AddLog("Slot " u.slot " is fully upgraded")
         CloseMenuClick()
@@ -5016,6 +5016,10 @@ UpgradeUnit(u, presses := 3, useLimit := true) {
                 break
             }
             gained += now - lvl, lvl := now
+        } else if MaxHere() {                   ; maxed (the price "changed" to the grey Max button)
+            u.maxed := true, gained++
+            AddLog("Slot " u.slot " is fully upgraded")
+            break
         } else if BitDiff(priceBefore, UpgradeButtonBits()) >= 6
             gained++                            ; can't read the level, but the price changed: it went up
         else
@@ -5034,7 +5038,7 @@ UpgradeUnit(u, presses := 3, useLimit := true) {
 MaxReached() {
     Wait(400)
     Stale()
-    return (MaxShown() || (NewMenu() && InStr(NewMenuLabel(), "MAX"))) && !IsSummonMenu()
+    return (MaxHere() || MaxShown() || (NewMenu() && InStr(NewMenuLabel(), "MAX"))) && !IsSummonMenu()
 }
 
 ; Some units (Elyssia) spawn summons like the Abyssal Eel. A summon's menu says "Upgrade [0] (MAX)"
@@ -5071,6 +5075,10 @@ NewMenu() => ColorShare(150, 234, 262, 250, (r, g, b) => r >= 55 && r <= 130 && 
 NewMax() => NewMenu() && (ColorShare(170, 278, 272, 326, (r, g, b) => r >= 200 && g >= 140 && b <= 110 && r - b >= 120) >= 0.05
     || MaxButtonGrey())
 ; a maxed unit's bottom button is a grey "Max" (0.60+ grey on every maxed menu, 0.19 at most on others)
+; "Max Upgrade" on screen, by itself: its big yellow letters (170-272 x 278-326) and the grey Max
+; button under them. No other check in front of it (Chris: "just detect MAX UPGRADE on the screen")
+MaxHere() => (Stale(), ColorShare(170, 278, 272, 326, (r, g, b) => r >= 200 && g >= 140 && b <= 110 && r - b >= 120) >= 0.05)
+    && MaxButtonGrey()
 MaxButtonGrey() => ColorShare(160, 368, 258, 396, (r, g, b) => r >= 50 && r <= 110 && Abs(r - g) <= 14 && Abs(g - b) <= 14) >= 0.45
 ; the gold bar's text ("UPG [8] (MAX)"), "" when it can't be read. Its letters shrink when (MAX) is
 ; added, so it's read as text rather than matched as pictures
