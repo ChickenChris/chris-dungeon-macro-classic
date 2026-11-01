@@ -44,7 +44,7 @@ StartChallenge() {
     CloseChat()
     if !ChallengeWalk()
         return ChallengeFail("entry", "couldn't reach the challenge's door (no Join Matchmaking)")
-    Clk(330, 325)                               ; Play Here
+    PlayHere()                                  ; Play Here
     ; "You have already cleared this challenge! No extra rewards will be awarded." over Start
     ; (played by hand this half hour): Cancel, nothing to win
     loop 6 {

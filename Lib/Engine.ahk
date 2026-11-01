@@ -425,9 +425,14 @@ Tick() {
         WaitFor(() => ScanRooms().Length || SpecialScreen(), 3000)
         return
     }
+    if (ICMode() || LegendMode()) && OpenPortalRow() {   ; "Open Portal?" left open
+        idleSince := 0
+        OpenPortalFriends()
+        return
+    }
     if (ICMode() || LegendMode()) && FoolJoinUp() {   ; "Join Matchmaking?" left open: Play Here
         idleSince := 0
-        Clk(330, 325)
+        PlayHere()
         Wait(800)
         return
     }
@@ -501,8 +506,11 @@ StartInfinityCastle() {
     while A_TickCount - t0 < 8000 {
         ; the game added matchmaking to Infinity Castle too: Start brings up "Join Matchmaking?"
         ; (the same window as Fool's Hunt). Play Here starts it alone, like Start used to
+        ; UPD 21: then "Open Portal?" (above "Join Matchmaking?" here): Open (Friends Only)
+        if OpenPortalFriends()
+            continue
         if FoolJoinUp() {
-            Clk(330, 325)                       ; Play Here
+            PlayHere()                          ; Play Here
             Wait(800)
             Stale()
             continue
@@ -2389,6 +2397,39 @@ RoomIsFinal(&at := 0, &total := 0) {
     return at >= total
 }
 
+; Summer Hunt: which map the round is really on (Chris): 1) the big blue map name that shows when
+; the round loads in, 2) then the green "<map> Summer Hunt" title above the boss bar, which stays all
+; round. The title has the last word. The loading screen isn't trusted: with Find Match it names the
+; hour's map (Planet Greenie on Assassin Park and others: Ren, pe4k, Baro, Found)
+SummerRoundMap() {
+    global curMap, mapHow
+    Step("reading the map name")
+    banner := "", title := "", t0 := A_TickCount
+    while A_TickCount - t0 < 7000 {
+        if banner = ""
+            banner := MapFromBanner()
+        if banner != "" && (title := MapFromTitle()) != ""
+            break
+        Wait(200)
+    }
+    t1 := A_TickCount
+    while title = "" && A_TickCount - t1 < 3000 {   ; no banner (or no title right after it): the title alone
+        if (title := MapFromTitle()) = ""
+            Wait(250)
+    }
+    name := title != "" ? title : banner
+    if name = ""
+        return                                  ; neither read: the loading screen's name stays (Play Here)
+    how := banner != "" && title != "" ? (banner = title ? "map banner + title" : "title (the map banner read " banner ")")
+        : title != "" ? "title" : "map banner"
+    if curMap = "Unknown"
+        AddLog("Map: " name "  (" how ")")
+    else if name != curMap
+        AddLog("The loading screen said " curMap ", the round says " name " (" how "). Going with " name)
+    curMap := name, mapHow := "map banner"
+    UpdateMapLabel()
+}
+
 ; Summer Hunt: the green "<map> Summer Hunt" title above the boss bar (about 150-650 x 30-54) the whole
 ; round. It names the map the round is really on: with Find Match the loading screen names the hour's
 ; map instead (Planet Greenie while the round was Assassin Park: Ren, pe4k, Baro). "(Summer)" in it
@@ -2836,14 +2877,16 @@ IsLoaded() => Det("VoteStart") || Det("Yen") || Det("Units") || GreenBarAt(320, 
 PlayStage() {
     global stageActive, stageStart, placedUnits, lastResult, postStage, curMap, allPlaced, slotPrice, mapHow
     if !stageActive {
+        if FoolMode()
+            SummerRoundMap()
         if curMap = "Unknown" {
             ; the big blue map name shows in the middle of the screen when a stage starts
             Step("reading the map name")
             t0 := A_TickCount
-            while curMap = "Unknown" && A_TickCount - t0 < (FoolMode() ? 8000 : 3000) {
-                if (name := FoolMode() ? MapFromTitle() : "") != "" || (name := MapFromBanner()) != "" {
+            while !FoolMode() && curMap = "Unknown" && A_TickCount - t0 < 3000 {
+                if (name := MapFromBanner()) != "" {
                     curMap := name, mapHow := "map banner"
-                    AddLog("Map: " name (curDepth != "" ? ", depth " curDepth : "") "  (" (FoolMode() ? "the round's title" : "the map banner") ")")
+                    AddLog("Map: " name (curDepth != "" ? ", depth " curDepth : "") "  (from the map banner)")
                     UpdateMapLabel()
                     break
                 }
@@ -2866,25 +2909,6 @@ PlayStage() {
         placedUnits := [], allPlaced := false, slotPrice := Map()
         global placeUnsure := Map(), unseenFound := []
         global walkedHere := false
-        if FoolMode() && curMap != "Unknown" && mapHow != "map banner" {
-            ; Fool's Hunt's loading screen can name another map than the one that loads (it said
-            ; Mountain Temple on another map, so it walked to the wrong spot): the blue map banner
-            ; in the round itself has the last word. With Find Match the loading screen names the hour's
-            ; map, while the match can be on another one (Planet Greenie (Summer) on the loading screen,
-            ; Haunted Academy (Summer) in the round): the banner is looked for up to 7 s
-            t0 := A_TickCount
-            while A_TickCount - t0 < 7000 {
-                if (name := MapFromTitle()) != "" || (name := MapFromBanner()) != "" {
-                    if name != curMap {
-                        AddLog("The loading screen said " curMap ", the round's title says " name ". Going with " name)
-                        curMap := name
-                        UpdateMapLabel()
-                    }
-                    break
-                }
-                Wait(250)
-            }
-        }
         ; the team for this room's boosted element, FIRST: units can only be changed before the game
         ; starts ("You can change your units before the game starts!"). After the teleport, the walk and
         ; the start vote the Units window no longer opened with K (Jbenz's first try)

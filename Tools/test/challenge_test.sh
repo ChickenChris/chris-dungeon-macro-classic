@@ -41,6 +41,9 @@ Note(t) {
     calls .= t
 }
 Clk(x, y, *) => Note("Clk " x "," y ";")
+PlayHere() => Clk(330, 325)
+OpenPortalRow() => 0
+OpenPortalFriends() => false
 ClickDet(name, p*) => Note("ClickDet " name ";")
 SendKeys(k) => Note("Keys " k ";")
 PadStart(label, sel := true) => (Note("PadStart " label " " sel ";"), padOk)

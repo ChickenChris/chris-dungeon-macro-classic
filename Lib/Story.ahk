@@ -266,6 +266,58 @@ FoolJoinUp() {
         && ColorShare(411, 268, 520, 378, (r, g, b) => r <= 110 && g >= 170 && b >= 200) >= 0.08)
 }
 
+; Play Here on "Join Matchmaking?", wherever its green button is: since UPD 21 Infinity Castle shows
+; "Open Portal?" above it, which pushes it down (about 275-387 x 330-468 instead of 282-390 x 268-378),
+; and the click at 330,325 landed above it (Chris). Its green dots right of 318 (the Open button of
+; "Open Portal?" reaches 314) and from 270 down (that button ends at 267). 330,325 when none are seen
+PlayHere() {
+    bx := 330, by := 325
+    try {
+        WinGetClientPos &ox, &oy, , , RBX
+        Fresh()
+        scr := FindText()
+        n := 0, sx := 0, sy := 0, y := 270
+        while y <= 480 {
+            x := 318
+            while x <= 392 {
+                col := scr.GetColor(ox + x, oy + y, 0)
+                r := (col >> 16) & 0xFF, g := (col >> 8) & 0xFF, b := col & 0xFF
+                if g >= 200 && r <= 140 && b <= 120
+                    n++, sx += x, sy += y
+                x += 4
+            }
+            y += 4
+        }
+        if n >= 30                              ; (144 on Chris's screenshot)
+            bx := Round(sx / n), by := Round(sy / n)
+    }
+    Clk(bx, by)
+}
+
+; "Open Portal?" (Open / Open (Friends Only) / Cancel in a row): the row's middle, 0 when it isn't up.
+; Summer Hunt has it at 330-370, Infinity Castle (UPD 21) at about 227-267 above "Join Matchmaking?"
+OpenPortalRow() {
+    best := 0, bestY := 0, y := 200
+    while y <= 380 {
+        s := Min(ColorShare(200, y, 300, y + 24, (r, g, b) => g >= 200 && r <= 140 && b <= 120),
+            ColorShare(365, y, 450, y + 24, (r, g, b) => r >= 200 && g >= 150 && b <= 90))
+        if s > best
+            best := s, bestY := y
+        y += 8
+    }
+    return best >= 0.3 ? bestY + 12 : 0
+}
+
+; "Open Portal?" up: Open (Friends Only), so nobody else joins (Chris). True if it was clicked
+OpenPortalFriends() {
+    if !(y := OpenPortalRow())
+        return false
+    Clk(405, y)
+    Wait(1000)
+    Stale()
+    return true
+}
+
 ; Select, Play Here if "Join Matchmaking?" asks, then Start until the loading screen hides the
 ; settings gear. label: "Infinite" / "Legend" / "Challenge" for the log. select: false when there's
 ; no Select button (a challenge's door asks "Join Matchmaking?" straight away)
@@ -276,7 +328,7 @@ PadStart(label, select := true) {
     }
     Stale()
     if FoolJoinUp() {
-        Clk(330, 325)                           ; Play Here
+        PlayHere()
         Wait(1200)
     }
     Step("starting " label)
@@ -285,8 +337,10 @@ PadStart(label, select := true) {
         Stale()
         if !FoolGear()
             return true
+        if OpenPortalFriends()
+            continue
         if FoolJoinUp()
-            Clk(330, 325)
+            PlayHere()
         else
             Clk(401, 464)                       ; Start
         Wait(2000)
