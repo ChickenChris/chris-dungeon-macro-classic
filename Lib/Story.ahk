@@ -33,6 +33,10 @@ WaitAreaTeleport(before) {
     while moved && A_TickCount - t1 < 6000 && SigLight(SceneSig()) <= 25
         Wait(300)
     Wait(900)
+    ; a real teleport leaves a different place behind. A popup or a flash that comes and goes isn't
+    ; one: the character then walked off in the lobby into an NPC (a player's recording)
+    if moved && SigDiff(SceneSig(), before) <= 20
+        moved := false
     return moved
 }
 
