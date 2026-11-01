@@ -6546,6 +6546,26 @@ FoolFindMatch() {
         AddLog("Find Match: no number window came up, using Play Here")
         return false
     }
+    ; the game's owner allows macros to type the number in (UPD 21 announcement, Chris): read it, type
+    ; it into the box, Submit. 3 tries, then it waits for you as before
+    loop 3 {
+        n := CaptchaNumber()
+        if n = ""
+            break
+        FocusRoblox()
+        Clk(401, 335)                           ; the answer box
+        Wait(250)
+        Keys("^a{BackSpace}")
+        SendText n
+        Wait(300)
+        Clk(305, 384)                           ; Submit
+        Wait(1500)
+        Stale()
+        if !CaptchaUp() {
+            AddLog("Find Match: typed the number (" n "), matching")
+            return true
+        }
+    }
     AddLog("Find Match: type the number in Roblox yourself and press Submit. The macro waits up to 3 minutes")
     Notify("Find Match: type the number in Roblox", "bad")
     SendWebhook("Find Match needs you", "Type the matchmaking number in Roblox, the macro is waiting (3 minutes).", 0xF59E0B, "", "", false)
@@ -6568,6 +6588,20 @@ FoolFindMatch() {
     return false
 }
 
+; the number on the matchmaking captcha ("Please enter this text to enter Matchmaking: 2394649", in
+; big green digits at about 400,285), "" when it can't be read as 5-7 digits
+CaptchaNumber() {
+    try {
+        WinGetClientPos &ox, &oy, , , RBX
+        txt := StrSplit(OCR.FromRect(ox + 244, oy + 260, 300, 50, OcrLang(), {grayscale: true, scale: 2}).Text, "`n")[1]
+        for pair in [["O", "0"], ["o", "0"], ["D", "0"], ["l", "1"], ["I", "1"], ["|", "1"], ["S", "5"], ["B", "8"], ["Z", "2"]]
+            txt := StrReplace(txt, pair[1], pair[2])
+        n := RegExReplace(txt, "[^\d]")
+        if StrLen(n) >= 5 && StrLen(n) <= 7
+            return n
+    }
+    return ""
+}
 CaptchaUp() {
     try {
         WinGetClientPos &ox, &oy, , , RBX
