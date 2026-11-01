@@ -1983,12 +1983,27 @@ ClaimReward() {
 ; presses Continue on the chest / shop screen. Stops if the "Leave Dungeon?" popup comes up:
 ; whether to Finish or Cancel there is up to HandleDungeonPopups.
 ClickDungeonContinue() {
-    t0 := A_TickCount
-    while Det("DungeonContinue", &fx, &fy) {
+    t0 := A_TickCount, clicked := false
+    loop {
         if A_TickCount - t0 > 30000 || LeavePopupUp()
             break
-        Clk(fx - 3, fy - 35)
-        WaitFor(() => !Det("DungeonContinue") || LeavePopupUp(), 1000)
+        if Det("DungeonContinue", &fx, &fy) {
+            Clk(fx - 3, fy - 35)
+            WaitFor(() => !Det("DungeonContinue") || LeavePopupUp(), 1000)
+        } else if OcrFindWord(200, 260, 420, 280, "i)^c[o0]nt[il1|]nue", &cx, &cy) {
+            ; UPD 21's new dungeon screens: the Continue button's picture no longer matched, so after
+            ; "Saving chests for after the boss" it just sat there (Ren). Its word is found instead
+            Clk(cx, cy), clicked := true
+            WaitFor(() => !Det("Chest") || LeavePopupUp(), 1500)
+        } else {
+            if !clicked && A_TickCount - t0 < 1500 && Det("Chest") {
+                Wait(300)                       ; the button can show a moment after the panel
+                continue
+            }
+            if Det("Chest")
+                SaveDebugShot("chest_continue")     ; still on the chests: a picture for fixing it
+            break
+        }
     }
 }
 
