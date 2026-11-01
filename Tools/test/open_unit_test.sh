@@ -22,8 +22,9 @@ if missing:
 body = r'''#Requires AutoHotkey v2.0
 #Warn VarUnset, StdOut
 NewMenu() => false
+Stale() => 0
 ClearVote() => 0
-AutoOffSeen() => Det("AutoOff")
+AutoOffSeen() => false
 ClickAuto() => Clk(373, 237)
 NewMax() => false
 NewLevel() => -1

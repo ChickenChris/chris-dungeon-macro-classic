@@ -4757,8 +4757,9 @@ OpenUnit(u) {
             Sleep(250)
         }
         Clk(u.x + o[1], u.y + o[2])
-        ; the menu can take a moment to slide in: give it a full second before calling it a miss
-        if WaitUnitMenu(A_Index = 1 ? 1300 : 1000) || (Sleep(250), UnitMenuOpen()) {
+        ; the menu can take a moment to slide in: give it a full second before calling it a miss.
+        ; A maxed UPD 21 menu counts as opened too (a maxed Bulma's menu was missed this way, Chris)
+        if WaitUnitMenu(A_Index = 1 ? 1300 : 1000) || (Sleep(250), UnitMenuOpen()) || (Stale(), NewMax() && !IsSummonMenu()) {
             if A_Index > 1 {
                 ; only move the remembered spot after the old one missed twice in a row
                 u.offMiss := (u.HasOwnProp("offMiss") ? u.offMiss : 0) + 1
@@ -4782,6 +4783,15 @@ OpenUnit(u) {
         if !u.HasOwnProp("eelTold")
             u.eelTold := true, AddLog("Slot " u.slot ": a summon (Abyssal Eel) is over this unit, trying it again later")
         return false
+    }
+    Stale()
+    if NewMax() && !IsSummonMenu()              ; its menu is up and maxed after all: that's the unit
+        return true
+    static toldAt := -60000
+    if A_TickCount - toldAt > 60000 {
+        toldAt := A_TickCount
+        AddLog("Slot " u.slot ": its menu didn't open at " u.x "," u.y " (menu " (NewMenu() ? "seen" : "not seen") ", summon " (IsSummonMenu() ? "yes" : "no") ")")
+        SaveDebugShot("open_miss_" FormatTime(, "HHmmss"))
     }
     u.misses++
     if u.misses >= 3 {
