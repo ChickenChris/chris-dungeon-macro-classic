@@ -24,6 +24,7 @@ global AA_PLACE_ID := 8304191830
 global CAP_X := -5, CAP_Y := 1
 global WIN_W := 816, WIN_H := 638
 global SNAP_AGE := 90
+global EnterNew := "|<>*109$59.00000000000000000000Dzk03s0000E0U04E0000Xz008U00017zznlrzDz2840o0c2F24Tcxz7nrXw81lsyD7X3sFzWF4G06A0Xz4W8YTwE17y94F8zsU204G8WM2F07zzblwTwy07zA61UTkk4"   ; the room's Enter button since UPD 21 (its text sits 2 px higher: the old picture missed it)
 global YenHud := "|<>*84$8.zzzzaQD3kwDbzs"   ; HUD yen icon (Patterns.ahk reuses "Yen" for a card)
 
 global running := false
@@ -99,7 +100,7 @@ DetDefs() {
     DetAdd(d, "Lobby", "Lobby", 746, 514, 789, 530, 0, AreaText)
     DetAdd(d, "EnterDungeon", "Enter dungeon (lobby)", 310, 395, 495, 440, 0.2, EnterDungeon)
     DetAdd(d, "RoomBorder", "Room picker", 200, 340, 600, 437, 0.2, DungeonRoomBorder)
-    DetAdd(d, "Enter", "Room Enter button", 120, 425, 680, 500, 0.2, Enter)
+    DetAdd(d, "Enter", "Room Enter button", 120, 425, 680, 500, 0.2, Enter, EnterNew)
     DetAdd(d, "FinalRoom", "Final room label", 434, 215, 479, 230, 0, FinalRoom)
     DetAdd(d, "Shop", "Shop", 140, 200, 375, 250, 0, Shop)
     DetAdd(d, "Shrine", "Shrine", 140, 200, 375, 250, 0, Shrine)

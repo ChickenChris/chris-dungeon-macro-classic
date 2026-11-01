@@ -72,9 +72,7 @@
           <select id="legendStage" style="flex:1" data-tip="The Legend stage it replays. A world with fewer stages plays its highest one"></select>
         </div></div>
         <div class="mode-sub" id="foolSub"><div class="mode-sub-in">
-          <div class="seg wide" id="segFoolJoin" data-tip="Find Match plays with others. You type the matchmaking number yourself each time: the macro waits and pings you (sound, message, Discord webhook). After each round it goes back to the lobby and finds a new match"></div>
-          <label class="toggle" data-key="foolOwnTeam" style="flex:1;margin:0" data-tip="Keep your own 6 units: Roblox is frozen while each round loads (don't touch the mouse), so you join with your hotbar instead of the event's units. Someone else has to start the round: with Find Match the other players do (no alt needed); with Play Here it's your alt account (level 15+, up to 5 alts) in a second Roblox in your private server (Tools\Roblox Multi-Instance)"><span>Own team</span><i class="switch"></i></label>
-          <div class="mode-stop" data-tip="How long your main stays frozen while a round loads (seconds). Shorter = you join sooner. Too short and the round hasn't started yet, then you get the event units instead of your own"><small>Freeze (s)</small><div class="stepper" id="foolFreeze"></div></div>
+          <label class="toggle" data-key="foolOwnTeam" style="flex:1;margin:0" data-tip="Your alt accounts play with you: your main opens the portal, the alts join it (+5% Summer Pearls for every extra player, up to +25%). Open them in a second Roblox in your private server (Multi Roblox below)"><span>Play with alts</span><i class="switch"></i></label>
           <label class="toggle" data-key="multiRoblox" style="flex:0 0 100%;margin:0" data-tip="Lets you open several Roblox windows at once (your main and alts). Switch it on BEFORE opening Roblox, then open your main and alts in your private server. Stays on next time you open the macro (open the macro first, then Roblox)"><span>Multi Roblox <small id="multiInfo">Your main and alts open at the same time. Switch on before opening Roblox</small></span><i class="switch"></i></label>
         </div></div>
         <div class="mode-sub" id="portalSub"><div class="mode-sub-in">
@@ -130,7 +128,7 @@
     <!-- Units -->
     <section class="page" id="p-units">
       <div class="head"><h1>Units</h1><p>Your six hotbar slots. Spots are tried until a unit lands, so any map works.</p></div>
-      <div class="pane fool-note"><b>Summer Hunt units.</b> These are only for Summer Hunt with your own team: up to 20 of a unit (the game allows 20 units in total). Dungeons and Infinity Castle keep their own setup, switch the mode on the Dashboard to edit those.</div>
+      <div class="pane fool-note"><b>Summer Hunt units.</b> These are only for the Summer Hunt. Dungeons and Infinity Castle keep their own setup, switch the mode on the Dashboard to edit those.</div>
       <div class="pane build-note"><span><b>The build order is on.</b> It does all the placing and upgrading by itself, so this tab isn't used. Switch the build order off on its page to play with these slots instead.</span><button class="btn sm unlock-btn" id="unitsUnlock">Edit anyway</button></div>
       <div class="pane build-note empty-note"><span><b>The build order is on, but it has no Place or Upgrade steps</b> for this team yet. Add steps on the Build order page (until then these slots are still used), or switch it off there.</span><button class="btn sm unlock-btn">Edit anyway</button></div>
       <div class="pane teambar units-teams">
@@ -164,7 +162,7 @@
         <div class="teamrow"></div>
         <label class="toggle" data-key="elemTeams"><span>Switch teams by element<small>Before each room it loads the team for the room's most boosted element (Units &gt; Teams in the game), then plays with that team's build order</small></span><i class="switch"></i></label>
       </div>
-      <div class="pane fool-note"><b>Summer Hunt build order.</b> Only used in Summer Hunt with your own team (up to 20 of a unit per step). Dungeons and Infinity Castle have their own.</div>
+      <div class="pane fool-note"><b>Summer Hunt build order.</b> Only used in the Summer Hunt. Dungeons and Infinity Castle have their own.</div>
       <div class="pane">
         <label class="toggle" data-key="useBuild"><span>Use the build order<small>Plays only these steps. The Units tab isn't used while it's on</small></span><i class="switch"></i></label>
         <div class="row share">
