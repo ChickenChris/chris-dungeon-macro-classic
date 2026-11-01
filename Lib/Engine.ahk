@@ -6113,9 +6113,11 @@ Clk(x, y, btn := "Left") {
         Chk()
     FocusRoblox()
     MouseMove x, y
-    MouseMove 1, 0, , "R"
+    Sleep 40                                    ; a moment on the spot: clicks right after the move
+    MouseMove 1, 0, , "R"                       ; were sometimes lost or too fast (Chris)
+    Sleep 30
     MouseClick btn, -1, 0, , , , "R"
-    Sleep 50
+    Sleep 120
     Stale()
 }
 
@@ -6834,17 +6836,30 @@ FoolFindMatch() {
     ; the game's owner allows macros to type the number in (UPD 21 announcement, Chris): read it, type
     ; it into the box, Submit. 3 tries, then it waits for you as before
     loop 3 {
+        ; read twice (a third time if they differ): one quick read could drop a digit (Chris)
         n := CaptchaNumber()
+        Wait(300)
+        n2 := CaptchaNumber()
+        if n != n2 {
+            Wait(300)
+            n3 := CaptchaNumber()
+            n := n3 = n2 ? n2 : n3 = n ? n : (StrLen(n2) > StrLen(n) ? n2 : n)
+        }
         if n = ""
             break
         FocusRoblox()
         Clk(401, 335)                           ; the answer box
-        Wait(250)
+        Wait(500)
         Keys("^a{BackSpace}")
-        SendText n
-        Wait(300)
+        Wait(250)
+        ; a digit at a time: typed all at once Roblox could skip one (Chris)
+        loop parse n {
+            SendText A_LoopField
+            Sleep 150
+        }
+        Wait(500)
         Clk(305, 384)                           ; Submit
-        Wait(1500)
+        Wait(2000)
         Stale()
         if !CaptchaUp() {
             AddLog("Find Match: typed the number (" n "), matching")
