@@ -536,6 +536,7 @@ const FOOL_INFO = {
   spellproof: ["Spellproof Enemies", "+75 enemy magic resist, +30% SummerPearls"], plated: ["Plated Enemies", "+75 enemy physical resist, +30% SummerPearls (II: +150, +70%)"],
   gale: ["Gale (Windy)", "+15% enemy flying chance, +50% SummerPearls"], updraft: ["Updraft (Windy)", "+25% flyers soaring, +50% SummerPearls"],
   grounded: ["Grounded (Windy)", "-20% enemy flying chance"],
+  slow: ["Firebreak (Inferno)", "-30% enemy speed"],
   boss: ["Boss Damage", "Bosses get stronger, more SummerPearls"],
 };
 function renderFoolCards() {
@@ -991,5 +992,5 @@ if (!host) setTimeout(() => window.ui.init(window.DEMO || {
   upNames: ["no upgrades", "upgrade each 1 time", "upgrade each to max"], upValues: [0, 1, -1], hasRoblox: false,
   cfg: { slots: Array.from({ length: 6 }, (_, i) => ({ on: i < 5 ? 1 : 0, count: 2, prio: i + 1, up: 1, limit: 0 })), pattern: "Spiral", retries: 3,
     build: [], route: ["Rare_Chest", "Chest", "Shop", "Hoard", "Shrine", "Boss"], curseRank: ["Flying", "Money", "Health", "Shielding", "Regen", "Wind", "Exploding"],
-    foolMatch: 0, foolOwnTeam: 0, foolFreeze: 80, foolAccounts: 2, foolCards: ["shield", "regen", "health", "speed", "yen", "range", "cooldown", "attack", "grounded", "explosive", "resistant", "spellproof", "plated", "gale", "updraft", "boss"], skipWorst: 5, denyShrine: { Burst: 0, Armor: 0, Chaos: 1, Vamparism: 0, Frenzy: 0, Eruption: 0, Vitality: 0 }, placeSpeed: 1, accent: "Crimson", bgOpacity: 70, bgBlur: 0, glass: 60, bgAnimate: 1 },
+    foolMatch: 0, foolOwnTeam: 0, foolFreeze: 80, foolAccounts: 2, foolCards: ["shield", "regen", "health", "speed", "yen", "range", "cooldown", "attack", "grounded", "slow", "explosive", "resistant", "spellproof", "plated", "gale", "updraft", "boss"], skipWorst: 5, denyShrine: { Burst: 0, Armor: 0, Chaos: 1, Vamparism: 0, Frenzy: 0, Eruption: 0, Vitality: 0 }, placeSpeed: 1, accent: "Crimson", bgOpacity: 70, bgBlur: 0, glass: 60, bgAnimate: 1 },
 }), 50);

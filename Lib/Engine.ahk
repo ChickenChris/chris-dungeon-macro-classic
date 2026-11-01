@@ -6540,8 +6540,8 @@ FoolVoteDy() {
     dark := (r, g, b) => r + g + b < 150
     ; ("Vote ends in" isn't needed: it shows a second after the cards, and those first clicks hit them)
     if ColorShare(317, 154, 487, 171, white) >= 0.12
-        && ColorShare(172, 330, 272, 410, dark) >= 0.9 && ColorShare(350, 330, 450, 410, dark) >= 0.9
-        && ColorShare(527, 330, 627, 410, dark) >= 0.9 {
+        && ColorShare(172, 330, 272, 410, dark) >= 0.85 && ColorShare(350, 330, 450, 410, dark) >= 0.85
+        && ColorShare(527, 330, 627, 410, dark) >= 0.85 {   ; (0.85: a card can show an item's picture)
         voteNew := true
         return 0
     }
@@ -6582,7 +6582,7 @@ FoolCards() {
     global foolVotes
     ; "Enemy Health I" is too long for the box and reads as "Enemy Heat*'"; "Boss Damage" is an
     ; enemy card, checked before "damage" (it counted as your +Attack)
-    static words := [["gale", "gale"], ["updraft|draft", "updraft"], ["ground", "grounded"], ["boss", "boss"], ["shield", "shield"], ["regen", "regen"], ["health|enemy\s*hea|\bhp\b", "health"], ["speed", "speed"],
+    static words := [["firebreak", "slow"], ["gale", "gale"], ["updraft|draft", "updraft"], ["ground", "grounded"], ["boss", "boss"], ["shield", "shield"], ["regen", "regen"], ["health|enemy\s*hea|\bhp\b", "health"], ["speed", "speed"],
         ["\byen\b|¥", "yen"], ["range", "range"], ["cool|\bcd\b", "cooldown"], ["attack|\batk\b|damage", "attack"],
         ["explo", "explosive"], ["resist", "resistant"], ["spell|proof", "spellproof"], ["plate", "plated"]]
     static votedAt := 0, firstSeen := 0
@@ -6638,7 +6638,7 @@ FoolCards() {
         ; what they do decides instead. A green card is yours (no SummerPearls), a red one the enemies'
         if key = "" && eff != ""
             for w in green ? [["\byen\b|¥|\d{3,}\s*[y¥]", "yen"], ["attack|\batk\b|damage", "attack"], ["range", "range"],
-                ["cool|\bcd\b", "cooldown"], ["flying|flyer", "grounded"]]
+                ["cool|\bcd\b", "cooldown"], ["flying|flyer", "grounded"], ["enemy\s*speed|slow", "slow"]]
                 : [["shield", "shield"], ["regen", "regen"], ["health|\bhp\b", "health"], ["speed", "speed"], ["explo", "explosive"],
                 ["magic\s*res", "spellproof"], ["physical\s*res", "plated"], ["resist", "resistant"], ["flying|flyer|soar", "gale"], ["boss", "boss"]]
                 if RegExMatch(eff, "i)" w[1]) {

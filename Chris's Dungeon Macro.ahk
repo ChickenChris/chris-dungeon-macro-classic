@@ -1482,7 +1482,7 @@ ScalarKeys() => ["pattern", "useSpots", "saveForTop", "autoAbility", "zoom", "tp
     "bgStrength", "bgGif", "accent", "bgOpacity", "bgBlur", "glass", "bgAnimate", "bgFile", "bgName", "lastSpotMap", "elemTeams", "keyboard", "mode", "legendWorld", "legendStage", "autoChallenge", "challengeSlot", "icHard", "icStopFloors", "foolCoins", "foolMatch"]
 
 ; Fool's Hunt cards (Premium): only shown, locked, on the Dungeon page
-FOOL_CARDS() => ["shield", "regen", "health", "speed", "yen", "range", "cooldown", "attack", "grounded", "explosive", "resistant", "spellproof", "plated", "gale", "updraft", "boss"]
+FOOL_CARDS() => ["shield", "regen", "health", "speed", "yen", "range", "cooldown", "attack", "grounded", "slow", "explosive", "resistant", "spellproof", "plated", "gale", "updraft", "boss"]
 
 LoadConfig() {
     if !FileExist(cfgFile)
