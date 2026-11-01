@@ -38,7 +38,7 @@
 <section id="duo" aria-label="Your alt's Roblox">
   <div id="duoViews"><div class="duo-box"><span>Your alt's Roblox shows here</span></div></div>
   <div id="duoInfo">
-    <div class="duo-kicker">Fool's Hunt · Bring own team</div>
+    <div class="duo-kicker">Summer Hunt · Bring own team</div>
     <div class="duo-head"><h3 id="duoTitle">Your alt</h3>
       <div class="mode-stop" data-tip="How many Roblox accounts play together: your main plus 1 to 5 alts"><small>Accounts</small><div class="stepper" id="foolAccounts"></div></div></div>
     <p class="hint">Alts wait behind your main Roblox. The macro brings each one forward when it has to walk to the pad, press Play Here or Replay, then puts your main back.</p>
@@ -80,7 +80,7 @@
         <div class="mode-sub" id="portalSub"><div class="mode-sub-in">
           <div class="lbl" style="flex:none">Portal</div><input type="text" id="portalName" maxlength="40" placeholder="Shibuya Portal" style="flex:1" data-tip="The portal's name as its card in your items shows it. The macro opens that kind (Open, Friends Only) one after another, and stops with a Discord message when none are left">
         </div></div>
-        <label class="toggle" data-key="autoChallenge" id="autoChallenge" data-tip="A new Challenge comes up every half hour (:00 and :30). The macro plays each one once with your units, then goes back to farming: a dungeon is finished first, Legend / Infinite / Infinity Castle leave after the round. Not in Fool's Hunt"><span>Auto challenge <small>Plays each half-hour Challenge once, then back to farming</small></span><i class="switch"></i></label>
+        <label class="toggle" data-key="autoChallenge" id="autoChallenge" data-tip="A new Challenge comes up every half hour (:00 and :30). The macro plays each one once with your units, then goes back to farming: a dungeon is finished first, Legend / Infinite / Infinity Castle leave after the round. Not in Summer Hunt"><span>Auto challenge <small>Plays each half-hour Challenge once, then back to farming</small></span><i class="switch"></i></label>
       </div>
 
       <div class="pane hero">
@@ -130,7 +130,7 @@
     <!-- Units -->
     <section class="page" id="p-units">
       <div class="head"><h1>Units</h1><p>Your six hotbar slots. Spots are tried until a unit lands, so any map works.</p></div>
-      <div class="pane fool-note"><b>Fool's Hunt units.</b> These are only for Fool's Hunt with your own team: up to 20 of a unit (the game allows 20 units in total). Dungeons and Infinity Castle keep their own setup, switch the mode on the Dashboard to edit those.</div>
+      <div class="pane fool-note"><b>Summer Hunt units.</b> These are only for Summer Hunt with your own team: up to 20 of a unit (the game allows 20 units in total). Dungeons and Infinity Castle keep their own setup, switch the mode on the Dashboard to edit those.</div>
       <div class="pane build-note"><span><b>The build order is on.</b> It does all the placing and upgrading by itself, so this tab isn't used. Switch the build order off on its page to play with these slots instead.</span><button class="btn sm unlock-btn" id="unitsUnlock">Edit anyway</button></div>
       <div class="pane build-note empty-note"><span><b>The build order is on, but it has no Place or Upgrade steps</b> for this team yet. Add steps on the Build order page (until then these slots are still used), or switch it off there.</span><button class="btn sm unlock-btn">Edit anyway</button></div>
       <div class="pane teambar units-teams">
@@ -164,7 +164,7 @@
         <div class="teamrow"></div>
         <label class="toggle" data-key="elemTeams"><span>Switch teams by element<small>Before each room it loads the team for the room's most boosted element (Units &gt; Teams in the game), then plays with that team's build order</small></span><i class="switch"></i></label>
       </div>
-      <div class="pane fool-note"><b>Fool's Hunt build order.</b> Only used in Fool's Hunt with your own team (up to 20 of a unit per step). Dungeons and Infinity Castle have their own.</div>
+      <div class="pane fool-note"><b>Summer Hunt build order.</b> Only used in Summer Hunt with your own team (up to 20 of a unit per step). Dungeons and Infinity Castle have their own.</div>
       <div class="pane">
         <label class="toggle" data-key="useBuild"><span>Use the build order<small>Plays only these steps. The Units tab isn't used while it's on</small></span><i class="switch"></i></label>
         <div class="row share">
@@ -193,7 +193,7 @@
     <!-- Spots -->
     <section class="page" id="p-spots">
       <div class="head"><h1>Spots</h1><p>Optional places to try first on a map. The pattern fills in the rest.</p></div>
-      <div class="pane fool-note"><b>Fool's Hunt spots and walks.</b> Fool's Hunt uses the same spots and walk as the dungeon. Pick spots or record a walk here (in Fool's Hunt mode) to give a map its own, only for Fool's Hunt.</div>
+      <div class="pane fool-note"><b>Summer Hunt spots and walks.</b> Summer Hunt uses the same spots and walk as the dungeon. Pick spots or record a walk here (in Summer Hunt mode) to give a map its own, only for Summer Hunt.</div>
       <div class="pane">
         <div class="row" style="margin-bottom:8px">
           <select id="spotMap" style="flex:1"></select>
@@ -257,10 +257,10 @@
         <label class="toggle" data-key="shopUnknown" style="margin-top:6px"><span>Also buy items it can't read<small>Off: it only buys items it recognises, so coins never go on something you switched off</small></span><i class="switch"></i></label>
         </div>
       </div>
-      <div class="pane" data-premium="Fool's Hunt">
-        <h3>Fool's Hunt cards</h3>
-        <p class="sub">When "Choose a card!" shows up it votes for the highest card here. Drag to change the order. Enemy cards make the round harder but give more AprilCoins</p>
-        <label class="toggle" data-key="foolCoins"><span>Most AprilCoins first<small>Picks the card that gives the most AprilCoins (level II gives more). Equal ones go by this list</small></span><i class="switch"></i></label>
+      <div class="pane" data-premium="Summer Hunt">
+        <h3>Summer Hunt cards</h3>
+        <p class="sub">When "Choose a card!" shows up it votes for the highest card here. Drag to change the order. Enemy cards make the round harder but give more SummerPearls</p>
+        <label class="toggle" data-key="foolCoins"><span>Most SummerPearls first<small>Picks the card that gives the most SummerPearls (level II gives more). Equal ones go by this list</small></span><i class="switch"></i></label>
         <div class="list scroll" id="foolCards" style="max-height:230px;margin-top:6px"></div>
       </div>
     </section>

@@ -1,4 +1,4 @@
-; =====================================================================
+﻿; =====================================================================
 ;  The Story pad: Infinite (Premium) and Legend Stages (Premium and Classic)
 ;  The same file in both macros. Measured on Chris's PC (game-area coordinates): from the play area
 ;  the Story pads are ahead and to the right (Ryn's walk); on a pad "Select World" lists the worlds
@@ -259,7 +259,11 @@ FoolGear() {
 ; the "Join Matchmaking?" window (its Find Match label, a picture from Ryn's macro)
 FoolJoinUp() {
     static pat := "|<>*122$71.Dzzzzzzzzzs0Tzzzzzzzzzk0zzzzzzzzzzk1zzzzzzzzzzk3zzzzzzzzzzk7zzzzzzzzzzkD02DzzwTXz7kS00Tzzsz3wDww08zzzly3sTtsTzzzzXw7UznlzX4Tk7s61w7Vz60S0Dk43UD0CA0Q0TU070S0AMEkkz42AAw0sllXlyAAMtszlXX7XwQMlnlzX7667szlVbXz6CC0DlzXUD7yAQQ0TXz70SDwMsy8z7yDUzzzzzzzzzzztzzzzzzzzzzznzzzzzzzzzzzbzzzzzzzzzzzDzzzzzzzzzzz"
+    ; or by its two buttons (UPD 21, Chris's recording): Play Here's green frame 282-390 x 268-378 next
+    ; to Find Match's cyan one 411-520
     return FT(&fx, &fy, 250, 250, 600, 470, 0.1, 0.1, pat)
+        || (ColorShare(282, 268, 390, 378, (r, g, b) => g >= 200 && r <= 140 && b <= 120) >= 0.12
+        && ColorShare(411, 268, 520, 378, (r, g, b) => r <= 110 && g >= 170 && b >= 200) >= 0.08)
 }
 
 ; Select, Play Here if "Join Matchmaking?" asks, then Start until the loading screen hides the

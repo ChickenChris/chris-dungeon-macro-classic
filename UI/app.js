@@ -302,7 +302,7 @@ function stepText(st) {
 function renderBuild() {
   const list = S.cfg.build;
   const T = S.teams, team = T && T.list.length > 1 && !isFool() ? T.list[(+T.active || 1) - 1] : null;
-  $("#stepTitle").textContent = (isFool() ? "Fool's Hunt steps" : "Steps") + (team ? " · " + team.name : "");
+  $("#stepTitle").textContent = (isFool() ? "Summer Hunt steps" : "Steps") + (team ? " · " + team.name : "");
   unitsLockState();
   const el = $("#steps");
   el.innerHTML = list.length ? list.map((st, i) => `
@@ -412,6 +412,8 @@ const isLegend = () => S.cfg.mode === "Legend";
 const isPortal = () => S.cfg.mode === "Portal";
 const isIC = () => S.cfg.mode === "Infinity Castle";
 const isFool = () => S.cfg.mode === "Fool's Hunt";
+// the April event's mode is the Summer Hunt since UPD 21 (same mode, settings and spots: only its name shows differently)
+const modeLabel = (m) => m === "Fool's Hunt" ? "Summer Hunt" : m;
 function renderMode() {
   const cur = Math.max(0, MODES.indexOf(S.cfg.mode || "Dungeon"));
   const pick = (i) => {
@@ -420,9 +422,9 @@ function renderMode() {
     if (isFool() !== wasFool) swapUnitSets();
     renderMode(); if (run) setRun(run);
   };
-  seg($("#segModeHome"), MODES, cur, pick);
+  seg($("#segModeHome"), MODES.map(modeLabel), cur, pick);
   if (isClassic()) $$("#segModeHome button").filter((b) => !FREE_MODES.includes(MODES[+b.dataset.i])).forEach((b) => {   // Premium's modes, locked
-    b.dataset.premium = MODES[+b.dataset.i]; b.dataset.tip = MODES[+b.dataset.i] + " is in Premium";
+    b.dataset.premium = modeLabel(MODES[+b.dataset.i]); b.dataset.tip = modeLabel(MODES[+b.dataset.i]) + " is in Premium";
     b.insertAdjacentHTML("afterbegin", icon("lock"));
   });
   $("#modeSub").classList.toggle("open", isIC());
@@ -453,8 +455,8 @@ function renderMode() {
   stepper($("#foolAccounts"), +S.cfg.foolAccounts || 2, 2, 6, (v) => setVal("foolAccounts", v));
 }
 
-// in or out of Fool's Hunt: its own units and build order come in right away (the macro does the
-// same swap and sends them again, so the page doesn't wait on it). The first time, Fool's Hunt
+// in or out of Summer Hunt: its own units and build order come in right away (the macro does the
+// same swap and sends them again, so the page doesn't wait on it). The first time, Summer Hunt
 // starts with a copy of the units and an empty build order, like the macro.
 function swapUnitSets() {
   const c = S.cfg;
@@ -524,15 +526,15 @@ function renderShop() {
   sortable(el, (from, to) => { list.splice(to, 0, list.splice(from, 1)[0]); send("shopRank", { list }); renderShop(); });
 }
 
-// ---------------------------------------------------------------- Fool's Hunt cards
+// ---------------------------------------------------------------- Summer Hunt cards
 const FOOL_INFO = {
-  shield: ["Enemy Shield", "+3 enemy shield, +30% AprilCoins"], regen: ["Enemy Regen", "+0.5% enemy regen, +30% AprilCoins"],
-  health: ["Enemy Health", "+50% enemy health, +30% AprilCoins"], speed: ["Enemy Speed", "+25% enemy speed, +30% AprilCoins (II: +50%, +70%)"],
+  shield: ["Enemy Shield", "+3 enemy shield, +30% SummerPearls"], regen: ["Enemy Regen", "+0.5% enemy regen, +30% SummerPearls"],
+  health: ["Enemy Health", "+50% enemy health, +30% SummerPearls"], speed: ["Enemy Speed", "+25% enemy speed, +30% SummerPearls (II: +50%, +70%)"],
   yen: ["Yen", "+3000 yen right away"], range: ["Range", "+15% range for your units"],
   cooldown: ["Cooldown", "-5% attack cooldown for your units (II: -10%)"], attack: ["Attack", "+12% attack for your units (II: +25%)"],
-  explosive: ["Explosive Deaths", "Enemies explode when they die (+6 range), +30% AprilCoins"], resistant: ["Resistant Enemies", "+50 enemy physical AND magic resist, +30% AprilCoins (II: +100 each, +70%)"],
-  spellproof: ["Spellproof Enemies", "+75 enemy magic resist, +30% AprilCoins"], plated: ["Plated Enemies", "+75 enemy physical resist, +30% AprilCoins (II: +150, +70%)"],
-  boss: ["Boss Damage", "Bosses get stronger, more AprilCoins"],
+  explosive: ["Explosive Deaths", "Enemies explode when they die (+6 range), +30% SummerPearls"], resistant: ["Resistant Enemies", "+50 enemy physical AND magic resist, +30% SummerPearls (II: +100 each, +70%)"],
+  spellproof: ["Spellproof Enemies", "+75 enemy magic resist, +30% SummerPearls"], plated: ["Plated Enemies", "+75 enemy physical resist, +30% SummerPearls (II: +150, +70%)"],
+  boss: ["Boss Damage", "Bosses get stronger, more SummerPearls"],
 };
 function renderFoolCards() {
   const list = S.cfg.foolCards || [], el = $("#foolCards");
@@ -666,7 +668,7 @@ function setRun(state) {
   run = state;
   document.body.dataset.run = state;
   $("#pillText").textContent = RUN_TEXT[state][0];
-  $("#heroTitle").textContent = state === "running" && isIC() ? "Climbing Infinity Castle" : state === "running" && isFool() ? "Hunting in Fool's Hunt" : state === "running" && isInf() ? "Infinite on " + (S.cfg.infMap || "Shibuya District") : state === "running" && isPortal() ? "Portals: " + (S.cfg.portalName || "Shibuya Portal") : state === "running" && isLegend() ? "Legend: " + (S.cfg.legendWorld || "Magic Hills (Elf Invasion)") + " stage " + (+S.cfg.legendStage || 1) : RUN_TEXT[state][1];
+  $("#heroTitle").textContent = state === "running" && isIC() ? "Climbing Infinity Castle" : state === "running" && isFool() ? "Hunting in Summer Hunt" : state === "running" && isInf() ? "Infinite on " + (S.cfg.infMap || "Shibuya District") : state === "running" && isPortal() ? "Portals: " + (S.cfg.portalName || "Shibuya Portal") : state === "running" && isLegend() ? "Legend: " + (S.cfg.legendWorld || "Magic Hills (Elf Invasion)") + " stage " + (+S.cfg.legendStage || 1) : RUN_TEXT[state][1];
   $(".controls .btn.go").lastChild.textContent = state === "running" ? "Farming…" : state === "paused" ? "Paused" : "Start farming";
   $(".controls [data-cmd=pause]").lastChild.textContent = state === "paused" ? "Resume" : "Pause";
 }
@@ -887,7 +889,7 @@ window.ui = {
   toast(msg, kind) { toast(msg, kind); },
   roblox(on) { document.body.classList.toggle("has-roblox", !!on); },
   // n alt boxes (Accounts - 1), the first `open` of them have their Roblox live on top
-  // the mode switched in or out of Fool's Hunt: its own units and build order (up to `max` of a unit)
+  // the mode switched in or out of Summer Hunt: its own units and build order (up to `max` of a unit)
   units(slots, build, max) {
     S.cfg.slots = slots; S.cfg.build = build; S.maxCount = +max || 6;
     document.body.classList.toggle("fool-units", S.maxCount > 6);
@@ -908,7 +910,7 @@ window.ui = {
       ? `<div class="duo-cell"><div class="duo-box live" data-i="${i + 1}"><span>${n > 1 ? "Alt " + (i + 1) : "Your alt's Roblox shows here"}</span></div>${
           n > 1 ? `<button class="btn sm" data-swap="${i + 1}" title="Make alt ${i + 1} the main">${icon("arrow-up-down")}${n > 3 ? "Make main" : `Make alt ${i + 1} the main`}</button>` : ""}</div>`
       : `<div class="duo-cell"><div class="duo-box empty"><div><h4>Open ${n > 1 ? "alt " + (i + 1) + "'s" : "your alt's"} Roblox</h4>
-           <p>Switch on <b>Multi Roblox</b> (Fool's Hunt), open another Roblox, log in with the alt and join your private server. It shows up here by itself.</p></div></div></div>`).join("");
+           <p>Switch on <b>Multi Roblox</b> (Summer Hunt), open another Roblox, log in with the alt and join your private server. It shows up here by itself.</p></div></div></div>`).join("");
     box.onclick = (e) => { const b = e.target.closest("[data-swap]"); if (b) send("duoSwap", { i: +b.dataset.swap }); };
     box.onpointerdown = duoDrag;
     $("#duoTitle").textContent = n > 1 ? `Your ${n} alts` : "Your alt";

@@ -56,7 +56,7 @@ const legendBtn = (p) => p.evaluateHandle(() => [...document.querySelectorAll("#
     check(tag + ": switching it on is saved", (await p.evaluate(() => window.__sent)).some((m) => m.cmd === "set" && m.key === "autoChallenge" && m.value === 1));
     check(tag + ": not greyed outside Fool's Hunt", !(await p.evaluate((q) => document.querySelector(q)?.classList.contains("dim"), ac)));
     if (!edition) {
-      await p.evaluate(() => [...document.querySelectorAll("#segModeHome button")].find((x) => x.textContent.trim() === "Fool's Hunt").click());
+      await p.evaluate(() => [...document.querySelectorAll("#segModeHome button")].find((x) => x.textContent.trim() === "Summer Hunt").click());
       await p.waitForTimeout(150);
       check("premium: greyed in Fool's Hunt", await p.evaluate((q) => !!document.querySelector(q)?.classList.contains("dim"), ac));
       await legendBtn(p).then((h) => h.evaluate((x) => x.click())); await p.waitForTimeout(150);
@@ -69,7 +69,7 @@ const legendBtn = (p) => p.evaluateHandle(() => [...document.querySelectorAll("#
       && await p.evaluate(() => !!document.querySelector("#modeSub")?.classList.contains("open")));
     await p.evaluate(() => $$("#segIcDiff button")[1].click()); await p.waitForTimeout(50);
     check(tag + ": Hard is saved", (await p.evaluate(() => window.__sent)).some((m) => m.cmd === "set" && m.key === "icHard" && m.value === 1));
-    if (edition) check("classic: Fool's Hunt is still locked", await p.evaluate(() => [...document.querySelectorAll("#segModeHome button")].find((b) => b.textContent.trim() === "Fool's Hunt")?.dataset.premium === "Fool's Hunt"));
+    if (edition) check("classic: Fool's Hunt is still locked", await p.evaluate(() => [...document.querySelectorAll("#segModeHome button")].find((b) => b.textContent.trim() === "Summer Hunt")?.dataset.premium === "Summer Hunt"));
     await legendBtn(p).then((h) => h.evaluate((x) => x.click())); await p.waitForTimeout(150);
     // Portal mode: Premium only (locked in Classic), a name box
     const portal = await p.evaluateHandle(() => [...document.querySelectorAll("#segModeHome button")].find((b) => b.textContent.trim() === "Portal"));
@@ -82,7 +82,7 @@ const legendBtn = (p) => p.evaluateHandle(() => [...document.querySelectorAll("#
       await p.evaluate(() => { const i = document.querySelector("#portalName"); if (i) { i.value = "  Namek Portal "; i.dispatchEvent(new Event("change")); } });
       check("premium: the name is saved, trimmed", (await p.evaluate(() => window.__sent)).some((m) => m.cmd === "set" && m.key === "portalName" && m.value === "Namek Portal"));
       // Multi Roblox: a switch on the Fool's Hunt panel
-      await p.evaluate(() => [...document.querySelectorAll("#segModeHome button")].find((x) => x.textContent.trim() === "Fool's Hunt").click());
+      await p.evaluate(() => [...document.querySelectorAll("#segModeHome button")].find((x) => x.textContent.trim() === "Summer Hunt").click());
       await p.waitForTimeout(150);
       check("premium: a Multi Roblox switch on the Fool's Hunt panel", await p.evaluate(() => !!document.querySelector('#foolSub .toggle[data-key="multiRoblox"]')));
       await p.evaluate(() => document.querySelector('#foolSub .toggle[data-key="multiRoblox"]')?.click()); await p.waitForTimeout(100);
