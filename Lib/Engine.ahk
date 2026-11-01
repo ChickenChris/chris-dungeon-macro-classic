@@ -6528,7 +6528,7 @@ FoolCards() {
     votedAt := A_TickCount, firstSeen := 0
     foolVotes++
     AddLog("Card: " (best.txt != "" ? best.txt : "the middle one") "  (cards: " shown ")"
-        . (confirmed ? "" : "  [Confirm button not seen, clicked where it usually is]"))
+        . (confirmed ? "" : "  [Vote didn't go through, saved a screenshot: Logs\vote_miss_....bmp]"))
     t0 := A_TickCount
     while A_TickCount - t0 < 12000 {
         Wait(400)
@@ -6546,25 +6546,35 @@ FoolVoteAt(x, dy) {
 }
 FoolVoteClicks(x, dy) {
     if voteNew {
-        ; one click picks a card, a 2nd click unpicks it (Chris), and a click meant for a unit can have
-        ; picked one already: click ours only while it isn't the highlighted one, then Vote
-        loop 3 {
+        ; UPD 21: clicking a card gives it a white frame and only then shows the green Vote under the
+        ; cards; a 2nd click on the card unpicks it again (Chris). Chris's recordings: the card was picked
+        ; but Vote never pressed, every count stayed 0 and the round picked one itself. So: get OUR card
+        ; framed, press Vote, and keep at it until Vote goes away (the vote counted) or the cards do
+        t0 := A_TickCount, cardClicks := 0, votes := 0
+        while A_TickCount - t0 < 9000 {
             Stale()
-            if CardPicked(x)
-                break
-            Clk(x, 300)
-            Wait(450)
-        }
-        t1 := A_TickCount
-        while A_TickCount - t1 < 1500 {
-            Stale()
-            if VoteButton(&bx, &by) {
-                Clk(bx, by)
-                return true
+            if FoolVoteDy() = ""
+                return votes > 0                ; the vote is over
+            picked := CardPicked(x), vote := VoteButton(&bx, &by)
+            if picked && vote {
+                if votes >= 2
+                    break
+                Clk(bx, by), votes++
+                Wait(700)
+                Stale()
+                if !VoteButton(&bx, &by) || FoolVoteDy() = "" || CardVotes(x) >= 1
+                    return true                 ; Vote is gone or our card's count went up: it counted
+                continue
             }
-            Wait(250)
+            if !picked && cardClicks < 4 {
+                Clk(x, 300), cardClicks++       ; ours isn't framed (none is, or another one is)
+                Wait(500)
+                continue
+            }
+            Wait(250)                           ; framed, Vote still on its way
         }
-        return false                            ; no blind click: it landed on the unit bar
+        SaveDebugShot("vote_miss")
+        return votes > 0
     }
     Clk(x, 241 + dy)
     Wait(150)
@@ -6600,6 +6610,17 @@ CardPicked(cx) {
         }
     }
     return false
+}
+
+; UPD 21: the number of votes under a card (the "0" at its bottom, about 412-432). -1 = not read
+CardVotes(cx) {
+    t := ""
+    try {
+        WinGetClientPos &ox, &oy, , , RBX
+        t := OCR.FromRect(ox + cx - 20, oy + 410, 40, 24, OcrLang(), {scale: 4, grayscale: true}).Text
+    }
+    t := StrReplace(StrReplace(StrReplace(t, "O", "0"), "o", "0"), "l", "1")
+    return RegExMatch(t, "\d+", &m) ? Integer(m[0]) : -1
 }
 
 VoteButton(&bx, &by) {
