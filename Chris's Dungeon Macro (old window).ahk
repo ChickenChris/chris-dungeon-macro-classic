@@ -598,7 +598,7 @@ TestWebhook(*) {
     Notify(ok ? "Webhook works" : "That didn't work. Check the URL")
 }
 
-Notify(msg) {
+Notify(msg, kind := "") {
     ToolTip msg
     SetTimer () => ToolTip(), -2000
 }
