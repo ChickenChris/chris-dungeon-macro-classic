@@ -5011,9 +5011,11 @@ IsSummonMenu() {
 ; 18-72 x 380-396 (cyan), Sell 82-136 x 380-396 (red), gold bar 150-262 x 234-250, close X 277,226,
 ; Upgrade button 153-265 x 365-400 (its price 162-257 x 371-386), and "Max Upgrade" in big yellow
 ; letters 170-272 x 278-326 when it's maxed
-NewMenu() => ColorShare(18, 380, 72, 396, (r, g, b) => r <= 100 && g >= 120 && b >= 170) >= 0.4
-    && ColorShare(82, 380, 136, 396, (r, g, b) => r >= 180 && g <= 70 && b <= 70) >= 0.25
-    && ColorShare(150, 234, 262, 250, (r, g, b) => r >= 55 && r <= 130 && g >= 35 && g <= 95 && b <= 25) >= 0.3
+; Found by its gold "UPG" bar over the dark stats box (0.42+ gold, 0.77+ dark on every menu screenshot;
+; nothing else has both). The First / Sell buttons aren't needed: a player's maxed Bulma kept being
+; upgraded (3.2.74), as if the menu wasn't recognised
+NewMenu() => ColorShare(150, 234, 262, 250, (r, g, b) => r >= 55 && r <= 130 && g >= 35 && g <= 95 && b <= 25) >= 0.3
+    && ColorShare(150, 262, 275, 355, (r, g, b) => r <= 45 && g <= 30 && b <= 35) >= 0.6
 NewMax() => NewMenu() && ColorShare(170, 278, 272, 326, (r, g, b) => r >= 200 && g >= 140 && b <= 110 && r - b >= 120) >= 0.05
 ; the gold bar's text ("UPG [8] (MAX)"), "" when it can't be read. Its letters shrink when (MAX) is
 ; added, so it's read as text rather than matched as pictures
