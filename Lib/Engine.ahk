@@ -6303,7 +6303,12 @@ FoolCards() {
     static words := [["boss", "boss"], ["shield", "shield"], ["regen", "regen"], ["health|enemy\s*hea|\bhp\b", "health"], ["speed", "speed"],
         ["\byen\b|¥", "yen"], ["range", "range"], ["cool|\bcd\b", "cooldown"], ["attack|\batk\b|damage", "attack"],
         ["explo", "explosive"], ["resist", "resistant"], ["spell|proof", "spellproof"], ["plate", "plated"]]
+    static votedAt := 0
     if (dy := FoolVoteDy()) = ""
+        return false
+    ; voted already and the panel is still counting down: hands off (since UPD 21 another click on
+    ; the card takes the vote back)
+    if voteNew && A_TickCount - votedAt < 25000
         return false
     Step("Summer Hunt: picking a card")
     ; a unit's menu open on the left covers the first card: close it first
@@ -6366,6 +6371,7 @@ FoolCards() {
         }
     }
     confirmed := FoolVoteAt(best.x, dy)
+    votedAt := A_TickCount
     foolVotes++
     AddLog("Card: " (best.txt != "" ? best.txt : "the middle one") "  (cards: " shown ")"
         . (confirmed ? "" : "  [Confirm button not seen, clicked where it usually is]"))
@@ -6380,9 +6386,10 @@ FoolCards() {
 }
 
 FoolVoteAt(x, dy) {
-    Clk(x, (voteNew ? 280 : 241) + dy)
+    Clk(x, (voteNew ? 300 : 241) + dy)
     Wait(150)
-    Clk(x, (voteNew ? 330 : 300) + dy)
+    if !voteNew                                 ; UPD 21: one click picks the card, a 2nd one unpicks it (Chris)
+        Clk(x, 300 + dy)
     t1 := A_TickCount
     while A_TickCount - t1 < 1500 {
         Wait(250)
