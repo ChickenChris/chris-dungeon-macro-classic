@@ -2412,50 +2412,33 @@ RoomIsFinal(&at := 0, &total := 0) {
     return at >= total
 }
 
-; Summer Hunt: which map the round is really on (Chris): 1) the big blue map name that shows when
-; the round loads in, 2) then the green "<map> Summer Hunt" title above the boss bar, which stays all
-; round. The title has the last word. The loading screen isn't trusted: with Find Match it names the
-; hour's map (Planet Greenie on Assassin Park and others: Ren, pe4k, Baro, Found)
+; Summer Hunt: which map the round is really on: the big blue map name that shows when the round loads
+; in (Chris). Nothing else is trusted: with Find Match the loading screen AND the green title above the
+; boss bar both name the hour's map (Planet Greenie on Assassin Park and others: Ren, pe4k, Baro, Found).
+; Without the blue name: Play Here keeps the loading screen's name, Find Match plays the auto pattern
 SummerRoundMap() {
     global curMap, mapHow
     Step("reading the map name")
-    banner := "", title := "", t0 := A_TickCount
-    while A_TickCount - t0 < 7000 {
-        if banner = ""
-            banner := MapFromBanner()
-        if banner != "" && (title := MapFromTitle()) != ""
+    name := "", t0 := A_TickCount
+    while A_TickCount - t0 < 10000 {
+        if (name := MapFromBanner()) != ""
             break
         Wait(200)
     }
-    t1 := A_TickCount
-    while title = "" && A_TickCount - t1 < 3000 {   ; no banner (or no title right after it): the title alone
-        if (title := MapFromTitle()) = ""
-            Wait(250)
+    if name = "" {
+        if cfg.Has("foolMatch") && cfg["foolMatch"] && curMap != "Unknown" {
+            AddLog("Didn't see the blue map name, and with Find Match the loading screen's " curMap " can be wrong: using the auto pattern")
+            curMap := "Unknown"
+            UpdateMapLabel()
+        }
+        return
     }
-    name := title != "" ? title : banner
-    if name = ""
-        return                                  ; neither read: the loading screen's name stays (Play Here)
-    how := banner != "" && title != "" ? (banner = title ? "map banner + title" : "title (the map banner read " banner ")")
-        : title != "" ? "title" : "map banner"
     if curMap = "Unknown"
-        AddLog("Map: " name "  (" how ")")
+        AddLog("Map: " name "  (the blue map name)")
     else if name != curMap
-        AddLog("The loading screen said " curMap ", the round says " name " (" how "). Going with " name)
+        AddLog("The loading screen said " curMap ", the blue map name says " name ". Going with " name)
     curMap := name, mapHow := "map banner"
     UpdateMapLabel()
-}
-
-; Summer Hunt: the green "<map> Summer Hunt" title above the boss bar (about 150-650 x 30-54) the whole
-; round. It names the map the round is really on: with Find Match the loading screen names the hour's
-; map instead (Planet Greenie while the round was Assassin Park: Ren, pe4k, Baro). "(Summer)" in it
-; makes it the event version
-MapFromTitle() {
-    for tf in [{scale: 3, grayscale: true}, {scale: 3, grayscale: true, invertcolors: true}] {
-        name := MapFromScreenText(150, 30, 500, 24, , , tf)
-        if name != ""
-            return name
-    }
-    return ""
 }
 
 ; the big blue "<map> / Dungeon Room (Depth N) / Hard" banner at the top-middle when a stage starts
