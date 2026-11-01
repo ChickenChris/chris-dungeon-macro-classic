@@ -42,6 +42,7 @@ Note(t) {
 }
 Clk(x, y, *) => Note("Clk " x "," y ";")
 PlayHere() => Clk(330, 325)
+StartClick(x := 401, y := 464) => Clk(x, y)
 OpenPortalRow() => 0
 OpenPortalFriends() => false
 ClickDet(name, p*) => Note("ClickDet " name ";")

@@ -294,6 +294,33 @@ PlayHere() {
     Clk(bx, by)
 }
 
+; the green Start on "Game will begin soon..." wherever it is: its green dots in 300-500 x 400-515
+; (Cancel is red under it, the unit bar further down). A fixed 401,463 aimed too high and missed it on
+; Saphi's PC. Clicks its middle; defX, defY when it isn't seen
+StartClick(defX := 401, defY := 464) {
+    bx := defX, by := defY
+    try {
+        WinGetClientPos &ox, &oy, , , RBX
+        Fresh()
+        scr := FindText()
+        n := 0, sx := 0, sy := 0, y := 400
+        while y <= 515 {
+            x := 300
+            while x <= 500 {
+                col := scr.GetColor(ox + x, oy + y, 0)
+                r := (col >> 16) & 0xFF, g := (col >> 8) & 0xFF, b := col & 0xFF
+                if g >= 200 && r <= 140 && b <= 120
+                    n++, sx += x, sy += y
+                x += 4
+            }
+            y += 4
+        }
+        if n >= 40
+            bx := Round(sx / n), by := Round(sy / n)
+    }
+    Clk(bx, by)
+}
+
 ; "Open Portal?" (Open / Open (Friends Only) / Cancel in a row): the row's middle, 0 when it isn't up.
 ; Summer Hunt has it at 330-370, Infinity Castle (UPD 21) at about 227-267 above "Join Matchmaking?"
 OpenPortalRow() {
@@ -342,7 +369,7 @@ PadStart(label, select := true) {
         if FoolJoinUp()
             PlayHere()
         else
-            Clk(401, 464)                       ; Start
+            StartClick()                        ; Start
         Wait(2000)
     }
     AddLog(label " didn't start within a minute. Trying again")

@@ -517,7 +517,7 @@ StartInfinityCastle() {
         }
         if !FT(&fx, &fy, 325, 520, 489, 587, 0, 0, ModeCancel)
             break
-        Clk(fx - 10, fy - 120)                  ; Start
+        StartClick(fx - 10, fy - 120)           ; Start (its green button wherever it is)
         Wait(800)
         Stale()
     }
@@ -6376,7 +6376,7 @@ StartSummerHunt() {
         }
         if !matched && started < 5 && SummerStartUp() {     ; "Game will begin soon...": Start
             started++
-            Clk(401, 463)
+            StartClick(401, 463)
             Wait(1500)
             continue
         }
@@ -6736,6 +6736,7 @@ SummerPortalUp() => ColorShare(190, 334, 310, 366, (r, g, b) => g >= 200 && r <=
     && ColorShare(494, 334, 610, 366, (r, g, b) => r >= 190 && g <= 60 && b <= 60) >= 0.15
 
 SummerStartUp() => ColorShare(320, 436, 482, 488, (r, g, b) => g >= 200 && r <= 140 && b <= 120) >= 0.2
+    || ColorShare(320, 420, 482, 515, (r, g, b) => g >= 200 && r <= 140 && b <= 120) >= 0.15   ; (lower on Saphi's PC)
 
 SummerOpenPortal() {
     t0 := A_TickCount
