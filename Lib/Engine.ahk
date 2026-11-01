@@ -6830,7 +6830,7 @@ FoolToPad() {
             break
         }
         FocusRoblox()
-        ; UPD 21: from where Play lands, ahead (W) 3.4 s, then left (A) until "Join Matchmaking?" shows (Chris)
+        ; UPD 21: from where Play lands, ahead (W) 4 s, then left (A) until "Join Matchmaking?" shows (Chris)
         Step("walking to Summer Hunt")
         key := "w"
         SendKeys("{w down}")
@@ -6841,7 +6841,7 @@ FoolToPad() {
             if FoolJoinUp() {
                 break
             }
-            if key = "w" && A_TickCount - walkStart >= 3400 {
+            if key = "w" && A_TickCount - walkStart >= 4000 {
                 SendKeys("{w up}"), key := "a", SendKeys("{a down}")
                 t0 := A_TickCount, sig0 := SceneSig(), checkAt := A_TickCount + 2000
             }
