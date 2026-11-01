@@ -4954,8 +4954,18 @@ UpgradeUnit(u, presses := 3, useLimit := true) {
     lim := useLimit && !FoolRandom() ? cfg["slots"][u.slot].limit : 0
     Step("upgrading slot " u.slot)
     u.lvlOpen := -1
-    if !OpenUnit(u)
+    if !OpenUnit(u) {
+        static missAt := -30000
+        if NewMenu() && A_TickCount - missAt > 30000    ; a menu is open but wasn't taken as this unit's
+            missAt := A_TickCount, AddLog("Slot " u.slot ": its menu showed but wasn't taken (Max " (NewMax() ? "seen" : "not seen") ", summon " (IsSummonMenu() ? "yes" : "no") ")")
+        if NewMax() && !IsSummonMenu() {        ; a maxed menu is a maxed menu, however it opened
+            u.maxed := true
+            AddLog("Slot " u.slot " is fully upgraded")
+            CloseMenuClick()
+            return 1
+        }
         return 0
+    }
     lvl := ReadLevel()
     u.lvlOpen := lvl                            ; the level as the menu opened (-1 = couldn't read it)
     if lvl >= 0
@@ -5022,11 +5032,15 @@ MaxReached() {
 ; a unit, clicking that unit opens the eel's menu: that made the unit count as fully upgraded.
 ; Such a menu is treated as the wrong one, so the macro clicks around the eel instead.
 IsSummonMenu() {
-    static told := false
-    ; summons always show MAX, so the name is only read when MAX is there (keeps it quick)
-    hit := Det("Elyssia") || (MaxShown() && (ReadLevel() = 0 || (OcrFindWord(4, 188, 160, 30, "i)^(abyssal|eel|eels)$", &wx, &wy) || OcrFindWord(10, 226, 150, 22, "i)^(abyssal|eel|eels)$", &wx, &wy))))
-    if hit && !told {
-        told := true
+    static toldAt := -60000
+    ; UPD 21 menu: a summon only by its name (Abyssal Eel / Jelly). "Level 0 with MAX" isn't used there:
+    ; the level isn't read reliably, and a maxed Bulma read as level 0 was skipped as a summon (Chris)
+    if NewMenu()
+        hit := OcrFindWord(10, 226, 150, 22, "i)^(abyssal|eel|eels|jelly)$", &wx, &wy)
+    else
+        hit := Det("Elyssia") || (MaxShown() && (ReadLevel() = 0 || (OcrFindWord(4, 188, 160, 30, "i)^(abyssal|eel|eels)$", &wx, &wy) || OcrFindWord(10, 226, 150, 22, "i)^(abyssal|eel|eels)$", &wx, &wy))))
+    if hit && A_TickCount - toldAt > 60000 {
+        toldAt := A_TickCount
         AddLog("A summon (like Elyssia's Abyssal Eel) was in the way of a unit. Its menu is skipped, the macro clicks around it")
     }
     return hit
