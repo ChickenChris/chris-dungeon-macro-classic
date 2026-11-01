@@ -4725,6 +4725,7 @@ UnitMenuOpen() {
 ; After 3 failed visits in a row the unit is left alone (it may have been sold or moved).
 OpenUnit(u) {
     static around := [[0, -3], [0, -11], [0, -19], [-8, -8], [8, -8], [0, 5], [-8, -16], [8, -16], [0, -27]]
+    ClearVote()                                 ; Summer Hunt: cards up, vote first (a click on a unit landed on a card)
     ; let any open menu close fully first (a closing menu made the next click look like a miss)
     if UnitMenuOpen() {
         CloseMenuClick()
@@ -6310,6 +6311,15 @@ FoolCards() {
     ; the card takes the vote back)
     if voteNew && A_TickCount - votedAt < 25000
         return false
+    ; the cards slide in while the macro may be clicking a unit: hands off for 4.5 s first (Chris: a
+    ; click meant for a unit picked a card), then the cards are read and one is picked
+    if voteNew {
+        Step("Summer Hunt: cards up, waiting a moment")
+        Wait(4500)
+        Stale()
+        if (dy := FoolVoteDy()) = ""
+            return false
+    }
     Step("Summer Hunt: picking a card")
     ; a unit's menu open on the left covers the first card: close it first
     if UnitMenuOpen() {
