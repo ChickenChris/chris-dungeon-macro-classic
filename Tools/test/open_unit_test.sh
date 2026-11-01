@@ -21,6 +21,12 @@ if missing:
     print("FAIL not defined: " + ", ".join(missing))
 body = r'''#Requires AutoHotkey v2.0
 #Warn VarUnset, StdOut
+NewMenu() => false
+NewMax() => false
+NewLevel() => -1
+NewMenuLabel() => ""
+CloseMenuClick() => Clk(325, 185)
+ClickAway() => Clk(560, 560)
 OnError((e, m) => (FileAppend("ERROR " e.Message " (line " e.Line ")`n", "*"), ExitApp(3)))
 global fails := 0, logs := "", mode := "eel", shown := "", clicks := 0
 Check(name, ok, got := "") {

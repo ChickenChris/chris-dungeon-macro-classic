@@ -129,7 +129,7 @@ DetDefs() {
     DetAdd(d, "Victory", "Victory", 150, 176, 492, 279, 0, VictoryText, VictoryText2, VictoryTextApril)
     DetAdd(d, "Defeat", "Defeat", 150, 176, 492, 279, 0, DefeatText, DefeatText2)
     DetAdd(d, "EndScreen", "Results buttons", 80, 85, 739, 224, 0, LobbyText, LobbyText2)
-    DetAdd(d, "Elyssia", "Elyssia summon", 14, 226, 138, 246, 0, ElyssiaSummons)
+    DetAdd(d, "Elyssia", "Elyssia summon", 14, 226, 150, 282, 0, ElyssiaSummons)
     return d
 }
 
@@ -354,8 +354,13 @@ Tick() {
     if Det("Xp") {
         idleSince := 0
         ReadResult()
-        Clk(325, 185), Clk(560, 560)
+        CloseMenuClick(), ClickAway()
         Wait(400)
+        return
+    }
+    if NewMenu() {                              ; a unit's menu left open (UPD 21 menu): its X
+        Clk(277, 226)
+        Wait(300)
         return
     }
     if Det("UnitExit", &fx, &fy) {
@@ -531,7 +536,7 @@ IdleTick() {
         Step("closing reward popups")
         if A_TickCount - lastPoke > 700 {
             lastPoke := A_TickCount
-            Clk(560, 560)
+            ClickAway()
         }
         Wait(150)
         return
@@ -540,7 +545,7 @@ IdleTick() {
     ; right after a stage: tap the empty corner every few seconds (closes most result popups)
     if stageActive && A_TickCount - lastPoke > 3000 {
         lastPoke := A_TickCount
-        Clk(560, 560)
+        ClickAway()
         if secs >= 10 && !hinted {
             hinted := true
             AddLog("Stuck after a stage? Detect tab: select 'Next button', press Recapture, box the button")
@@ -741,11 +746,15 @@ CloseUnitPanel() {
     loop 3 {
         Stale()
         ; its X and its own parts (Max / Upgrade N / its buttons): the room's panel has a red X too
-        if !Det("UnitExit", &fx, &fy) || !(MaxShown() || ReadLevel() >= 0 || MenuButtons())
+        nm := NewMenu()                         ; the UPD 21 menu (its X: 277,226)
+        if !nm && (!Det("UnitExit", &fx, &fy) || !(MaxShown() || ReadLevel() >= 0 || MenuButtons()))
             return
         if A_Index = 1
             AddLog("A unit's menu is open over the room picker, closing it")
-        Clk(fx - 4, fy - 35)
+        if nm
+            Clk(277, 226)
+        else
+            Clk(fx - 4, fy - 35)
         Wait(400)
     }
 }
@@ -1871,7 +1880,7 @@ CollectRewards() {
         return ClaimReward()                    ; nothing readable: just click through as before
     AddLoot(last)
     loop 6 {
-        Clk(560, 560)
+        ClickAway()
         t0 := A_TickCount, gone := 0            ; gone: when the text went away
         loop {
             Wait(150)
@@ -1948,7 +1957,7 @@ LootList(loot := "") {
 
 ClaimReward() {
     loop 40 {
-        Clk(560, 560)
+        ClickAway()
         if WaitFor(() => Det("Chest") || Det("EndScreen"), 700, 100) {
             if Det("Chest")
                 return true
@@ -2751,7 +2760,7 @@ Levenshtein(a, b) {
 
 LoadingScreens() {
     static m := Map(
-        "Air Craft", ["aircraft"], "Alien Spaceship", ["alienspaceship"],
+        "Adventurer Town", ["adventurertown"], "Air Craft", ["aircraft"], "Alien Spaceship", ["alienspaceship"],
         "Ant Kingdom", ["antkingdom", "antkingdom2", "antkingdom3", "antkingdomraid"],
         "Assassin Park", ["assassinpark"], "Cursed Festival", ["cursedfestival"],
         "Dungeon Throne", ["dungeonthrone", "dungeonthrone2"],
@@ -2760,10 +2769,11 @@ LoadingScreens() {
         "Haunted Mansion", ["hauntedmansion"], "Hellish City", ["hellcity"],
         "Magic Hills", ["magichills", "magichills2", "magichill3"], "Magic Town", ["magictown"],
         "Mountain Temple", ["mountaintemple"], "Navy Bay", ["navybay"],
-        "Nightmare Train", ["nightmaretrain"], "Planet Greenie", ["planetgreenie"],
+        "Nightmare Train", ["nightmaretrain"], "Otherwordly Plane", ["otherwordlyplane"],   ; new in UPD 21 (the game spells it so)
+        "Planet Greenie", ["planetgreenie"],
         "Puppet Island", ["puppetisland"], "Rain Village", ["rainvillage", "rainvillage2"],
         "Ruined City", ["ruinedcity"], "Sacred Planet", ["sacredplanet"],
-        "Sand Village", ["sandvillage"], "Shibuya District", ["shibuyadistrict"],
+        "Sand Village", ["sandvillage"], "Shibuya District", ["shibuyadistrict"], "Sky Island", ["skyisland"],
         "Snowy Kingdom", ["snowykingdom"], "Snowy Town", ["snowytown"],
         "Space Center", ["spacecenter", "spacecenter2"], "Spirit Town", ["spirittown", "spirittown2"],
         "Spirit World", ["spiritworld"], "Storm Hideout", ["stormhideout"],
@@ -2782,7 +2792,7 @@ MapNames() {
     return names
 }
 
-IsLoaded() => Det("VoteStart") || Det("Yen") || Det("Units") || PixelIs(320, 60, 0x00EE00)
+IsLoaded() => Det("VoteStart") || Det("Yen") || Det("Units") || GreenBarAt(320, 60)
 
 PlayStage() {
     global stageActive, stageStart, placedUnits, lastResult, postStage, curMap, allPlaced, slotPrice
@@ -4021,7 +4031,7 @@ UpgradeGroup(units, times) {
                 if !OpenUnit(u)
                     continue
                 now := ReadLevel()
-                Clk(325, 185)
+                CloseMenuClick()
                 Wait(250)
                 if now >= 0 && now - start[u] < times {
                     done[u] := Max(0, now - start[u])
@@ -4185,10 +4195,10 @@ SlotReady(n) {
         scr := FindText()
         barShown := false, mine := 0
         loop 6 {
-            bright := 0, dim := 0, x0 := 252 + (A_Index - 1) * 50, y := 557
-            while y < 575 {
-                x := x0 + 2
-                while x < x0 + 46 {
+            bright := 0, dim := 0, x0 := SlotPriceRight(A_Index) - 40, y := 546
+            while y <= 558 {
+                x := x0
+                while x <= x0 + 42 {
                     col := scr.GetColor(ox + x, oy + y, 0)
                     r := (col >> 16) & 0xFF, g := (col >> 8) & 0xFF, b := col & 0xFF
                     if r >= 215 && g >= 170 && b <= 110
@@ -4224,7 +4234,7 @@ SlotCost(n) {
     global slotPrice
     if slotPrice.Has(n)
         return slotPrice[n]
-    v := ReadYellowNumber(252 + (n - 1) * 50, 554, 48, 24)
+    v := ReadYellowNumber(SlotPriceRight(n) - 42, 543, 46, 18)
     if v >= 0 {
         v := String(v)
         if SubStr(v, -1) != "0" && SubStr(v, -2, 1) = "0"
@@ -4238,7 +4248,7 @@ SlotCost(n) {
 }
 
 ; the yen counter above the unit bar, or -1 if it can't be read
-ReadYen() => ReadYellowNumber(330, 498, 170, 32)
+ReadYen() => ReadYellowNumber(300, 484, 220, 26)     ; above the unit bar (moved up ~20 with UPD 21)
 
 ; ---------- reading the yellow numbers (yen, unit prices) ----------
 ; The unit portraits stick up over the yen counter, and the screen reader turned that into
@@ -4400,7 +4410,7 @@ TryPlace(x, y, slot) {
     }
     ClosePanel()                            ; the unit panel covers the right side of the map
     if UnitMenuOpen() {                     ; an open menu would look like this placement worked
-        Clk(325, 185)
+        CloseMenuClick()
         Wait(250)
     }
     Keys(String(slot))
@@ -4441,7 +4451,7 @@ TryPlace(x, y, slot) {
                 AddLog("Slot " slot ": a menu opened (" (lvl > 0 ? "level " lvl : "MAX") ") but no counted unit is near, treated as not placed")
                 SaveDebugShot("odd_menu")
             }
-            Clk(325, 185)
+            CloseMenuClick()
             Wait(200)
             return false
         }
@@ -4452,7 +4462,7 @@ TryPlace(x, y, slot) {
             AddLog("The unit menu doesn't open by itself after placing, so the macro clicks each new unit. Faster: in the game's settings, set 'Disable Auto-Open Upgrade UI' so the menu pops up when you place a unit")
         }
         CheckAbility()
-        Clk(325, 185)                       ; close the unit menu
+        CloseMenuClick()                       ; close the unit menu
         return true
     }
     if SettingsInTheWay()                   ; the game's Settings window over the map: nothing placed
@@ -4623,6 +4633,8 @@ MenuParts() => MenuButtons() || Det("UnitExit") || ReadLevel() >= 0 || MaxShown(
 ; and nothing on the map has those three side by side in that order. (Measured on a screenshot
 ; of the macro's window: about 120 / 130 / 380 matching dots, and 0 on screenshots without a menu.)
 MenuButtons() {
+    if NewMenu()
+        return true
     try {
         WinGetClientPos &ox, &oy, , , RBX
         Fresh()
@@ -4692,6 +4704,8 @@ WaitUnitMenu(timeout) {
 UnitMenuOpen() {
     try {
         FocusRoblox()
+        if NewMenu()
+            return !IsSummonMenu()
         if PixelSearch(&px, &py, 178, 309, 305, 336, 0x000000, 12)
             && (PixelSearch(&px, &py, 192, 244, 237, 400, 0xFFFFFF, 12) || PixelSearch(&px, &py, 192, 244, 237, 400, 0xFFC806, 20))
             return !IsSummonMenu()
@@ -4710,7 +4724,7 @@ OpenUnit(u) {
     static around := [[0, -3], [0, -11], [0, -19], [-8, -8], [8, -8], [0, 5], [-8, -16], [8, -16], [0, -27]]
     ; let any open menu close fully first (a closing menu made the next click look like a miss)
     if UnitMenuOpen() {
-        Clk(325, 185)
+        CloseMenuClick()
         WaitFor(() => !UnitMenuOpen(), 1200, 100)
     }
     tries := [[u.dx, u.dy]]
@@ -4720,7 +4734,7 @@ OpenUnit(u) {
     covered := false                            ; a summon (Abyssal Eel) opened instead: the unit is under it
     for o in tries {
         if covered && MaxShown() && IsSummonMenu() {
-            Clk(325, 185)                       ; the eel's menu off first
+            CloseMenuClick()                       ; the eel's menu off first
             Sleep(250)
         }
         Clk(u.x + o[1], u.y + o[2])
@@ -4745,7 +4759,7 @@ OpenUnit(u) {
     if covered {
         ; the unit's there, an eel swims over it: not a miss (it was left for good after 3 of these,
         ; Chris's slot 2). Tried again on the next visit, when the eel has moved on
-        Clk(325, 185)
+        CloseMenuClick()
         if !u.HasOwnProp("eelTold")
             u.eelTold := true, AddLog("Slot " u.slot ": a summon (Abyssal Eel) is over this unit, trying it again later")
         return false
@@ -4756,7 +4770,7 @@ OpenUnit(u) {
         AddLog("Slot " u.slot ": can't find this unit at " u.x "," u.y " any more, leaving it")
         SaveDebugShot("unit_missing")
     }
-    Clk(560, 560)
+    ClickAway()
     return false
 }
 
@@ -4810,12 +4824,14 @@ UpgradeAndWatch() {
             }
         }
         if A_TickCount - lastAfk > 60000 {
-            Clk(560, 560)
+            ClickAway()
             lastAfk := A_TickCount
         }
         CloseChat()
         if Det("UnitExit", &fx, &fy)
             Clk(fx - 4, fy - 35)
+        else if NewMenu()
+            Clk(277, 226)
         if CheckConnection()
             return
         ; nothing affordable this round: give the yen a moment to build up
@@ -4959,8 +4975,8 @@ UpgradeUnit(u, presses := 3, useLimit := true) {
     if gained && !u.maxed
         Step("slot " u.slot " upgraded" (lvl >= 0 ? " to level " lvl : ""))
     CheckAbility()
-    Clk(325, 185)
-    Clk(560, 560)
+    CloseMenuClick()
+    ClickAway()
     return gained
 }
 
@@ -4976,7 +4992,7 @@ MaxReached() {
 IsSummonMenu() {
     static told := false
     ; summons always show MAX, so the name is only read when MAX is there (keeps it quick)
-    hit := Det("Elyssia") || (MaxShown() && (ReadLevel() = 0 || OcrFindWord(4, 188, 160, 30, "i)^(abyssal|eel|eels)$", &wx, &wy)))
+    hit := Det("Elyssia") || (MaxShown() && (ReadLevel() = 0 || (OcrFindWord(4, 188, 160, 30, "i)^(abyssal|eel|eels)$", &wx, &wy) || OcrFindWord(10, 226, 150, 22, "i)^(abyssal|eel|eels)$", &wx, &wy))))
     if hit && !told {
         told := true
         AddLog("A summon (like Elyssia's Abyssal Eel) was in the way of a unit. Its menu is skipped, the macro clicks around it")
@@ -4984,7 +5000,62 @@ IsSummonMenu() {
     return hit
 }
 
-MaxShown() => Det("Max") || Det("MaxNew")
+
+; ---------- the unit menu and unit bar since UPD 21 (Nov 2026) ----------
+; The menu looks different: "UPG [N]" on a gold bar, the stats in a box, the Upgrade button under it,
+; the close X on its top right corner. Measured on Chris's screenshots (game-area coords): First button
+; 18-72 x 380-396 (cyan), Sell 82-136 x 380-396 (red), gold bar 150-262 x 234-250, close X 277,226,
+; Upgrade button 153-265 x 365-400 (its price 162-257 x 371-386), and "Max Upgrade" in big yellow
+; letters 170-272 x 278-326 when it's maxed
+NewMenu() => ColorShare(18, 380, 72, 396, (r, g, b) => r <= 100 && g >= 120 && b >= 170) >= 0.4
+    && ColorShare(82, 380, 136, 396, (r, g, b) => r >= 180 && g <= 70 && b <= 70) >= 0.25
+    && ColorShare(150, 234, 262, 250, (r, g, b) => r >= 55 && r <= 130 && g >= 35 && g <= 95 && b <= 25) >= 0.3
+NewMax() => NewMenu() && ColorShare(170, 278, 272, 326, (r, g, b) => r >= 200 && g >= 140 && b <= 110 && r - b >= 120) >= 0.05
+; the gold bar's text ("UPG [8] (MAX)"), "" when it can't be read. Its letters shrink when (MAX) is
+; added, so it's read as text rather than matched as pictures
+NewMenuLabel() {
+    try {
+        WinGetClientPos &ox, &oy, , , RBX
+        return Trim(RegExReplace(OCR.FromRect(ox + 146, oy + 232, 126, 20, OcrLang(), {scale: 3, grayscale: true}).Text, "\s+", " "))
+    }
+    return ""
+}
+; the level in "UPG [N]", -1 when it can't be read
+NewLevel() {
+    t := NewMenuLabel()
+    if RegExMatch(t, "[\[\(\{]\s*([0-9lI]{1,2})\s*[\]\)\}]", &m) || RegExMatch(t, "i)UP\w?\W{0,3}([0-9]{1,2})(?!\d)", &m) {
+        v := StrReplace(StrReplace(m[1], "l", "1"), "I", "1")
+        if IsInteger(v) && Integer(v) <= 20
+            return Integer(v)
+    }
+    return -1
+}
+; closes a unit's menu: its X (the old menu's X was where 325,185 is; since UPD 21 it's at 277,226)
+CloseMenuClick() {
+    if NewMenu()
+        Clk(277, 226)
+    else
+        Clk(325, 185)
+}
+; a click on nothing, to close popups: the bottom right corner next to the minimap. (560,560 was empty
+; before UPD 21; the unit bar got wider and it's now the 6th unit's card, which picked that unit up)
+ClickAway() => Clk(637, 528)
+; the green health bar at the top of a stage (it was 0x00EE00, it's 0x00FF00 since UPD 21)
+GreenBarAt(x, y) {
+    try {
+        WinGetClientPos &ox, &oy, , , RBX
+        Fresh()
+        col := FindText().GetColor(ox + x, oy + y, 0)
+        r := (col >> 16) & 0xFF, g := (col >> 8) & 0xFF, b := col & 0xFF
+        return g >= 200 && r <= 60 && b <= 60
+    }
+    return false
+}
+; the unit bar since UPD 21: wider cards, 64 apart; slot n's price ends at x = 263 + 64 * (n - 1),
+; its digits on rows 546-558 (measured on Chris's screenshots)
+SlotPriceRight(n) => 263 + 64 * (n - 1)
+
+MaxShown() => Det("Max") || Det("MaxNew") || NewMax()
 
 ; the white price text on the green Upgrade button, as bits: if it changes after pressing R,
 ; the unit went up a level (used when the "Upgrade N" text can't be read)
@@ -4993,11 +5064,12 @@ UpgradeButtonBits() {
     try {
         WinGetClientPos &ox, &oy, , , RBX
         Stale(), Fresh()
+        nm := NewMenu()                         ; since UPD 21 the button sits lower and further left
         scr := FindText()
-        y := 355
-        while y <= 376 {
-            x := 192
-            while x <= 302 {
+        y := nm ? 371 : 355
+        while y <= (nm ? 386 : 376) {
+            x := nm ? 162 : 192
+            while x <= (nm ? 257 : 302) {
                 col := scr.GetColor(ox + x, oy + y, 0)
                 bits .= Min((col >> 16) & 0xFF, (col >> 8) & 0xFF, col & 0xFF) >= 200 ? "1" : "0"
                 x += 2
@@ -5021,12 +5093,16 @@ BitDiff(a, b) {
 MaxByText() {
     if IsSummonMenu()
         return false
+    if NewMenu()
+        return InStr(NewMenuLabel(), "MAX") > 0
     return OcrFindWord(220, 230, 85, 185, "i)^MAX\W*$", &mx, &my)
 }
 
 ; the unit's upgrade level from its menu (0-10), or -1 if it can't be read
 ReadLevel() {
     static texts := 0
+    if NewMenu()
+        return NewLevel()
     if !IsObject(texts)
         texts := [Upgrade0, Upgrade1, Upgrade2, Upgrade3, Upgrade4, Upgrade5, Upgrade6, Upgrade7, Upgrade8, Upgrade9, Upgrade10]
     i := texts.Length                           ; check 10 before 1, "Upgrade 1" is part of "Upgrade 10"
@@ -5042,6 +5118,8 @@ AtUpgradeLevel(level) {
     static texts := 0
     if !IsObject(texts)
         texts := [Upgrade1, Upgrade2, Upgrade3, Upgrade4, Upgrade5, Upgrade6, Upgrade7, Upgrade8, Upgrade9]
+    if NewMenu()
+        return NewLevel() = level
     if level < 1 || level > texts.Length
         return false
     return Seen(170, 228, 312, 252, texts[level], 0, true)     ; exact: 1 and 7 look alike
@@ -5074,7 +5152,7 @@ AbilityPass() {
                 u.abilityChecks := 3
                 AddLog("Slot " u.slot ": ability switched to Auto")
             }
-            Clk(325, 185)                       ; close the unit menu
+            CloseMenuClick()                       ; close the unit menu
             Wait(200)
         }
     }

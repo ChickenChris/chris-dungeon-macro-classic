@@ -13,6 +13,12 @@ m = re.search(r"^CloseUnitPanel\(\) \{.*?^\}", src, re.S | re.M)
 part = m.group(0) if m else 'CloseUnitPanel() => FileAppend("FAIL CloseUnitPanel not defined`n", "*")'
 body = r'''#Requires AutoHotkey v2.0
 #Warn VarUnset, StdOut
+NewMenu() => false
+NewMax() => false
+NewLevel() => -1
+NewMenuLabel() => ""
+CloseMenuClick() => Clk(325, 185)
+ClickAway() => Clk(560, 560)
 OnError((e, m) => (FileAppend("ERROR " e.Message " (line " e.Line ")`n", "*"), ExitApp(3)))
 global fails := 0, menuOpen := false, redX := false, clicks := 0, logs := ""
 Check(name, ok, got := "") {

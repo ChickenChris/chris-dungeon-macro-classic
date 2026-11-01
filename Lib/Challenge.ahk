@@ -1,4 +1,4 @@
-; =====================================================================
+﻿; =====================================================================
 ;  Auto challenge (Premium and Classic, the same file in both)
 ;  A new Challenge comes up every half hour on the clock (:00 and :30). With the switch on, the
 ;  macro plays each one once and goes back to farming: in the lobby it goes first; Legend, Infinite
@@ -130,7 +130,7 @@ ChallengeEnded() {
         else if OcrFindWord(300, 95, 200, 55, LobbyWordRe(), &lx, &ly)
             Clk(lx, ly)                         ; "Return to lobby" at the top
         else
-            Clk(560, 560)                       ; reward popups
+            ClickAway()                       ; reward popups
         Wait(600)
     }
     if BackToLobby()

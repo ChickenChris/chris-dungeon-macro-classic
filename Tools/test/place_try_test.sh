@@ -14,6 +14,12 @@ fn = m.group(0) if m else (print("FAIL not defined: TryPlace") or "TryPlace(p*) 
 flag = "true" if "refusals := FoolMode()" in fn else "false"
 body = r'''#Requires AutoHotkey v2.0
 #Warn VarUnset, StdOut
+NewMenu() => false
+NewMax() => false
+NewLevel() => -1
+NewMenuLabel() => ""
+CloseMenuClick() => Clk(325, 185)
+ClickAway() => Clk(560, 560)
 OnError((e, m) => (FileAppend("ERROR " e.Message " (line " e.Line ")`n", "*"), ExitApp(3)))
 global fails := 0, reads := 0, clicks := "", menuNext := false, fool := false, placeUnsure := Map()
 global autoOpenSeen := true, autoOpenOff := false, clickOpened := 0

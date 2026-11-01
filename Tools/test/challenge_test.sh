@@ -20,6 +20,12 @@ if missing:
     print("FAIL not defined: " + ", ".join(missing))
 body = r'''#Requires AutoHotkey v2.0
 #Warn VarUnset, StdOut
+NewMenu() => false
+NewMax() => false
+NewLevel() => -1
+NewMenuLabel() => ""
+CloseMenuClick() => Clk(325, 185)
+ClickAway() => Clk(560, 560)
 OnError((e, m) => (FileAppend("ERROR " e.Message " (line " e.Line ")`n", "*"), ExitApp(3)))
 global fails := 0, calls := "", challengeOn := false, lastResult := "win", cfg := Map()
 global padOk := true, backOk := true, alreadyCleared := false, joinAt := 0, joinN := 0, wordAt := 0, wordN := 0, lobbyAfterWord := true, lobbyNow := false, shots := ""
