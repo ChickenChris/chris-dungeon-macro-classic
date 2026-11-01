@@ -4985,7 +4985,7 @@ UpgradeUnit(u, presses := 3, useLimit := true) {
 
 MaxReached() {
     Wait(400)
-    return MaxShown() && !IsSummonMenu()
+    return (MaxShown() || (NewMenu() && InStr(NewMenuLabel(), "MAX"))) && !IsSummonMenu()
 }
 
 ; Some units (Elyssia) spawn summons like the Abyssal Eel. A summon's menu says "Upgrade [0] (MAX)"
