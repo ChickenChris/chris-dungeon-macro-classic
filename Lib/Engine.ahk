@@ -2239,6 +2239,8 @@ MatchLoadingScreen() {
     name := MapFromLoadingText(), mapHow := "loading screen text"
     if name != ""
         return name
+    if FoolMode()                               ; Summer Hunt: the text only (and the banner later). The plain
+        return ""                               ; map's pictures matched its event version (Planet Greenie (Summer))
     name := MapFromNamePics(), mapHow := "map name picture"
     if name != ""
         return name
@@ -2445,7 +2447,18 @@ MapFromScreenText(x, y, w, h, &depth := "", &raw := "", tf := "") {
     }
     if RegExMatch(raw, "i)f[il1]oor\D{0,4}(\d+)", &m)
         icFloor := Integer(m[1])
-    return MatchMapName(raw)
+    return MapVariant(raw, MatchMapName(raw))
+}
+
+; Summer Hunt maps can be event versions with their own layout: "Planet Greenie (Summer)", "Alien
+; Spaceship (Underwater)". Taken as the plain map, its walk ran into a wall (casper). Such a map gets
+; its own name, so its own spots and walk (and no walk of the plain map)
+MapVariant(txt, name) {
+    if name = "" || !FoolMode()
+        return name
+    if RegExMatch(txt, "i)\(\s*([a-z]{4,12})\s*\)", &m) && !RegExMatch(m[1], "i)^(depth|max|hard|normal|frozen)$")
+        return name " (" StrUpper(SubStr(m[1], 1, 1)) StrLower(SubStr(m[1], 2)) ")"
+    return name
 }
 
 ; The small room font makes an 8 look like a 0 (Alex: "every room 18 it thinks it's room 10"),
@@ -2505,7 +2518,7 @@ MapFromLoadingText() {
         curDepth := SaneDepth(m[1])
     if RegExMatch(txt, "i)f[il1]oor\D{0,4}(\d+)", &m)
         icFloor := Integer(m[1])
-    name := MatchMapName(txt)
+    name := MapVariant(txt, MatchMapName(txt))
     one := Trim(RegExReplace(txt, "\s+", " "))
     if !floorTold && RegExMatch(one, "i)castle") && !RegExMatch(one, "i)f[il1]oor\D{0,4}\d") {
         floorTold := true
@@ -2778,7 +2791,7 @@ LoadingScreens() {
         "Magic Hills", ["magichills", "magichills2", "magichill3"], "Magic Town", ["magictown"],
         "Mountain Temple", ["mountaintemple"], "Navy Bay", ["navybay"],
         "Nightmare Train", ["nightmaretrain"], "Otherwordly Plane", ["otherwordlyplane"],   ; new in UPD 21 (the game spells it so)
-        "Planet Greenie", ["planetgreenie"],
+        "Planet Greenie", ["planetgreenie"], "Planet Greenie (Summer)", [], "Alien Spaceship (Underwater)", [],
         "Puppet Island", ["puppetisland"], "Rain Village", ["rainvillage", "rainvillage2"],
         "Ruined City", ["ruinedcity"], "Sacred Planet", ["sacredplanet"],
         "Sand Village", ["sandvillage"], "Shibuya District", ["shibuyadistrict"], "Sky Island", ["skyisland"],
@@ -2830,6 +2843,23 @@ PlayStage() {
         placedUnits := [], allPlaced := false, slotPrice := Map()
         global placeUnsure := Map(), unseenFound := []
         global walkedHere := false
+        if FoolMode() && curMap != "Unknown" && mapHow != "map banner" {
+            ; Fool's Hunt's loading screen can name another map than the one that loads (it said
+            ; Mountain Temple on another map, so it walked to the wrong spot): the blue map banner
+            ; in the round itself has the last word
+            t0 := A_TickCount
+            while A_TickCount - t0 < 3000 {
+                if (name := MapFromBanner()) != "" {
+                    if name != curMap {
+                        AddLog("The loading screen said " curMap ", the map banner says " name ". Going with " name)
+                        curMap := name
+                        UpdateMapLabel()
+                    }
+                    break
+                }
+                Wait(250)
+            }
+        }
         ; the team for this room's boosted element, FIRST: units can only be changed before the game
         ; starts ("You can change your units before the game starts!"). After the teleport, the walk and
         ; the start vote the Units window no longer opened with K (Jbenz's first try)
