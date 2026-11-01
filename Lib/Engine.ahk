@@ -6781,32 +6781,39 @@ FoolToPad() {
             break
         }
         FocusRoblox()
-        Step("walking to Summer Hunt")              ; the Summer Hunt portal is straight ahead (W) from where Play lands
+        ; UPD 21: from where Play lands, ahead (W) 2.5 s, then left (A) until "Join Matchmaking?" shows (Chris)
+        Step("walking to Summer Hunt")
+        key := "w"
         SendKeys("{w down}")
-        t0 := A_TickCount, sig0 := SceneSig(), checkAt := A_TickCount + 2000, nudged := 0
+        t0 := A_TickCount, sig0 := SceneSig(), checkAt := A_TickCount + 2000, nudged := 0, walkStart := A_TickCount
         while A_TickCount - t0 < 12000 {
             Wait(250)
             Stale()
-            if FoolJoinUp()
+            if FoolJoinUp() {
                 break
+            }
+            if key = "w" && A_TickCount - walkStart >= 2500 {
+                SendKeys("{w up}"), key := "a", SendKeys("{a down}")
+                t0 := A_TickCount, sig0 := SceneSig(), checkAt := A_TickCount + 2000
+            }
             ; walking changes the picture a lot (40+ on your recording), standing still with
-            ; effects under 10. Right after switching Roblox windows the first A was sometimes
-            ; ignored and the character just stood there: click into the game, press A again
+            ; effects under 10. Right after switching Roblox windows the first key was sometimes
+            ; ignored and the character just stood there: click into the game, press it again
             if checkAt && A_TickCount >= checkAt {
                 if SigDiff(SceneSig(), sig0) >= 20 || nudged >= 2
                     checkAt := 0                    ; it's walking (or it tried enough)
                 else {
                     nudged++
-                    SendKeys("{w up}")
+                    SendKeys("{" key " up}")
                     Clk(400, 470)
                     Wait(200)
                     FocusRoblox()
-                    SendKeys("{w down}")
+                    SendKeys("{" key " down}")
                     t0 := A_TickCount, sig0 := SceneSig(), checkAt := A_TickCount + 2000
                 }
             }
         }
-        SendKeys("{w up}")
+        SendKeys("{w up}"), SendKeys("{a up}")
         Wait(500)
         Stale()
     }
