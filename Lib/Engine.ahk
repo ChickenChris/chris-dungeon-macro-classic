@@ -1346,9 +1346,9 @@ TextScreen() {
 
 ; the curse in the shrine's offer list ("[*] Curse of Chaos") -> "Chaos"
 ShrineKindFromText() {
-    static spellings := Map("Armor", "ARMOR", "Burst", "BURST", "Chaos", "CHAOS", "Frenzy", "FRENZY", "Vamparism", "VAMPARISM|VAMPIRISM", "Eruption", "ERUPTION")
+    static spellings := Map("Armor", "ARMOR", "Burst", "BURST", "Chaos", "CHAOS", "Frenzy", "FRENZY", "Vamparism", "VAMPARISM|VAMPIRISM", "Eruption", "ERUPTION", "Vitality", "VITALITY")
     ; the effect line under the name, for when the name is misread
-    static effects := [["BURST", "Burst"], ["ARMOU?RED", "Armor"], ["RANDOM", "Chaos"], ["ENEMY ?SPEED", "Frenzy"], ["REGEN", "Vamparism"], ["EXPLOSIVE ?DEATH|DEATH ?RANGE", "Eruption"]]
+    static effects := [["BURST", "Burst"], ["ARMOU?RED", "Armor"], ["RANDOM", "Chaos"], ["ENEMY ?SPEED", "Frenzy"], ["REGEN", "Vamparism"], ["EXPLOSIVE ?DEATH|DEATH ?RANGE", "Eruption"], ["ENEMY ?HEALTH|VITAL", "Vitality"]]
     ; "You will receive" is a list that scrolls: the curse can be below the visible rows
     loop 4 {
         if A_Index > 1 {
@@ -2418,6 +2418,10 @@ RoomIsFinal(&at := 0, &total := 0) {
 ; Without the blue name: Play Here keeps the loading screen's name, Find Match plays the auto pattern
 SummerRoundMap() {
     global curMap, mapHow
+    if mapHow = "map banner" && curMap != "Unknown"
+        return                                  ; the blue name was read already while the round loaded
+                                                ; (it's gone a moment later: Cursed Festival was read at
+                                                ; 12.8 s, then thrown away for not being seen again, Chris)
     Step("reading the map name")
     name := "", t0 := A_TickCount
     while A_TickCount - t0 < 10000 {
