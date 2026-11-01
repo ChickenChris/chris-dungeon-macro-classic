@@ -2412,6 +2412,36 @@ RoomIsFinal(&at := 0, &total := 0) {
     return at >= total
 }
 
+DungeonTitleCheck() {
+    global curMap, curDepth
+    t0 := A_TickCount
+    while A_TickCount - t0 < 2500 {
+        for tf in [{scale: 3, grayscale: true}, {scale: 3, grayscale: true, invertcolors: true}] {
+            raw := "", name := "", depth := ""
+            try {
+                WinGetClientPos &ox, &oy, , , RBX
+                raw := OCR.FromRect(ox + 150, oy + 30, 500, 24, OcrLang(), tf).Text
+            }
+            ; only a sure match counts here (the loose guess is what turned Snowy into Fabled)
+            if raw != ""
+                name := MatchMapStrict(RegExReplace(raw, "i)dungeon.*$", ""))
+            if RegExMatch(raw, "i)depth\D{0,4}(\d{1,2})", &dm)
+                depth := dm[1]
+            if name != "" {
+                if name != curMap {
+                    AddLog((curMap = "Unknown" ? "Map: " name : "The room panel said " curMap ", the title says " name ". Going with " name) "  (the title)")
+                    curMap := name
+                    UpdateMapLabel()
+                }
+                if depth != "" && curDepth = ""
+                    curDepth := SaneDepth(depth)
+                return
+            }
+        }
+        Wait(300)
+    }
+}
+
 ; Summer Hunt: which map the round is really on: the big blue map name that shows when the round loads
 ; in (Chris). Nothing else is trusted: with Find Match the loading screen AND the green title above the
 ; boss bar both name the hour's map (Planet Greenie on Assassin Park and others: Ren, pe4k, Baro, Found).
@@ -2900,6 +2930,11 @@ PlayStage() {
             AddLog("Couldn't read the map's name in the round, using the auto pattern" (said != "" ? ". Last text read: " SubStr(said, 1, 80) : ""))
             SaveDebugShot("map_unknown")
         }
+        ; Dungeon: the green "<map> Dungeon Room (Depth N)" title above the boss bar names the room's real
+        ; map. The small room panel can be misread: "Snowy Kingdom" was taken as Fabled Kingdom (both end
+        ; in Kingdom) and the loading screen's text was unreadable, so nothing caught it (a player's screenshot)
+        if cfg["mode"] = "Dungeon"
+            DungeonTitleCheck()
         if ICMode() && curMap = "Unknown" {
             curMap := "Infinity Castle"            ; couldn't read the floor's map: its own walk/spots
             UpdateMapLabel()
