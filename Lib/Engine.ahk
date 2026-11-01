@@ -2496,6 +2496,11 @@ MapFromLoadingText() {
         }
         return ""
     }
+    ; Summer Hunt: only its own loading screen ("<map> / Summer Hunt / Weather: ..."). With Find Match
+    ; some other text was read while still matching in the lobby and taken as the map (Planet Greenie
+    ; on Assassin Park, Chris)
+    if FoolMode() && !RegExMatch(txt, "i)summ|weath|hunt")
+        return ""
     if RegExMatch(txt, "i)depth\D{0,4}(\d+)", &m)
         curDepth := SaneDepth(m[1])
     if RegExMatch(txt, "i)f[il1]oor\D{0,4}(\d+)", &m)
@@ -5977,7 +5982,15 @@ ClickDet(name, ox, oy, maxMs := 20000) {
 }
 
 ; a click Roblox reliably registers (it needs the mouse to move first)
+global voteClick := false       ; the vote's own clicks (everything else waits until the cards are gone)
 Clk(x, y, btn := "Left") {
+    ; a card vote up (Summer Hunt): a click anywhere in the middle of the screen can pick or unpick a
+    ; card (a unit behind the middle card was clicked over and over, Chris). The vote is done first
+    if !voteClick && FoolMode() && stageActive && x > 130 && x < 670 && y > 140 && y < 520 && VoteOnScreen() {
+        ClearVote()
+        if VoteOnScreen()
+            return
+    }
     if paused && running                        ; F4 holds here, not only at the next wait
         Chk()
     FocusRoblox()
@@ -6374,7 +6387,7 @@ FoolCards() {
     }
     Step("Summer Hunt: picking a card")
     ; a unit's menu open on the left covers the first card: close it first
-    if UnitMenuOpen() {
+    if !voteNew && UnitMenuOpen() {             ; (the UPD 21 menu doesn't reach the cards)
         CloseMenuClick()
         Wait(400)
         Stale()
@@ -6448,6 +6461,11 @@ FoolCards() {
 }
 
 FoolVoteAt(x, dy) {
+    global voteClick := true
+    try return FoolVoteClicks(x, dy)
+    finally voteClick := false
+}
+FoolVoteClicks(x, dy) {
     if voteNew {
         ; one click picks a card, a 2nd click unpicks it (Chris), and a click meant for a unit can have
         ; picked one already: click ours only while it isn't the highlighted one, then Vote
