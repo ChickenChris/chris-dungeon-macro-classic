@@ -15,6 +15,7 @@ flag = "true" if "refusals := FoolMode()" in fn else "false"
 body = r'''#Requires AutoHotkey v2.0
 #Warn VarUnset, StdOut
 NewMenu() => false
+CountPlaced(n) => 0
 AutoOffSeen() => Det("AutoOff")
 ClickAuto() => Clk(373, 237)
 NewMax() => false

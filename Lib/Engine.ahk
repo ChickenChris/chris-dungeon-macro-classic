@@ -4436,7 +4436,7 @@ TryPlace(x, y, slot) {
     how := ""
     if WaitUnitMenu(autoOpenOff ? 300 : PlaceTimeout())
         how := "auto"
-    else if refusals && PlaceRefused(slot)
+    else if (refusals || CountPlaced(slot) >= 1) && PlaceRefused(slot)   ; a unique / limited unit's red text
         return false
     else if (!autoOpenSeen || autoOpenOff) && !NearUnit(x, y, 22) {
         ; No menu: nothing was placed, or the menu didn't open (the game's 'Disable Auto-Open
@@ -4519,6 +4519,14 @@ PlaceRefused(slot) {
     if slot != lastSlot && A_TickCount - lastAt < 4000
         return false
     lastAt := A_TickCount, lastSlot := slot
+    if msg = "unique" {                         ; a unique unit: one of it (Wagwan: it kept placing it)
+        have := Max(1, CountPlaced(slot))
+        slotCap[CapKey(slot)] := have, slotFull[slot] := stageStart
+        static toldUnique := Map()
+        if !toldUnique.Has(slot)
+            toldUnique[slot] := true, AddLog("Slot " slot " is a unique unit: the game allows " have " of it, placing no more")
+        return true
+    }
     if msg = "limit" && !toldMsg {
         toldMsg := true
         AddLog("The game said: " RegExReplace(Trim(said), "\s+", " "))
@@ -4606,13 +4614,15 @@ LimitMessage(&txt := "") {
     ; the text reader garbles it often over a busy map ("Cannot place more than 20 units!" came
     ; out as "Cannot,rldc"), so any piece of it counts; a second, closer read of the strip under
     ; the wave counter when the first finds nothing
-    static limitWords := "i)c[a@]nn[o0]t|can.t\s*pl|m[o0]re\s*th|rn[o0]re\s*th|th[ae]n\s*\d+\s*un|sell\s*s|make\s*r[o0]|weaker"
+    static limitWords := "i)un[il1]que|[il1]ts\s*k[il1]nd|c[a@]nn[o0]t|can.t\s*pl|m[o0]re\s*th|rn[o0]re\s*th|th[ae]n\s*\d+\s*un|sell\s*s|make\s*r[o0]|weaker"
     try {
         WinGetClientPos &ox, &oy, , , RBX
         txt := OCR.FromRect(ox + 100, oy + 60, 600, 450, OcrLang(), {scale: 2, grayscale: true}).Text
         if !RegExMatch(txt, limitWords)
             txt .= " " OCR.FromRect(ox + 100, oy + 70, 600, 110, OcrLang(), {scale: 3, grayscale: true}).Text
     }
+    if RegExMatch(txt, "i)un[il1]que|[il1]ts\s*k[il1]nd|w[il1]th\s*[o0]thers")
+        return "unique"
     if RegExMatch(txt, limitWords)
         return "limit"
     return ""
@@ -4946,8 +4956,10 @@ UpgradeUnit(u, presses := 3, useLimit := true) {
     if lvl >= 0
         u.lvl := lvl
     ; maxed already as its menu opens ("Max Upgrade"): done, no presses (a maxed Bulma was pressed
-    ; and waited on for yen again and again, Chris 3.2.74)
+    ; and waited on for yen again and again, Chris 3.2.74). Looked at twice: the menu slides in
     Stale()
+    if !NewMax()
+        Wait(300), Stale()
     if NewMax() && !IsSummonMenu() {
         u.maxed := true
         AddLog("Slot " u.slot " is fully upgraded")
@@ -5027,7 +5039,10 @@ IsSummonMenu() {
 ; upgraded (3.2.74), as if the menu wasn't recognised
 NewMenu() => ColorShare(150, 234, 262, 250, (r, g, b) => r >= 55 && r <= 130 && g >= 35 && g <= 95 && b <= 25) >= 0.3
     && ColorShare(150, 262, 275, 355, (r, g, b) => r <= 45 && g <= 30 && b <= 35) >= 0.6
-NewMax() => NewMenu() && ColorShare(170, 278, 272, 326, (r, g, b) => r >= 200 && g >= 140 && b <= 110 && r - b >= 120) >= 0.05
+NewMax() => NewMenu() && (ColorShare(170, 278, 272, 326, (r, g, b) => r >= 200 && g >= 140 && b <= 110 && r - b >= 120) >= 0.05
+    || MaxButtonGrey())
+; a maxed unit's bottom button is a grey "Max" (0.60+ grey on every maxed menu, 0.19 at most on others)
+MaxButtonGrey() => ColorShare(160, 368, 258, 396, (r, g, b) => r >= 50 && r <= 110 && Abs(r - g) <= 14 && Abs(g - b) <= 14) >= 0.45
 ; the gold bar's text ("UPG [8] (MAX)"), "" when it can't be read. Its letters shrink when (MAX) is
 ; added, so it's read as text rather than matched as pictures
 NewMenuLabel() {
@@ -6200,7 +6215,7 @@ FoolTick() {
 VoteOnScreen() => FoolMode() && FoolVoteUp()
 ClearVote() {
     if VoteOnScreen()
-        FoolCardsNow(6000)
+        FoolCardsNow(15000)                     ; the cards stay ~10 s: no unit clicks until they're gone
 }
 
 StartSummerHunt() {
@@ -6294,7 +6309,8 @@ FoolVoteDy() {
     ; and the 3 cards' dark insides (1.00 on every vote, never all three on other screens: the white
     ; Start text in the lobby passed for a vote and a card was "picked" there, Chris 3.2.74)
     dark := (r, g, b) => r + g + b < 150
-    if ColorShare(340, 457, 462, 473, white) >= 0.13 && ColorShare(317, 154, 487, 171, white) >= 0.12
+    ; ("Vote ends in" isn't needed: it shows a second after the cards, and those first clicks hit them)
+    if ColorShare(317, 154, 487, 171, white) >= 0.12
         && ColorShare(172, 330, 272, 410, dark) >= 0.9 && ColorShare(350, 330, 450, 410, dark) >= 0.9
         && ColorShare(527, 330, 627, 410, dark) >= 0.9 {
         voteNew := true
@@ -6336,21 +6352,25 @@ FoolCards() {
     static words := [["boss", "boss"], ["shield", "shield"], ["regen", "regen"], ["health|enemy\s*hea|\bhp\b", "health"], ["speed", "speed"],
         ["\byen\b|¥", "yen"], ["range", "range"], ["cool|\bcd\b", "cooldown"], ["attack|\batk\b|damage", "attack"],
         ["explo", "explosive"], ["resist", "resistant"], ["spell|proof", "spellproof"], ["plate", "plated"]]
-    static votedAt := 0
-    if (dy := FoolVoteDy()) = ""
+    static votedAt := 0, firstSeen := 0
+    if (dy := FoolVoteDy()) = "" {
+        firstSeen := 0
         return false
+    }
     ; voted already and the panel is still counting down: hands off (since UPD 21 another click on
     ; the card takes the vote back)
     if voteNew && A_TickCount - votedAt < 25000
-        return false
-    ; the cards slide in while the macro may be clicking a unit: hands off for 4.5 s first (Chris: a
-    ; click meant for a unit picked a card), then the cards are read and one is picked
+        return true
+    ; the cards slide in while the macro may be clicking a unit: 3.5 s hands off first (Chris: a click
+    ; meant for a unit picked a card). Counted from when they were first seen, without waiting in here
+    ; (the callers hold every unit click while the cards are up: ClearVote)
     if voteNew {
-        Step("Summer Hunt: cards up, waiting a moment")
-        Wait(4500)
-        Stale()
-        if (dy := FoolVoteDy()) = ""
-            return false
+        if !firstSeen
+            firstSeen := A_TickCount
+        if A_TickCount - firstSeen < 3500 {
+            Step("Summer Hunt: cards up, waiting a moment")
+            return true
+        }
     }
     Step("Summer Hunt: picking a card")
     ; a unit's menu open on the left covers the first card: close it first
@@ -6413,7 +6433,7 @@ FoolCards() {
         }
     }
     confirmed := FoolVoteAt(best.x, dy)
-    votedAt := A_TickCount
+    votedAt := A_TickCount, firstSeen := 0
     foolVotes++
     AddLog("Card: " (best.txt != "" ? best.txt : "the middle one") "  (cards: " shown ")"
         . (confirmed ? "" : "  [Confirm button not seen, clicked where it usually is]"))
