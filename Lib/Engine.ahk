@@ -571,7 +571,7 @@ OpenDungeonFromLobby() {
     AddLog("In the lobby, opening dungeons")
     Clk(400, 340), Clk(400, 390)
     CloseChat()
-    Clk(85, 400)
+    Clk(34, 401)                                ; Dungeon (UPD 21 moved it left: 85,400 is the new Servers button)
     WaitFor(() => Det("DungeonDeath") || Det("EnterDungeon") || ScanRooms().Length, 3000)
     if Det("DungeonDeath")
         ClickDet("DeathContinue", 0, -30)
@@ -5055,6 +5055,19 @@ GreenBarAt(x, y) {
 ; its digits on rows 546-558 (measured on Chris's screenshots)
 SlotPriceRight(n) => 263 + 64 * (n - 1)
 
+; the ability's Auto switch and its button: since UPD 21 they sit right of the menu, the switch at
+; 291-348 x 254-279 (click 319,266) and the button at 291-347 x 286-341 (Commander and Windsong on
+; Chris's screenshots); before, the switch was at 373,237 and the button at 338-399 x 257-318
+AutoOffSeen() => Det("AutoOff") || (NewMenu()
+    && ColorShare(320, 256, 346, 277, (r, g, b) => r <= 12 && g >= 18 && g <= 50 && b >= 8 && b <= 28) >= 0.4
+    && ColorShare(294, 258, 315, 275, (r, g, b) => r >= 18 && r <= 34 && g >= 18 && g <= 34 && b >= 18 && b <= 34) >= 0.5)
+ClickAuto() {
+    if NewMenu()
+        Clk(319, 266)
+    else
+        Clk(373, 237)
+}
+
 MaxShown() => Det("Max") || Det("MaxNew") || NewMax()
 
 ; the white price text on the green Upgrade button, as bits: if it changes after pressing R,
@@ -5126,8 +5139,8 @@ AtUpgradeLevel(level) {
 }
 
 CheckAbility() {
-    if cfg["autoAbility"] && Det("AutoOff") {
-        Clk(373, 237)
+    if cfg["autoAbility"] && AutoOffSeen() {
+        ClickAuto()
         return true
     }
     return false

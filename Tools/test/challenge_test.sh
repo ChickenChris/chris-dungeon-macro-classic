@@ -21,6 +21,8 @@ if missing:
 body = r'''#Requires AutoHotkey v2.0
 #Warn VarUnset, StdOut
 NewMenu() => false
+AutoOffSeen() => Det("AutoOff")
+ClickAuto() => Clk(373, 237)
 NewMax() => false
 NewLevel() => -1
 NewMenuLabel() => ""
