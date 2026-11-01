@@ -2218,7 +2218,7 @@ LoadStage(knownMap := "", knownDepth := "", lenient := false, fromRoom := false)
             return
         Wait(150)
     }
-    if curMap = "Unknown" {
+    if curMap = "Unknown" && !FoolMode() {      ; (Summer Hunt reads the round's title next, in PlayStage)
         said := Trim(RegExReplace(lastMapRaw, "\s+", " "))
         AddLog("Couldn't tell which map this is, using the auto pattern" (said != "" ? ". Last text read: " SubStr(said, 1, 80) : ""))
         SaveDebugShot("map_unknown")
@@ -2236,6 +2236,10 @@ LoadStage(knownMap := "", knownDepth := "", lenient := false, fromRoom := false)
 ; 2) fall back to matching loading-screen pictures
 MatchLoadingScreen() {
     global mapHow
+    ; Summer Hunt with Find Match: its loading screen names the hour's map, not the match's, so the map
+    ; comes from the round's own title instead (as with Play Here, where both say the same)
+    if FoolMode() && cfg.Has("foolMatch") && cfg["foolMatch"]
+        return ""
     name := MapFromLoadingText(), mapHow := "loading screen text"
     if name != ""
         return name
@@ -2385,6 +2389,19 @@ RoomIsFinal(&at := 0, &total := 0) {
     return at >= total
 }
 
+; Summer Hunt: the green "<map> Summer Hunt" title above the boss bar (about 150-650 x 30-54) the whole
+; round. It names the map the round is really on: with Find Match the loading screen names the hour's
+; map instead (Planet Greenie while the round was Assassin Park: Ren, pe4k, Baro). "(Summer)" in it
+; makes it the event version
+MapFromTitle() {
+    for tf in [{scale: 3, grayscale: true}, {scale: 3, grayscale: true, invertcolors: true}] {
+        name := MapFromScreenText(150, 30, 500, 24, , , tf)
+        if name != ""
+            return name
+    }
+    return ""
+}
+
 ; the big blue "<map> / Dungeon Room (Depth N) / Hard" banner at the top-middle when a stage starts
 MapFromBanner() {
     global curDepth
@@ -2447,7 +2464,8 @@ MapFromScreenText(x, y, w, h, &depth := "", &raw := "", tf := "") {
     }
     if RegExMatch(raw, "i)f[il1]oor\D{0,4}(\d+)", &m)
         icFloor := Integer(m[1])
-    return MapVariant(raw, MatchMapName(raw))
+    ; the Summer Hunt title ends in "Summer Hunt" ("Assassin Park Summer Hunt"): only the map's name is matched
+    return MapVariant(raw, MatchMapName(RegExReplace(raw, "i)summer\s*hunt", " ")))
 }
 
 ; Summer Hunt maps can be event versions with their own layout: "Planet Greenie (Summer)", "Alien
@@ -2816,21 +2834,26 @@ MapNames() {
 IsLoaded() => Det("VoteStart") || Det("Yen") || Det("Units") || GreenBarAt(320, 60)
 
 PlayStage() {
-    global stageActive, stageStart, placedUnits, lastResult, postStage, curMap, allPlaced, slotPrice
+    global stageActive, stageStart, placedUnits, lastResult, postStage, curMap, allPlaced, slotPrice, mapHow
     if !stageActive {
         if curMap = "Unknown" {
             ; the big blue map name shows in the middle of the screen when a stage starts
             Step("reading the map name")
             t0 := A_TickCount
-            while curMap = "Unknown" && A_TickCount - t0 < 3000 {
-                if (name := MapFromBanner()) != "" {
-                    curMap := name
-                    AddLog("Map: " name (curDepth != "" ? ", depth " curDepth : "") "  (from the map banner)")
+            while curMap = "Unknown" && A_TickCount - t0 < (FoolMode() ? 8000 : 3000) {
+                if (name := FoolMode() ? MapFromTitle() : "") != "" || (name := MapFromBanner()) != "" {
+                    curMap := name, mapHow := "map banner"
+                    AddLog("Map: " name (curDepth != "" ? ", depth " curDepth : "") "  (" (FoolMode() ? "the round's title" : "the map banner") ")")
                     UpdateMapLabel()
                     break
                 }
                 Wait(250)
             }
+        }
+        if FoolMode() && curMap = "Unknown" {
+            said := Trim(RegExReplace(lastMapRaw, "\s+", " "))
+            AddLog("Couldn't read the map's name in the round, using the auto pattern" (said != "" ? ". Last text read: " SubStr(said, 1, 80) : ""))
+            SaveDebugShot("map_unknown")
         }
         if ICMode() && curMap = "Unknown" {
             curMap := "Infinity Castle"            ; couldn't read the floor's map: its own walk/spots
@@ -2851,9 +2874,9 @@ PlayStage() {
             ; Haunted Academy (Summer) in the round): the banner is looked for up to 7 s
             t0 := A_TickCount
             while A_TickCount - t0 < 7000 {
-                if (name := MapFromBanner()) != "" {
+                if (name := MapFromTitle()) != "" || (name := MapFromBanner()) != "" {
                     if name != curMap {
-                        AddLog("The loading screen said " curMap ", the map banner says " name ". Going with " name)
+                        AddLog("The loading screen said " curMap ", the round's title says " name ". Going with " name)
                         curMap := name
                         UpdateMapLabel()
                     }
@@ -6371,6 +6394,20 @@ SummerReplay() {
         LoadStage()
 }
 
+; UPD 21: the lines under a card's name (SummerPearls and what it does)
+CardEffect(cx) {
+    t := ""
+    try {
+        WinGetClientPos &ox, &oy, , , RBX
+        t := OCR.FromRect(ox + cx - 75, oy + 244, 150, 60, OcrLang(), {scale: 3, grayscale: true}).Text
+    }
+    return Trim(RegExReplace(t, "\s+", " "))
+}
+
+; UPD 21: a green card (your own buff: yen, attack, range...) instead of a red one (the enemies', with
+; SummerPearls). Measured on Chris's card pictures: green insides about 5,44,23, red about 52,15,17
+CardGreen(cx) => ColorShare(cx - 40, 345, cx + 40, 395, (r, g, b) => g > r + 15) >= 0.5
+
 CardPearls(cx) {
     t := ""
     try {
@@ -6378,6 +6415,8 @@ CardPearls(cx) {
         t := OCR.FromRect(ox + cx - 75, oy + 246, 150, 22, OcrLang(), {scale: 3, grayscale: true}).Text
     }
     t := StrReplace(StrReplace(t, "O", "0"), "o", "0")
+    if !RegExMatch(t, "i)pearl|summer|earls")
+        return 0                                ; no SummerPearls line: "+40% Attack" on a green card counted as 40
     if RegExMatch(t, "(\d{1,3})\s*%", &m) && Integer(m[1]) >= 5
         return Integer(m[1])
     if RegExMatch(t, "i)pearl|summer")
@@ -6439,7 +6478,7 @@ FoolCards() {
     global foolVotes
     ; "Enemy Health I" is too long for the box and reads as "Enemy Heat*'"; "Boss Damage" is an
     ; enemy card, checked before "damage" (it counted as your +Attack)
-    static words := [["boss", "boss"], ["shield", "shield"], ["regen", "regen"], ["health|enemy\s*hea|\bhp\b", "health"], ["speed", "speed"],
+    static words := [["gale", "gale"], ["updraft|draft", "updraft"], ["ground", "grounded"], ["boss", "boss"], ["shield", "shield"], ["regen", "regen"], ["health|enemy\s*hea|\bhp\b", "health"], ["speed", "speed"],
         ["\byen\b|¥", "yen"], ["range", "range"], ["cool|\bcd\b", "cooldown"], ["attack|\batk\b|damage", "attack"],
         ["explo", "explosive"], ["resist", "resistant"], ["spell|proof", "spellproof"], ["plate", "plated"]]
     static votedAt := 0, firstSeen := 0
@@ -6482,14 +6521,26 @@ FoolCards() {
                 : OCR.FromRect(ox + cx - 68, oy + 225 + dy, 136, 32, OcrLang(), {scale: 3, grayscale: true}).Text
             txt := Trim(RegExReplace(txt, "\s+", " "))
         }
+        eff := "", green := false
         if voteNew
-            pearls := CardPearls(cx)
+            pearls := CardPearls(cx), eff := CardEffect(cx), green := CardGreen(cx)
         key := ""
         for w in words
             if RegExMatch(txt, "i)" w[1]) {
                 key := w[2]
                 break
             }
+        ; the weather cards (Washout, Sandblast, Arcane Storm, Rain Barrel...) have names of their own:
+        ; what they do decides instead. A green card is yours (no SummerPearls), a red one the enemies'
+        if key = "" && eff != ""
+            for w in green ? [["\byen\b|¥|\d{3,}\s*[y¥]", "yen"], ["attack|\batk\b|damage", "attack"], ["range", "range"],
+                ["cool|\bcd\b", "cooldown"], ["flying|flyer", "grounded"]]
+                : [["shield", "shield"], ["regen", "regen"], ["health|\bhp\b", "health"], ["speed", "speed"], ["explo", "explosive"],
+                ["magic\s*res", "spellproof"], ["physical\s*res", "plated"], ["resist", "resistant"], ["flying|flyer|soar", "gale"], ["boss", "boss"]]
+                if RegExMatch(eff, "i)" w[1]) {
+                    key := w[2]
+                    break
+                }
         ; its level: the I / II / III at the end of the name (read as I, l, 1 or |)
         lvl := RegExMatch(txt, "[Il1|]{1,3}(?=\W*$)", &lm) ? StrLen(lm[0]) : 1
         cards.Push({x: cx, key: key, txt: txt, lvl: lvl, pearls: pearls})
@@ -6503,7 +6554,7 @@ FoolCards() {
     ; the same card twice (Range I and Range II): the higher level wins (it took the leftmost).
     ; "Most AprilCoins" on: the card with the most coins first (enemy cards +30%, level II +70%,
     ; your own buffs none), the list decides between equal ones
-    static enemy := "|boss|shield|regen|health|speed|explosive|resistant|spellproof|plated|"
+    static enemy := "|boss|shield|regen|health|speed|explosive|resistant|spellproof|plated|gale|updraft|"
     coinsFirst := cfg.Has("foolCoins") && cfg["foolCoins"]
     for c in cards {
         rk := c.key != "" ? IndexOf(cfg["foolCards"], c.key) : 0

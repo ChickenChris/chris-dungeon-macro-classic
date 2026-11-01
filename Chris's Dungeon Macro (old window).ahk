@@ -1655,4 +1655,4 @@ DefaultGif(*) {
 UseTeam(i, quiet := false) => 0
 
 ; the Summer Hunt card list (as in the new window)
-FOOL_CARDS() => ["shield", "regen", "health", "speed", "yen", "range", "cooldown", "attack", "explosive", "resistant", "spellproof", "plated", "boss"]
+FOOL_CARDS() => ["shield", "regen", "health", "speed", "yen", "range", "cooldown", "attack", "grounded", "explosive", "resistant", "spellproof", "plated", "gale", "updraft", "boss"]
