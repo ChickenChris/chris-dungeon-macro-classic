@@ -30,7 +30,7 @@ CloseMenuClick() => Clk(325, 185)
 ClickAway() => Clk(560, 560)
 OnError((e, m) => (FileAppend("ERROR " e.Message " (line " e.Line ")`n", "*"), ExitApp(3)))
 global fails := 0, reads := 0, clicks := "", menuNext := false, fool := false, placeUnsure := Map()
-global autoOpenSeen := true, autoOpenOff := false, clickOpened := 0
+global autoOpenSeen := true, autoOpenOff := false, clickOpened := 0, foolVotes := 0
 global foolChecks := ''' + flag + r'''
 Check(name, ok, got := "") {
     global fails

@@ -4990,6 +4990,7 @@ NearUnit(x, y, r) {
 TryPlace(x, y, slot) {
     global autoOpenSeen, autoOpenOff, clickOpened
     ClearVote()                             ; Fool's Hunt: a card vote first (a long run of tries let it run out)
+    votes0 := foolVotes
     if VoteOnScreen() {                     ; still up: placing clicks would land on the cards
         Wait(500)                           ; (one picked Enemy Health and never confirmed it)
         return false
@@ -5044,6 +5045,19 @@ TryPlace(x, y, slot) {
         Clk(x, y)
         if WaitUnitMenu(700)
             how := "click"
+    }
+    ; the cards came up the moment the unit went down: the vote covered (or closed) its menu, the try
+    ; counted as nothing and the unit was placed again (Apocalypse, Summer Hunt). After the vote: the
+    ; spot is clicked, and a new unit's menu there means it was placed
+    if how = "" && (foolVotes != votes0 || VoteOnScreen()) {
+        ClearVote()
+        Wait(400)
+        Stale()
+        if !VoteOnScreen() && !NearUnit(x, y, 12) {
+            Clk(x, y)
+            if WaitUnitMenu(900)
+                how := "click"
+        }
     }
     if how != "" {
         ; an older unit's menu (the click hit a unit already there)? On the old menu: a level above 0 or
