@@ -4259,13 +4259,30 @@ OverviewCards() {
         WinGetClientPos &ox, &oy, , , RBX
         Fresh()
         scr := FindText()
-        loop 4 {
-            row := A_Index - 1, y := 110 + 88 * row
-            for i, cx in [546, 676] {
-                c := scr.GetColor(ox + cx - 12, oy + y - 7, 0)      ; the card's red X: there's a card
-                if !(((c >> 16) & 0xFF) >= 170 && ((c >> 8) & 0xFF) <= 70)
-                    continue
-                bx := i = 1 ? 597 : 726, by := 117 + 88 * row
+        ; each card by its red X (12 left of the picture): the list scrolls, and fixed rows missed every
+        ; card a few pixels off ("none of its cards looked like slot 3's", Chris 2 Nov). The X's middle
+        ; is 8 above the card's top; only cards shown whole (bars above the bottom) count
+        tops := []
+        for i, cx in [546, 676] {
+            from := 0, last := -9, y := 88
+            while y <= 452 {
+                c := scr.GetColor(ox + cx - 12, oy + y, 0)
+                if ((c >> 16) & 0xFF) >= 170 && ((c >> 8) & 0xFF) <= 70 && (c & 0xFF) <= 80 {
+                    if y - last > 3
+                        from := y
+                    last := y
+                } else if last = y - 1 && last - from >= 3 {
+                    yy := Round((from + last) / 2) + 8
+                    if yy >= 100 && yy <= 405
+                        tops.Push([i, cx, yy])
+                }
+                y++
+            }
+        }
+        for tp in tops {
+            i := tp[1], cx := tp[2], y := tp[3]
+            {
+                bx := i = 1 ? 597 : 726, by := y + 7
                 sr := 0, sg := 0, sb := 0, n := 0, x := bx
                 while x < bx + 52 {
                     yy := by
@@ -4522,7 +4539,7 @@ UpgradeGroup(units, times) {
     ; counted from the level the menu shows ("Upgrade [5]") when it can be read: counting presses
     ; once called a unit done at level 5 of 6 (a misread level or a flickering price counted a
     ; press that didn't go through). Every unit is checked again before the step moves on.
-    if units.Length {                           ; through the Unit Overview (F) when it works
+    if false && units.Length {                  ; (the Unit Overview (F): switched off, Chris 2 Nov)
         r := times < 0 ? OverviewMaxSlot(units[1].slot, units) : OverviewTimesSlot(units[1].slot, units, times)
         if r = "stage"
             return false
@@ -5620,6 +5637,8 @@ UpgradeUnit(u, presses := 3, useLimit := true, toLvl := -1) {
     lvl := ReadLevel()
     u.lvlOpen := lvl                            ; the level as the menu opened (-1 = couldn't read it)
     if lvl >= 0
+        Step("upgrading slot " u.slot ": it's at UPG " lvl (toLvl >= 0 ? ", going to " toLvl : ""))
+    if lvl >= 0
         u.lvl := lvl, u.lvlEst := lvl
     ; a build step's target level (from placing at 0): reached already = no presses (it was taken a
     ; level too far: "upgrade 2 times" ended at UPG 3, Chris 2 Nov)
@@ -5818,9 +5837,115 @@ PipLevel() {
     return -1
 }
 
+; the N in the gold bar's "UPG [N]", read by its shape, -1 when it can't be read. Its orange letters
+; are there whether the Upgrade button is bright or dimmed (the blocks under the button can only be
+; read when it's bright, so a unit at UPG 2 with too little yen counted as "not upgraded yet").
+; The brackets are the two tallest orange columns (13 rows, a digit is 10): the digit is what's
+; between them, matched against the game's digits (0-5 from Chris's screenshots, the rest drawn in
+; the game's font). "(MAX)" next to it shrinks the letters: then -1, MaxHere() reads that one
+UpgDigit() {
+    static tpl := ["07001100011110011110110011110011110011110011011110011110001100", "36001100111110110011000011001110001110000011110011111110011100", "27001100011110111011110011010011000110001100011100111111011111", "14000011011111111111111111000111000111000111000111000111000111", "46010011011011010011110011110011111111111111000011000011000011", "56000001011111011000011000011110011111000011010011111110001100", "07001100011110011110110011110011110011110011011110011110001100", "07001100011110011011110011110011110011110011011011011110001100", "14000011000111011111111111000111000111000111000111000111000111", "14000011011111111111111111000111000111000111000111000111000111", "27001000011100110110110110000110000100001100011000111111011111", "27001100011110011110110011000011000110001100011000111111011111", "36001100011110110011000011001110001110000011110011111110001100", "37000100011110011011000011000110000110000011110011011110001100", "46010011011011010011010011110011111111111111000011000011000011", "46010011011011010011110011110011111111111111000011000011000011", "55011111111111110000110000111110111111000011100011111110011100", "56011110011110011000010000111110111111000011010011111110001100", "66000011001111011000010000111100111110110011110011011110001100", "66000111001111011000110000111100111111110011110011111110001100", "76111111111111000010000110000110001100001100011000011000011000", "76111111111111000011000011000111000110000100001100001100001100", "86001100011110011010011010011110011110110011110011011110001100", "87001100011110011010011010011110011110110011110011011110001100", "96001100011110110011110011011111011111000010000110111100110000", "96001100011111110011110011011111011111000011000110011110011000"]
+    try {
+        WinGetClientPos &ox, &oy, , , RBX
+        Fresh()
+        scr := FindText()
+        IsOr(x, y) {
+            cc := scr.GetColor(ox + x, oy + y, 0)   ; (own names: a nested function shares the outer ones)
+            cr := (cc >> 16) & 0xFF, cg := (cc >> 8) & 0xFF, cb := cc & 0xFF
+            return cr >= 200 && cg >= 110 && cg <= 230 && cb <= 90
+        }
+        n := 0                                      ; "(MAX)" after the brackets
+        y := 236
+        while y <= 249 {
+            x := 198
+            while x < 240
+                n += IsOr(x, y), x += 2
+            y++
+        }
+        if n >= 15
+            return -1
+        X0 := 174, Y0 := 232, W := 34, H := 20
+        g := [], cnt := []
+        loop W
+            cnt.Push(0)
+        loop H {
+            j := A_Index - 1, row := []
+            loop W {
+                v := IsOr(X0 + A_Index - 1, Y0 + j)
+                row.Push(v), cnt[A_Index] += v
+            }
+            g.Push(row)
+        }
+        runs := [], x := 1
+        while x <= W {
+            if cnt[x] >= 11 {
+                s := x
+                while x <= W && cnt[x] >= 11
+                    x++
+                runs.Push([s, x - 1])
+            } else
+                x++
+        }
+        if runs.Length < 2
+            return -1
+        lb := runs[1], rb := runs[2], top := 0
+        loop H
+            if g[A_Index][lb[1]] || g[A_Index][lb[2]] {
+                top := A_Index
+                break
+            }
+        if !top
+            return -1
+        for yy in [top, top + 1]                    ; the brackets' little feet at the top
+            if yy <= H
+                for xx in [lb[2] + 1, lb[2] + 2, rb[1] - 2, rb[1] - 1]
+                    if xx >= 1 && xx <= W
+                        g[yy][xx] := 0
+        xa := 99, xb := 0, ya := 99, yb := 0, pts := 0
+        yy := top
+        while yy <= Min(H, top + 9) {
+            xx := lb[2] + 1
+            while xx < rb[1] {
+                if g[yy][xx]
+                    pts++, xa := Min(xa, xx), xb := Max(xb, xx), ya := Min(ya, yy), yb := Max(yb, yy)
+                xx++
+            }
+            yy++
+        }
+        w := xb - xa + 1, h := yb - ya + 1
+        if pts < 8 || w > 9                         ; nothing there, or two digits
+            return -1
+        bits := ""
+        loop 10 {
+            j := A_Index - 1
+            loop 6
+                bits .= g[ya + Floor((j + 0.5) * h / 10)][xa + Floor((A_Index - 0.5) * w / 6)]
+        }
+        best := Map()
+        for t in tpl {
+            d := Integer(SubStr(t, 1, 1)), dd := 2 * Abs(Integer(SubStr(t, 2, 1)) - w), tb := SubStr(t, 3)
+            loop 60
+                dd += SubStr(tb, A_Index, 1) != SubStr(bits, A_Index, 1)
+            if !best.Has(d) || dd < best[d]
+                best[d] := dd
+        }
+        b1 := -1, s1 := 999, s2 := 999
+        for d, dd in best
+            if dd < s1
+                s2 := s1, s1 := dd, b1 := d
+            else if dd < s2
+                s2 := dd
+        if s1 <= 14 && s2 - s1 >= 2
+            return b1
+    }
+    return -1
+}
+
 NewLevel() {
     ; the digits in "[N]" are orange like the yen: read on their own (client 174-207 x 235-250), the
     ; whole bar read as text came back empty on Chris's PC ("Its menu says ''")
+    if (v := UpgDigit()) >= 0                   ; "UPG [N]" read by the digit's shape
+        return v
     v := ReadYellowNumber(174, 235, 34, 16)
     if v >= 0 && v <= 20
         return v
