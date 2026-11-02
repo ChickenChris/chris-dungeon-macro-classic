@@ -2510,6 +2510,15 @@ DungeonTitleCheck() {
 ; Without the blue name: Play Here keeps the loading screen's name, Find Match plays the auto pattern
 SummerRoundMap() {
     global curMap, mapHow
+    ; Play Here: the green title over the boss's HP bar ("Planet Greenie (Summer) Summer Hunt") is
+    ; this round's map (Chris 2 Nov). Only with Find Match does it name the hour's map instead
+    if !(cfg.Has("foolMatch") && cfg["foolMatch"]) && (name := SummerTitleMap(5000)) != "" {
+        if name != curMap
+            AddLog((curMap = "Unknown" ? "Map: " name : "The " (mapHow != "" ? mapHow : "loading screen") " said " curMap ", the title says " name ". Going with " name) "  (the green title)")
+        curMap := name, mapHow := "title"
+        UpdateMapLabel()
+        return
+    }
     if mapHow = "map banner" && curMap != "Unknown"
         return                                  ; the blue name was read already while the round loaded
                                                 ; (it's gone a moment later: Cursed Festival was read at
@@ -2535,6 +2544,26 @@ SummerRoundMap() {
         AddLog("The loading screen said " curMap ", the blue map name says " name ". Going with " name)
     curMap := name, mapHow := "map banner"
     UpdateMapLabel()
+}
+
+; the green "<map> (Summer) Summer Hunt" title over the boss's HP bar, "" when not read in time
+SummerTitleMap(timeout) {
+    t0 := A_TickCount
+    loop {
+        for tf in [{scale: 3, grayscale: true}, {scale: 3, grayscale: true, invertcolors: true}] {
+            raw := ""
+            try {
+                WinGetClientPos &ox, &oy, , , RBX
+                raw := OCR.FromRect(ox + 150, oy + 30, 500, 24, OcrLang(), tf).Text
+            }
+            raw := RegExReplace(raw, "i)\W*s\s*u\s*m\s*m\s*e\s*r.*$")   ; "(Summer)Summer Hunt" off
+            if raw != "" && (name := MatchMapStrict(raw)) != ""
+                return name
+        }
+        if A_TickCount - t0 >= timeout
+            return ""
+        Wait(300)
+    }
 }
 
 ; the big blue "<map> / Dungeon Room (Depth N) / Hard" banner at the top-middle when a stage starts
