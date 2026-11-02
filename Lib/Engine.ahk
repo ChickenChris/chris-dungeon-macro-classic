@@ -7455,7 +7455,9 @@ FoolCards() {
     ; "Enemy Health (unread) | Spellproof | ?" picked Spellproof, #11 of 12
     if !cfg.Has("foolCards")
         cfg["foolCards"] := FOOL_CARDS()
-    best := 0, bestRank := 99, known := 0, mid := cfg["foolCards"].Length / 2 + 0.5
+    ; (bestRank starts out of reach: "safe farm" scores enemy cards in the thousands, nothing beat 99
+    ; and no card was picked, the macro stopped with "no property named x", Apocalypse 2 Nov)
+    best := 0, bestRank := 1e18, known := 0, mid := cfg["foolCards"].Length / 2 + 0.5
     ; the same card twice (Range I and Range II): the higher level wins (it took the leftmost).
     ; "Most AprilCoins" on: the card with the most coins first (enemy cards +30%, level II +70%,
     ; your own buffs none), the list decides between equal ones
@@ -7484,6 +7486,8 @@ FoolCards() {
             SaveDebugShot("fool_cards")
         }
     }
+    if !IsObject(best)
+        best := cards[Min(2, cards.Length)]
     confirmed := FoolVoteAt(best.x, dy)
     votedAt := A_TickCount, firstSeen := 0
     foolVotes++
