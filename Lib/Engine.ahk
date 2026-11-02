@@ -535,6 +535,33 @@ StartInfinityCastle() {
         LoadStage()                             ; reads the floor's map off the loading screen, then plays
 }
 
+; UPD 21: returning to the lobby can ask which server, public or private, and the macro sat on that
+; window (a player with a private server). Both words on screen: Private when a private server link
+; is set in Settings, else Public. True if it clicked one
+ServerChoice() {
+    static told := false
+    try {
+        WinGetClientPos &ox, &oy, , , RBX
+        res := OCR.FromRect(ox + 80, oy + 100, 640, 420, OcrLang(), {scale: 2, grayscale: true})
+        pub := 0, priv := 0
+        for wd in res.Words {
+            if !pub && RegExMatch(wd.Text, "i)^pub[l1I]ic")
+                pub := wd
+            else if !priv && RegExMatch(wd.Text, "i)^pr[il1]vate")
+                priv := wd
+        }
+        if !pub || !priv
+            return false
+        w := Trim(cfg["psLink"]) != "" ? priv : pub
+        Clk(Round(80 + w.x + w.w / 2), Round(100 + w.y + w.h / 2))
+        if !told
+            told := true, AddLog("The game asked public or private server: picked " (w = priv ? "Private (your private server link is set)" : "Public"))
+        Wait(1500)
+        return true
+    }
+    return false
+}
+
 IdleTick() {
     global idleSince
     static lastNudge := 0, lastPoke := 0, hinted := false
@@ -553,6 +580,12 @@ IdleTick() {
         return
     }
     Step("looking for something to do  (" secs "s)")
+    static lastServer := 0
+    if secs >= 3 && A_TickCount - lastServer > 5000 {  ; (an OCR read: not on every pass)
+        lastServer := A_TickCount
+        if ServerChoice()
+            return
+    }
     ; right after a stage: tap the empty corner every few seconds (closes most result popups)
     if stageActive && A_TickCount - lastPoke > 3000 {
         lastPoke := A_TickCount
@@ -4158,8 +4191,11 @@ UpgradeGroup(units, times) {
     ; once called a unit done at level 5 of 6 (a misread level or a flickering price counted a
     ; press that didn't go through). Every unit is checked again before the step moves on.
     done := Map(), start := Map(), checked := false
+    ; each unit's level as the step starts: its running estimate (0 when placed, corrected every time
+    ; the menu shows its level). Before, the start was the first level READ, which could come halfway
+    ; through (the level only shows on a bright Upgrade button), and the step went a level too far
     for u in units
-        done[u] := 0
+        done[u] := 0, start[u] := u.HasOwnProp("lvlEst") ? u.lvlEst : 0
     lastGainAt := A_TickCount, t0 := A_TickCount
     ; late upgrades cost a lot, so "to max" waits much longer for yen before giving up
     waitMs := times < 0 ? 300000 : 150000
@@ -4174,13 +4210,8 @@ UpgradeGroup(units, times) {
             loop {
                 if StageOver()
                     return false
-                g := UpgradeUnit(u, times < 0 ? 3 : Min(3, times - done[u]), false)
-                if !start.Has(u) && u.HasOwnProp("lvlOpen") && u.lvlOpen >= 0
-                    start[u] := u.lvlOpen
-                if start.Has(u) && u.HasOwnProp("lvl") && u.lvl >= 0
-                    done[u] := Max(0, u.lvl - start[u])
-                else
-                    done[u] += g
+                g := UpgradeUnit(u, times < 0 ? 3 : Min(3, times - done[u]), false, times < 0 ? -1 : start[u] + times)
+                done[u] := Max(0, (u.HasOwnProp("lvlEst") ? u.lvlEst : 0) - start[u])
                 if !g
                     break
                 roundGain += g, lastGainAt := A_TickCount
@@ -5195,7 +5226,7 @@ UpgradePass(ignoreSave := false) {
 }
 
 ; returns how many levels it went up this time (0 = couldn't afford it)
-UpgradeUnit(u, presses := 3, useLimit := true) {
+UpgradeUnit(u, presses := 3, useLimit := true, toLvl := -1) {
     lim := useLimit && !FoolRandom() ? cfg["slots"][u.slot].limit : 0
     Step("upgrading slot " u.slot)
     u.lvlOpen := -1
@@ -5214,7 +5245,17 @@ UpgradeUnit(u, presses := 3, useLimit := true) {
     lvl := ReadLevel()
     u.lvlOpen := lvl                            ; the level as the menu opened (-1 = couldn't read it)
     if lvl >= 0
-        u.lvl := lvl
+        u.lvl := lvl, u.lvlEst := lvl
+    ; a build step's target level (from placing at 0): reached already = no presses (it was taken a
+    ; level too far: "upgrade 2 times" ended at UPG 3, Chris 2 Nov)
+    if toLvl >= 0 && lvl >= 0 {
+        presses := Min(presses, toLvl - lvl)
+        if presses <= 0 {
+            CloseMenuClick()
+            ClickAway()
+            return 0
+        }
+    }
     ; maxed already as its menu opens ("Max Upgrade"): done, no presses (a maxed Bulma was pressed
     ; and waited on for yen again and again, Chris 3.2.74). Looked at twice: the menu slides in
     Stale()
@@ -5256,6 +5297,8 @@ UpgradeUnit(u, presses := 3, useLimit := true) {
                 break
             }
             gained += now - lvl, lvl := now
+            if toLvl >= 0 && lvl >= toLvl
+                break
         } else if MaxHere() {                   ; maxed (the price "changed" to the grey Max button)
             u.maxed := true, gained++
             AddLog("Slot " u.slot " is fully upgraded")
@@ -5267,7 +5310,9 @@ UpgradeUnit(u, presses := 3, useLimit := true) {
             break                               ; same price: not enough yen yet
     }
     if lvl >= 0
-        u.lvl := lvl                            ; the level it ended on
+        u.lvl := lvl, u.lvlEst := lvl           ; the level it ended on
+    else if gained
+        u.lvlEst := (u.HasOwnProp("lvlEst") ? u.lvlEst : 0) + gained   ; (counted: the level wasn't shown)
     if gained && !u.maxed
         Step("slot " u.slot " upgraded" (lvl >= 0 ? " to level " lvl : ""))
     CheckAbility()
@@ -6865,6 +6910,8 @@ FoolVoteClicks(x, dy) {
                 continue
             }
             ; nothing picked (or another card): click ours, then give Vote a moment to show
+            if cardClicks && !vote && A_TickCount - lastCard > 1500
+                SaveDebugShot("vote_miss")      ; the card clicked, no Vote seen: what's on screen (once)
             if cardClicks < 3 && A_TickCount - lastCard > 2500 {   ; (a 2nd click unpicks: give Vote time)
                 Clk(x, 300), cardClicks++, lastCard := A_TickCount
                 Wait(500)
