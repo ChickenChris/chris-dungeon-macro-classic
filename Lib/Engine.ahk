@@ -5010,14 +5010,23 @@ MaxIsThisUnit(slot) {
     if !NewMenu() || !slotMenuName.Has(slot)
         return true
     nm := MenuUnitName()
-    return nm != "" && NameAlike(nm, slotMenuName[slot]) && !RegExMatch(nm, "^abys|\b(eel|eels|jel+y)\b")
+    return nm != "" && !OtherSlotName(nm, slot) && (!RegExMatch(nm, "^abys|\b(eel|eels|jel+y)\b") || RegExMatch(nm, "elys|lyss"))
 }
 ; is the open menu another slot's unit? (only when this slot's name is known and the menu's was read)
+; the menu's name is ANOTHER slot's unit (and not this slot's): only then is it someone else's menu.
+; "Doesn't match this slot" alone wasn't enough: a garbled first read ("mee fdlen st" for Dark Mage
+; (Fallen Star)) then turned every real Dark Mage menu away and they stayed at UPG 0 (Chris 2 Nov)
+OtherSlotName(nm, slot) {
+    for s, sn in slotMenuName
+        if s != slot && NameAlike(nm, sn) && !(slotMenuName.Has(slot) && NameAlike(nm, slotMenuName[slot]))
+            return s
+    return 0
+}
 WrongUnitMenu(slot) {
     if !NewMenu() || !slotMenuName.Has(slot)
         return false
     nm := MenuUnitName()
-    if nm = "" || NameAlike(nm, slotMenuName[slot])
+    if nm = "" || NameAlike(nm, slotMenuName[slot]) || !OtherSlotName(nm, slot)
         return false
     static toldAt := Map()
     if A_TickCount - toldAt.Get(slot, -60000) > 60000 {
