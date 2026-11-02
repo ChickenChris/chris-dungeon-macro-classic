@@ -22,6 +22,9 @@ if missing:
 body = r'''#Requires AutoHotkey v2.0
 #Warn VarUnset, StdOut
 NewMenu() => false
+WrongUnitMenu(p*) => false
+MenuUnitName() => ""
+global slotMenuName := Map()
 Stale() => 0
 ClearVote() => 0
 AutoOffSeen() => false

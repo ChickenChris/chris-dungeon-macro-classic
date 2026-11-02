@@ -2985,6 +2985,7 @@ PlayStage() {
         stageStart := A_TickCount
         lastResult := ""
         placedUnits := [], allPlaced := false, slotPrice := Map()
+        global slotMenuName := Map()             ; (an element team can put other units in the slots)
         global placeUnsure := Map(), unseenFound := []
         global walkedHere := false
         ; the team for this room's boosted element, FIRST: units can only be changed before the game
@@ -4616,7 +4617,7 @@ TryPlace(x, y, slot) {
         ; placed again. There: an old one only where a counted unit already stands
         nm := NewMenu()
         lvl := nm ? 0 : ReadLevel()
-        if nm ? NearUnit(x, y, 25) : (lvl > 0 || MaxShown()) {
+        if nm ? NearUnit(x, y, 12) : (lvl > 0 || MaxShown()) {   ; (12: units can stand close together)
             if !NearUnit(x, y, 45) {        ; no known unit there: maybe a new unit with an odd menu
                 AddLog("Slot " slot ": a menu opened (" (lvl > 0 ? "level " lvl : "MAX") ") but no counted unit is near, treated as not placed")
                 SaveDebugShot("odd_menu")
@@ -4631,6 +4632,8 @@ TryPlace(x, y, slot) {
             autoOpenOff := true
             AddLog("The unit menu doesn't open by itself after placing, so the macro clicks each new unit. Faster: in the game's settings, set 'Disable Auto-Open Upgrade UI' so the menu pops up when you place a unit")
         }
+        if nm && !slotMenuName.Has(slot) && StrLen(name := MenuUnitName()) >= 3
+            slotMenuName[slot] := name         ; this slot's unit, as its menu names it
         CheckAbility()
         CloseMenuClick()                       ; close the unit menu
         return true
@@ -4913,6 +4916,39 @@ UnitMenuOpen() {
 ; if the menu doesn't open it tries a few spots close by - mostly just above - and remembers
 ; the one that worked for next time. Small steps only, so it doesn't grab a neighbour instead.
 ; After 3 failed visits in a row the unit is left alone (it may have been sold or moved).
+; UPD 21: each slot's unit name off its menu (top left, client 10-160 x 226-248), learned when it's
+; placed. A click next to a unit can open a NEIGHBOUR's menu: a maxed Bulby's was taken as slot 2's
+; Dark Mage, "Slot 2 is fully upgraded", and that Dark Mage was never upgraded again (Chris 2 Nov)
+global slotMenuName := Map()
+MenuUnitName() {
+    t := ""
+    try {
+        WinGetClientPos &ox, &oy, , , RBX
+        t := OCR.FromRect(ox + 10, oy + 226, 150, 22, OcrLang(), {scale: 3, grayscale: true}).Text
+    }
+    return Trim(RegExReplace(StrLower(t), "[^a-z ]+", " "))
+}
+; the first word of both, a typo or two apart at most ("dark mage" / "dark rnage", "bulby" / "bulb")
+NameAlike(a, b) {
+    wa := StrSplit(Trim(a), " ")[1], wb := StrSplit(Trim(b), " ")[1]
+    if StrLen(wa) < 3 || StrLen(wb) < 3
+        return true                             ; too little read to tell: don't block
+    return InStr(wa, wb) || InStr(wb, wa) || Levenshtein(wa, wb) <= Max(1, StrLen(wb) // 4)
+}
+; is the open menu another slot's unit? (only when this slot's name is known and the menu's was read)
+WrongUnitMenu(slot) {
+    if !NewMenu() || !slotMenuName.Has(slot)
+        return false
+    nm := MenuUnitName()
+    if nm = "" || NameAlike(nm, slotMenuName[slot])
+        return false
+    static toldAt := Map()
+    if A_TickCount - toldAt.Get(slot, -60000) > 60000 {
+        toldAt[slot] := A_TickCount
+        AddLog("Slot " slot ": a click opened another unit's menu (" nm ", not " slotMenuName[slot] "), trying again")
+    }
+    return true
+}
 OpenUnit(u) {
     static around := [[0, -3], [0, -11], [0, -19], [-8, -8], [8, -8], [0, 5], [-8, -16], [8, -16], [0, -27]]
     ClearVote()                                 ; Summer Hunt: cards up, vote first (a click on a unit landed on a card)
@@ -4935,6 +4971,11 @@ OpenUnit(u) {
         ; the menu can take a moment to slide in: give it a full second before calling it a miss.
         ; A maxed UPD 21 menu counts as opened too (a maxed Bulma's menu was missed this way, Chris)
         if WaitUnitMenu(A_Index = 1 ? 1300 : 1000) || (Sleep(250), UnitMenuOpen()) || (Stale(), (NewMax() || MaxHere()) && !IsSummonMenu()) {
+            if WrongUnitMenu(u.slot) {          ; a neighbour's menu: off, and the next spot around
+                CloseMenuClick()
+                Sleep(250)
+                continue
+            }
             if A_Index > 1 {
                 ; only move the remembered spot after the old one missed twice in a row
                 u.offMiss := (u.HasOwnProp("offMiss") ? u.offMiss : 0) + 1
@@ -4960,7 +5001,7 @@ OpenUnit(u) {
         return false
     }
     Stale()
-    if (NewMax() || MaxHere()) && !IsSummonMenu()              ; its menu is up and maxed after all: that's the unit
+    if (NewMax() || MaxHere()) && !IsSummonMenu() && !WrongUnitMenu(u.slot)   ; its menu is up and maxed after all
         return true
     static toldAt := -60000
     if A_TickCount - toldAt > 60000 {
@@ -5143,7 +5184,7 @@ UpgradeUnit(u, presses := 3, useLimit := true) {
         static missAt := -30000
         if NewMenu() && A_TickCount - missAt > 30000    ; a menu is open but wasn't taken as this unit's
             missAt := A_TickCount, AddLog("Slot " u.slot ": its menu showed but wasn't taken (Max " (NewMax() ? "seen" : "not seen") ", summon " (IsSummonMenu() ? "yes" : "no") ")")
-        if (NewMax() || MaxHere()) && !IsSummonMenu() {        ; a maxed menu is a maxed menu, however it opened
+        if (NewMax() || MaxHere()) && !IsSummonMenu() && !WrongUnitMenu(u.slot) {   ; a maxed menu of THIS unit
             u.maxed := true
             AddLog("Slot " u.slot " is fully upgraded")
             CloseMenuClick()
@@ -5275,6 +5316,10 @@ NewMenuLabel() {
 ; bright green block per level done, the rest dark green (Chris's "UPG [1]" Bulby: 1 bright block). The
 ; "[N]" digits weren't read on his PC, so a unit at level 2 was still "not upgraded yet". -1: no row
 PipLevel() {
+    ; only on the bright green button: dimmed (Chris's Dark Mage at UPG 3, "Upgrade: 7500") the blocks
+    ; are dark and olive and can't be told apart, and that read as level 0
+    if ColorShare(165, 372, 255, 384, (r, g, b) => g >= 170 && r <= 110 && b <= 60) < 0.3
+        return -1
     try {
         WinGetClientPos &ox, &oy, , , RBX
         Fresh()
@@ -6793,7 +6838,7 @@ FoolVoteClicks(x, dy) {
                 continue
             }
             ; nothing picked (or another card): click ours, then give Vote a moment to show
-            if cardClicks < 3 && A_TickCount - lastCard > 1200 {
+            if cardClicks < 3 && A_TickCount - lastCard > 2500 {   ; (a 2nd click unpicks: give Vote time)
                 Clk(x, 300), cardClicks++, lastCard := A_TickCount
                 Wait(500)
                 continue
@@ -6851,10 +6896,36 @@ CardVotes(cx) {
 }
 
 VoteButton(&bx, &by) {
-    if ColorShare(285, 486, 392, 506, (r, g, b) => g > 170 && r < 120 && b < 100 && g - r > 70) < 0.3
-        return false
-    bx := 339, by := 496
-    return true
+    if ColorShare(285, 486, 392, 506, (r, g, b) => g > 170 && r < 120 && b < 100 && g - r > 70) >= 0.3 {
+        bx := 339, by := 496
+        return true
+    }
+    ; not where it was on the recordings (a weather or Inferno vote can sit differently): the green
+    ; Vote with the red Cancel right of it, anywhere under the cards (Chris: it clicked a card and waited)
+    try {
+        WinGetClientPos &ox, &oy, , , RBX
+        Fresh()
+        scr := FindText()
+        n := 0, sx := 0, sy := 0, red := 0, y := 430
+        while y <= 535 {
+            x := 220
+            while x <= 600 {
+                col := scr.GetColor(ox + x, oy + y, 0)
+                r := (col >> 16) & 0xFF, g := (col >> 8) & 0xFF, b := col & 0xFF
+                if x <= 480 && g > 170 && r < 120 && b < 100 && g - r > 70
+                    n++, sx += x, sy += y
+                else if r >= 180 && g <= 70 && b <= 70
+                    red++
+                x += 4
+            }
+            y += 4
+        }
+        if n >= 40 && red >= 20 {
+            bx := Round(sx / n), by := Round(sy / n)
+            return true
+        }
+    }
+    return false
 }
 
 FoolConfirm(cx, &bx, &by, dy := 0) {
