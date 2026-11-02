@@ -81,18 +81,23 @@ PadWalk() {
         WaitAreaTeleport(before)
         FocusRoblox()
         ToNormalArea()                          ; UPD 21: Play lands in the Summer Hunt area first
+        ; UPD 21 (Chris's recording): from where the teleport lands the capsules are to the right (D).
+        ; Not there: W+D on the 2nd try, S+D on the 3rd
         Step("walking to the Story pads")
-        SendKeys("{w down}"), Wait(300), SendKeys("{w up}"), Wait(300)
-        back := A_Index = 2
-        SendKeys(back ? "{s down}" : "{w down}"), SendKeys("{d down}")
+        side := ["", "w", "s"][A_Index]
+        SendKeys("{d down}")
+        if side != ""
+            SendKeys("{" side " down}")
         t0 := A_TickCount
-        while A_TickCount - t0 < 4500 {
+        while A_TickCount - t0 < 5000 {
             Wait(250)
             Stale()
             if FT(&fx, &fy, 325, 520, 489, 587, 0, 0, ModeCancel)
                 break
         }
-        SendKeys("{d up}"), SendKeys(back ? "{s up}" : "{w up}")
+        SendKeys("{d up}")
+        if side != ""
+            SendKeys("{" side " up}")
         Wait(800)
         Stale()
     }
