@@ -318,6 +318,14 @@ Tick() {
         return
     Snap()                                   ; one screenshot for this whole pass
 
+    ; the chest screen ("Dungeon Run / Open Chests") opens over the results' Return to lobby / Open
+    ; Dungeon buttons: seen as the results again, the macro finished the run once more, teleported to
+    ; spawn and pressed Open Dungeon again, round and round (a player's video, Haunted Mansion)
+    if ChestUp() {
+        idleSince := 0
+        HandleChests()
+        return
+    }
     if Det("EndScreen") {
         idleSince := 0
         HandleEnd()
