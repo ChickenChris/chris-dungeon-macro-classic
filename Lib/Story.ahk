@@ -40,6 +40,35 @@ WaitAreaTeleport(before) {
     return moved
 }
 
+; UPD 21: Play lands in the Summer Hunt area. Back (S) until the teleport to the normal play area,
+; where the Story pads (Infinite, Legend Stages) are (Chris). The teleport goes black for a moment
+; (his recording): that's when it went. True if it teleported
+ToNormalArea() {
+    static told := false
+    Step("lobby: back to the normal play area")
+    SendKeys("{s down}")
+    t0 := A_TickCount, went := false
+    while A_TickCount - t0 < 10000 {
+        Wait(150)
+        if SigLight(SceneSig()) <= 25 {
+            went := true
+            break
+        }
+    }
+    SendKeys("{s up}")
+    if went {
+        t1 := A_TickCount                       ; landed when it's light again, then a moment to stand up
+        while A_TickCount - t1 < 8000 && SigLight(SceneSig()) <= 25
+            Wait(300)
+        Wait(1200)
+    } else if !told {
+        told := true
+        AddLog("Holding S didn't teleport to the normal play area (10 s). Walking to the Story pads from here")
+    }
+    Stale()
+    return went
+}
+
 ; Play, then Ryn's walk to the Story pads (ahead and right; the other way round on a second try)
 ; until the pad's Cancel button shows
 PadWalk() {
@@ -51,6 +80,7 @@ PadWalk() {
         Step("lobby: waiting for the teleport")
         WaitAreaTeleport(before)
         FocusRoblox()
+        ToNormalArea()                          ; UPD 21: Play lands in the Summer Hunt area first
         Step("walking to the Story pads")
         SendKeys("{w down}"), Wait(300), SendKeys("{w up}"), Wait(300)
         back := A_Index = 2
