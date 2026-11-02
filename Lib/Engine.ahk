@@ -2532,10 +2532,14 @@ SummerRoundMap() {
                                                 ; (it's gone a moment later: Cursed Festival was read at
                                                 ; 12.8 s, then thrown away for not being seen again, Chris)
     Step("reading the map name")
-    name := "", t0 := A_TickCount
-    while A_TickCount - t0 < 10000 {
+    name := "", t0 := A_TickCount, tEnd := A_TickCount + 10000
+    while A_TickCount < tEnd {
         if (name := MapFromBanner()) != ""
             break
+        ; Find Match: "Starts in: 43 / You can change your units before the game starts" first, the
+        ; blue name only comes after it. Read during the countdown, the map was given up on (a player's log)
+        if RegExMatch(lastMapRaw, "i)start\S*\s*in\W*\d|change\s*your") && A_TickCount - t0 < 75000
+            tEnd := Max(tEnd, A_TickCount + 5000), Step("reading the map name (the round starts after its countdown)")
         Wait(200)
     }
     if name = "" {
