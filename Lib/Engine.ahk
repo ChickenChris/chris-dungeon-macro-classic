@@ -5061,16 +5061,39 @@ TryPlace(x, y, slot) {
 
 ; the game says a slot is at its limit with `k` more down than were seen: they're at the latest spots
 ; where no menu showed. Added as placed units, so they get upgraded like the others
+; Each spot is clicked first: only one where this slot's unit opens its menu is taken (Chris 2 Nov:
+; the latest spot was taken unchecked, nothing stood there, and the real 2nd Elyssia never got upgraded)
 FindUnseen(slot, k) {
-    found := 0, list := placeUnsure.Get(slot, [])
-    while k > 0 && list.Length {
-        p := list.Pop()
+    found := 0, list := placeUnsure.Get(slot, []), i := list.Length, looked := 0
+    while k > 0 && i >= 1 && looked < 8 {
+        p := list[i], i--
         if NearUnit(p.x, p.y, 15)
             continue
+        looked++
+        if !UnitHereIs(slot, p.x, p.y)
+            continue
+        list.RemoveAt(i + 1)
         u := {x: p.x, y: p.y, slot: slot, maxed: false, capped: false, dx: 0, dy: -3, misses: 0, lost: false}
         placedUnits.Push(u), unseenFound.Push(u), k--, found++
     }
     return found
+}
+
+; a click on x,y opens a unit's menu, and it's this slot's unit (its name, or at least no other
+; slot's name and not a summon)
+UnitHereIs(slot, x, y) {
+    ClearVote()
+    if UnitMenuOpen()
+        CloseMenuClick(), Wait(200)
+    Clk(x, y)
+    ok := false
+    if WaitUnitMenu(700) && NewMenu() && !IsSummonMenu() {
+        nm := MenuUnitName()
+        ok := nm = "" || (slotMenuName.Has(slot) ? NameAlike(nm, slotMenuName[slot]) : !OtherSlotName(nm, slot))
+    }
+    if UnitMenuOpen()
+        CloseMenuClick(), Wait(200)
+    return ok
 }
 
 ; the units FindUnseen added for this slot (PlaceSlot counts them as placed, and a "place and
@@ -5369,10 +5392,14 @@ NameAlike(a, b) {
 ; Abyssal Eel's menu (maxed, its name not read) passed for Elyssia's, "Slot 1 is fully upgraded"
 ; at UPG 1 (Chris 2 Nov). Unknown name = not this unit's MAX
 MaxIsThisUnit(slot) {
-    if !NewMenu() || !slotMenuName.Has(slot)
+    if !NewMenu()
         return true
     nm := MenuUnitName()
-    return nm != "" && !OtherSlotName(nm, slot) && (!RegExMatch(nm, "^abys|\b(eel|eels|jel+y)\b") || RegExMatch(nm, "elys|lyss"))
+    if RegExMatch(nm, "^abys|\b(eel|eels|jel+y)\b") && !RegExMatch(nm, "elys|lyss")
+        return false                            ; a summon's menu, whatever the slot
+    if !slotMenuName.Has(slot)
+        return true
+    return nm != "" && !OtherSlotName(nm, slot)
 }
 ; is the open menu another slot's unit? (only when this slot's name is known and the menu's was read)
 ; the menu's name is ANOTHER slot's unit (and not this slot's): only then is it someone else's menu.
@@ -5683,7 +5710,7 @@ UpgradeUnit(u, presses := 3, useLimit := true, toLvl := -1) {
             break
         priceBefore := UpgradeButtonBits()
         Keys("r")
-        if MaxReached() {
+        if MaxReached(u.slot) {
             u.maxed := true, gained++
             AddLog("Slot " u.slot " is fully upgraded")
             break
@@ -5696,7 +5723,7 @@ UpgradeUnit(u, presses := 3, useLimit := true, toLvl := -1) {
         }
         if lvl >= 0 && now >= 0 {
             if now <= lvl {                     ; level didn't change: not enough yen yet, or maxed
-                if MaxByText() {
+                if MaxByText() && MaxIsThisUnit(u.slot) {
                     u.maxed := true
                     AddLog("Slot " u.slot " is fully upgraded")
                 }
@@ -5705,7 +5732,7 @@ UpgradeUnit(u, presses := 3, useLimit := true, toLvl := -1) {
             gained += now - lvl, lvl := now
             if toLvl >= 0 && lvl >= toLvl
                 break
-        } else if MaxHere() {                   ; maxed (the price "changed" to the grey Max button)
+        } else if MaxHere() && !IsSummonMenu() && MaxIsThisUnit(u.slot) {   ; maxed (the price "changed" to the grey Max button)
             u.maxed := true, gained++
             AddLog("Slot " u.slot " is fully upgraded")
             break
@@ -5745,10 +5772,13 @@ UpgradeUnit(u, presses := 3, useLimit := true, toLvl := -1) {
     return gained
 }
 
-MaxReached() {
+; only this slot's unit's menu counts (an Abyssal Eel swimming over a Dark Mage got its maxed menu
+; opened, and slot 2 was "fully upgraded" at UPG 1, Chris 2 Nov)
+MaxReached(slot := 0) {
     Wait(400)
     Stale()
     return (MaxHere() || MaxShown() || (NewMenu() && InStr(NewMenuLabel(), "MAX"))) && !IsSummonMenu()
+        && (!slot || MaxIsThisUnit(slot))
 }
 
 ; Some units (Elyssia) spawn summons like the Abyssal Eel. A summon's menu says "Upgrade [0] (MAX)"
@@ -5808,7 +5838,10 @@ NewMenuLabel() {
 ; bright green block per level done, the rest dark green (Chris's "UPG [1]" Bulby: 1 bright block). The
 ; "[N]" digits weren't read on his PC, so a unit at level 2 was still "not upgraded yet". -1: no row
 ; UPD 21's Upgrade button is bright green when you can afford the next level, dimmed when not
-UpgradeBright() => ColorShare(165, 372, 255, 384, (r, g, b) => g >= 170 && r <= 110 && b <= 60) >= 0.3
+; Gold instead of green when the next level brings a new move ("+ Thunder Lance"): that one is just as
+; pressable (a Dark Mage at UPG 1 with 56k yen was never upgraded, Chris 2 Nov)
+UpgradeBright() => ColorShare(165, 372, 255, 384, (r, g, b) => g >= 170 && r <= 110 && b <= 60
+    || r >= 220 && g >= 170 && g <= 235 && b <= 70) >= 0.3
 
 PipLevel() {
     ; only on the bright green button: dimmed (Chris's Dark Mage at UPG 3, "Upgrade: 7500") the blocks

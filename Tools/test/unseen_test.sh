@@ -18,6 +18,8 @@ Check(name, ok) {
     FileAppend((ok ? "PASS " : "FAIL ") name "`n", "*", "UTF-8"), fails += !ok
 }
 U(x, y, s) => {x: x, y: y, slot: s, maxed: false, capped: false, dx: 0, dy: -3, misses: 0, lost: false}
+global empty := Map()                   ; spots where a click opens nothing
+UnitHereIs(slot, x, y) => !empty.Has(x "," y)
 """ + "\n".join(fns) + f"""
 Most(said) => RegExMatch(said, "{most}", &mm) ? Integer(RegExReplace(mm[1], "[Oo]", "0")) : 0
 Check("the game's number read from 'tttan 3'", Most("Wave 2 Current Eff Cannot place more tttan 3 of this unit") = 3)
@@ -39,6 +41,11 @@ Check("no spots, nothing found", FindUnseen(4, 2) = 0)
 placeUnsure[1] := [{{x: 500, y: 200}}], placeUnsure[3] := [{{x: 600, y: 200}}]
 FindUnseen(1, 1), FindUnseen(3, 1)
 Check("each slot takes only its own", TakeUnseen(3).Length = 1 && unseenFound.Length = 1 && unseenFound[1].slot = 1)
+; Chris 2 Nov: the latest menu-less spot was empty, the 2nd Elyssia stood at an earlier one
+placeUnsure[6] := [{{x: 400, y: 400}}, {{x: 450, y: 300}}], empty["450,300"] := 1
+Check("an empty latest spot is passed over for one where the unit is", FindUnseen(6, 1) = 1 && placedUnits[placedUnits.Length].x = 400)
+placeUnsure[7] := [{{x: 700, y: 400}}], empty["700,400"] := 1
+Check("no unit at any spot: nothing taken", FindUnseen(7, 1) = 0)
 FileAppend(fails ? "FAILED " fails "`n" : "ALL PASSED`n", "*", "UTF-8")
 ExitApp fails ? 1 : 0
 """
