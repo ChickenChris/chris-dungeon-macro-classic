@@ -4329,7 +4329,7 @@ OverviewBars(cx, y) {
 ; had when the step started (cards keep their order while nothing new is placed). "done" / "stage" / "fail"
 OverviewTimesSlot(slot, units, times) {
     if !OverviewOpen()
-        return "fail"
+        return OverviewWhy(slot, "it didn't open with F")
     starts := [], lastGain := A_TickCount, presses := 0
     loop {
         if StageOver() {
@@ -4368,9 +4368,14 @@ OverviewTimesSlot(slot, units, times) {
                 n := 0
                 while c.state = "ok" && c.lv < goal && n < times + 2 {
                     Clk(c.bx, c.by), presses++, n++, lastGain := A_TickCount
-                    Wait(400)
-                    c.state := OverviewStateAt(c.bx, c.by)
-                    c.lv := OverviewBars(c.cx, c.cy)
+                    was := c.lv, t1 := A_TickCount      ; wait for the bars or the button to show it
+                    loop {                               ; (one press too many: a level that showed late)
+                        Wait(250)
+                        c.state := OverviewStateAt(c.bx, c.by)
+                        c.lv := OverviewBars(c.cx, c.cy)
+                        if c.lv > was || c.state != "ok" || A_TickCount - t1 > 1500
+                            break
+                    }
                 }
                 open += c.state != "max" && c.lv < goal
             }
@@ -4378,8 +4383,9 @@ OverviewTimesSlot(slot, units, times) {
             Wait(350)
         }
         if !k {
+            r := OverviewWhy(slot, "none of its cards looked like slot " slot "'s hotbar picture")   ; (shot first)
             OverviewClose()
-            return "fail"
+            return r
         }
         if !open {
             for u in units
@@ -4398,11 +4404,22 @@ OverviewTimesSlot(slot, units, times) {
     }
 }
 
+; the Unit Overview couldn't be used for this step: why, in the log (once a slot and stage), then
+; the old way (clicking the units on the map)
+OverviewWhy(slot, why) {
+    static told := Map()
+    if told.Get(slot, -1) != stageStart {
+        told[slot] := stageStart
+        AddLog("Slot " slot ": Unit Overview not used (" why "), clicking the units instead")
+        SaveDebugShot("overview_" slot)
+    }
+    return "fail"
+}
 ; all of a slot's units to max through the Unit Overview. "done", "stage" (the stage ended), or "fail"
 ; (the overview didn't open, or none of its cards is this slot's: the map way is used instead)
 OverviewMaxSlot(slot, units) {
     if !OverviewOpen()
-        return "fail"
+        return OverviewWhy(slot, "it didn't open with F")
     t0 := A_TickCount, lastGain := A_TickCount, seenAny := false, presses := 0
     loop {
         if StageOver() {
@@ -4436,8 +4453,13 @@ OverviewMaxSlot(slot, units) {
                 k := 0
                 while c.state = "ok" && k < 12 {          ; up as far as the yen goes
                     Clk(c.bx, c.by), presses++, k++, lastGain := A_TickCount
-                    Wait(350)
-                    c.state := OverviewStateAt(c.bx, c.by)
+                    was := OverviewBars(c.cx, c.cy), t1 := A_TickCount
+                    loop {
+                        Wait(250)
+                        c.state := OverviewStateAt(c.bx, c.by)
+                        if c.state != "ok" || OverviewBars(c.cx, c.cy) > was || A_TickCount - t1 > 1500
+                            break
+                    }
                 }
                 if c.state = "dim"
                     waiting++
@@ -4447,8 +4469,9 @@ OverviewMaxSlot(slot, units) {
             Wait(350)
         }
         if !seenAny {
+            r := OverviewWhy(slot, "none of its cards looked like slot " slot "'s hotbar picture")   ; (shot first)
             OverviewClose()
-            return "fail"
+            return r
         }
         if !open {
             for u in units
@@ -7261,7 +7284,7 @@ FoolCards() {
                 }
         ; its level: the I / II / III at the end of the name (read as I, l, 1 or |)
         lvl := RegExMatch(txt, "[Il1|]{1,3}(?=\W*$)", &lm) ? StrLen(lm[0]) : 1
-        cards.Push({x: cx, key: key, txt: txt, lvl: lvl, pearls: pearls})
+        cards.Push({x: cx, key: key, txt: txt, lvl: lvl, pearls: pearls, green: green})
         shown .= (shown = "" ? "" : " | ") (txt = "" ? "?" : txt) (pearls > 0 ? " +" pearls "%" : "")
     }
     ; a card it can't read counts as the middle of your list: it used to count for nothing, so
@@ -7274,11 +7297,15 @@ FoolCards() {
     ; your own buffs none), the list decides between equal ones
     static enemy := "|boss|shield|regen|health|speed|explosive|resistant|spellproof|plated|gale|updraft|"
     coinsFirst := cfg.Has("foolCoins") && cfg["foolCoins"]
+    ; "Buff cards only (safe farm)" (Luzka): your own buffs first, whatever the list or the pearls. None
+    ; offered: the mildest enemy card (fewest SummerPearls), since not voting lets the game pick
+    safe := cfg.Has("foolSafe") && cfg["foolSafe"]
     for c in cards {
         rk := c.key != "" ? IndexOf(cfg["foolCards"], c.key) : 0
         known += rk ? 1 : 0
         coins := c.pearls >= 0 ? c.pearls : c.key != "" && InStr(enemy, "|" c.key "|") ? [30, 70, 110][Min(3, c.lvl)] : 0
-        score := (coinsFirst ? -coins * 100 : 0) + (rk || mid) - c.lvl * 0.01
+        buff := c.green || (c.key != "" && !InStr(enemy, "|" c.key "|"))
+        score := (safe ? (buff ? -100000 : coins * 100) : coinsFirst ? -coins * 100 : 0) + (rk || mid) - c.lvl * 0.01
         if score < bestRank
             best := c, bestRank := score
     }
@@ -7314,6 +7341,11 @@ FoolVoteAt(x, dy) {
     finally voteClick := false
 }
 FoolVoteClicks(x, dy) {
+    if voteNew && OverviewUp() {                ; the Unit Overview (F) covers the right card: shut first
+        Keys("f")                               ; (a vote failed under it, Chris's vote_miss 2 Nov)
+        Wait(500)
+        Stale()
+    }
     if voteNew {
         ; UPD 21: clicking a card gives it a white frame and only then shows the green Vote under the
         ; cards; a 2nd click on the card unpicks it again (Chris). Chris's recordings: the card was picked

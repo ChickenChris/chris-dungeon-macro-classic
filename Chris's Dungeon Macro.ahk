@@ -1347,7 +1347,7 @@ DefaultConfig() {
         "denyAllShrines", 0, "denyUnknownShrine", 1, "stopAfterDefeat", 0,
         "placeSpeed", 1, "webhook", "", "hookRuns", 1, "psLink", "", "fixOnStart", 1, "tolerance", 2, "retries", 3, "useBuild", 0,
         "bgStrength", 3, "bgGif", "", "accent", "Crimson",
-        "bgOpacity", 70, "bgBlur", 0, "glass", 60, "bgAnimate", 1, "bgFile", "", "bgName", "", "lastSpotMap", "", "elemTeams", 0, "keyboard", "Auto", "mode", "Dungeon", "legendWorld", "Magic Hills (Elf Invasion)", "legendStage", 1, "autoChallenge", 0, "challengeSlot", 0, "icHard", 0, "icStopFloors", 0, "foolCoins", 0, "foolMatch", 0, "foolCards", FOOL_CARDS(), "team", 1, "teamDefault", 1, "teams", [],
+        "bgOpacity", 70, "bgBlur", 0, "glass", 60, "bgAnimate", 1, "bgFile", "", "bgName", "", "lastSpotMap", "", "elemTeams", 0, "keyboard", "Auto", "mode", "Dungeon", "legendWorld", "Magic Hills (Elf Invasion)", "legendStage", 1, "autoChallenge", 0, "challengeSlot", 0, "icHard", 0, "icStopFloors", 0, "foolCoins", 0, "foolSafe", 0, "foolMatch", 0, "foolCards", FOOL_CARDS(), "team", 1, "teamDefault", 1, "teams", [],
         "route", ["Rare_Chest", "Chest", "Shop", "Hoard", "Shrine", "Boss"],
         "avoid", Map("Flying", 1, "Wind", 0, "Money", 1, "Health", 1, "Exploding", 0, "Shielding", 1, "Regen", 1),
         "curseRank", ["Flying", "Money", "Health", "Shielding", "Regen", "Wind", "Exploding"], "skipWorst", 5,
@@ -1479,7 +1479,7 @@ class IniDoc {
 
 ScalarKeys() => ["pattern", "useSpots", "saveForTop", "autoAbility", "zoom", "tpSpawn", "saveChests", "buyShop",
     "denyAllShrines", "denyUnknownShrine", "stopAfterDefeat", "placeSpeed", "webhook", "hookRuns", "psLink", "fixOnStart", "tolerance", "skipWorst", "retries", "useBuild",
-    "bgStrength", "bgGif", "accent", "bgOpacity", "bgBlur", "glass", "bgAnimate", "bgFile", "bgName", "lastSpotMap", "elemTeams", "keyboard", "mode", "legendWorld", "legendStage", "autoChallenge", "challengeSlot", "icHard", "icStopFloors", "foolCoins", "foolMatch"]
+    "bgStrength", "bgGif", "accent", "bgOpacity", "bgBlur", "glass", "bgAnimate", "bgFile", "bgName", "lastSpotMap", "elemTeams", "keyboard", "mode", "legendWorld", "legendStage", "autoChallenge", "challengeSlot", "icHard", "icStopFloors", "foolCoins", "foolSafe", "foolMatch"]
 
 ; Fool's Hunt cards (Premium): only shown, locked, on the Dungeon page
 FOOL_CARDS() => ["shield", "regen", "health", "speed", "yen", "range", "cooldown", "attack", "grounded", "slow", "explosive", "resistant", "spellproof", "plated", "gale", "updraft", "boss"]
