@@ -6718,13 +6718,21 @@ FoolVoteClicks(x, dy) {
         ; cards; a 2nd click on the card unpicks it again (Chris). Chris's recordings: the card was picked
         ; but Vote never pressed, every count stayed 0 and the round picked one itself. So: get OUR card
         ; framed, press Vote, and keep at it until Vote goes away (the vote counted) or the cards do
-        t0 := A_TickCount, cardClicks := 0, votes := 0
+        t0 := A_TickCount, cardClicks := 0, votes := 0, lastCard := 0
         while A_TickCount - t0 < 9000 {
             Stale()
             if FoolVoteDy() = ""
                 return votes > 0                ; the vote is over
-            picked := CardPicked(x), vote := VoteButton(&bx, &by)
-            if picked && vote {
+            ; the green Vote only shows while a card is picked. The white frame of a picked card isn't
+            ; seen on the weather / Inferno cards (coloured frames): it clicked them again, which unpicks,
+            ; and sat looking at the cards (Chris). So: Vote up = picked, unless ANOTHER card is
+            ; clearly framed; never a 2nd click on ours while Vote shows
+            vote := VoteButton(&bx, &by)
+            other := false
+            for ox in [223, 401, 578]
+                if ox != x && CardPicked(ox)
+                    other := true
+            if vote && !other {
                 if votes >= 2
                     break
                 Clk(bx, by), votes++
@@ -6734,12 +6742,13 @@ FoolVoteClicks(x, dy) {
                     return true                 ; Vote is gone or our card's count went up: it counted
                 continue
             }
-            if !picked && cardClicks < 4 {
-                Clk(x, 300), cardClicks++       ; ours isn't framed (none is, or another one is)
+            ; nothing picked (or another card): click ours, then give Vote a moment to show
+            if cardClicks < 3 && A_TickCount - lastCard > 1200 {
+                Clk(x, 300), cardClicks++, lastCard := A_TickCount
                 Wait(500)
                 continue
             }
-            Wait(250)                           ; framed, Vote still on its way
+            Wait(250)
         }
         SaveDebugShot("vote_miss")
         return votes > 0
