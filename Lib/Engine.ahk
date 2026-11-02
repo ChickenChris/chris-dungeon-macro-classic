@@ -4610,8 +4610,13 @@ TryPlace(x, y, slot) {
             how := "click"
     }
     if how != "" {
-        lvl := ReadLevel()
-        if lvl > 0 || MaxShown() {          ; an older unit's menu: the click hit a unit already there
+        ; an older unit's menu (the click hit a unit already there)? On the old menu: a level above 0 or
+        ; MAX. UPD 21's menu doesn't tell: its level isn't read on every PC, and a unit that can't be
+        ; upgraded shows "Max Upgrade" the moment it's placed, so new units were taken for old ones and
+        ; placed again. There: an old one only where a counted unit already stands
+        nm := NewMenu()
+        lvl := nm ? 0 : ReadLevel()
+        if nm ? NearUnit(x, y, 25) : (lvl > 0 || MaxShown()) {
             if !NearUnit(x, y, 45) {        ; no known unit there: maybe a new unit with an odd menu
                 AddLog("Slot " slot ": a menu opened (" (lvl > 0 ? "level " lvl : "MAX") ") but no counted unit is near, treated as not placed")
                 SaveDebugShot("odd_menu")
@@ -4852,6 +4857,14 @@ WaitUnitMenu(timeout) {
     while A_TickCount - t0 < timeout {
         Chk()
         FocusRoblox()
+        ; UPD 21's menu (gold "UPG" bar, black body): the checks below were made for the old one. A new
+        ; unit's menu that wasn't recognised counted as "nothing placed", and the macro placed again:
+        ; 4 of a unit set to 2, "Cannot place more than 2 of this unit!" (players' reports)
+        if Mod(n, 2) = 0 {
+            Stale()
+            if NewMenu()
+                return !IsSummonMenu()
+        }
         if PixelSearch(&px, &py, 178, 309, 305, 336, 0x000000, 12)
             && (PixelSearch(&px, &py, 192, 244, 237, 400, 0xFFFFFF, 12) || PixelSearch(&px, &py, 192, 244, 237, 400, 0xFFC806, 20)) {
             Stale()
