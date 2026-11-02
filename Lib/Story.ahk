@@ -81,10 +81,10 @@ PadWalk() {
         WaitAreaTeleport(before)
         FocusRoblox()
         ToNormalArea()                          ; UPD 21: Play lands in the Summer Hunt area first
-        ; UPD 21 (Chris's recording): from where the teleport lands the capsules are to the right (D).
-        ; Not there: W+D on the 2nd try, S+D on the 3rd
+        ; UPD 21 (Chris's recording): from where the teleport lands the capsules are ahead to the right:
+        ; W+D (D alone walked past them and it took a 2nd Play, Chris). Not there: D, then S+D
         Step("walking to the Story pads")
-        side := ["", "w", "s"][A_Index]
+        side := ["w", "", "s"][A_Index]
         SendKeys("{d down}")
         if side != ""
             SendKeys("{" side " down}")
