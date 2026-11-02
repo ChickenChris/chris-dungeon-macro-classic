@@ -66,7 +66,16 @@ SettingsInTheWay() => false
 Wait(ms) => 0
 AddLog(t) => 0
 SaveDebugShot(t) => 0
+global yens := [], price := -1
+ReadYen() => yens.Length ? yens.RemoveAt(1) : -1
+SlotCost(n) => price
 ''' + fn + r'''
+; no menu, but the yen went down by the unit's price: placed, not tried again (Chris 3 Nov)
+clicks := "", price := 600, yens := [2400, 1800]
+Check("no menu but the yen dropped by its price: counted as placed", TryPlace(310, 300, 1), clicks)
+clicks := "", yens := [2400, 2400]
+Check("no menu, same yen: not placed", !TryPlace(320, 300, 1), clicks)
+price := -1, yens := []
 ; a failed spot in a dungeon: one click, nothing read
 clicks := "", reads := 0
 ok := TryPlace(300, 300, 1)

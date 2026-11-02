@@ -5003,6 +5003,7 @@ TryPlace(x, y, slot) {
     global autoOpenSeen, autoOpenOff, clickOpened
     ClearVote()                             ; Fool's Hunt: a card vote first (a long run of tries let it run out)
     votes0 := foolVotes
+    yen0 := ReadYen()                       ; the yen before: a drop by the unit's price = it went down
     if VoteOnScreen() {                     ; still up: placing clicks would land on the cards
         Wait(500)                           ; (one picked Enemy Health and never confirmed it)
         return false
@@ -5069,6 +5070,23 @@ TryPlace(x, y, slot) {
             Clk(x, y)
             if WaitUnitMenu(900)
                 how := "click"
+        }
+    }
+    ; no menu, but the yen went down by about the unit's price: it was placed and its menu didn't show
+    ; (or closed at once). It counts, so the slot isn't placed again past its amount ("it places more
+    ; than 2", Chris 3 Nov). The spot is clicked for its menu; without one it still counts
+    if how = "" && yen0 > 0 && (cost := SlotCost(slot)) > 0 {
+        yen1 := ReadYen()
+        if yen1 >= 0 && yen0 - yen1 >= cost * 0.7 && !NearUnit(x, y, 12) {
+            Clk(x, y)
+            if WaitUnitMenu(900)
+                how := "click"
+            else {
+                static toldYen := false
+                if !toldYen
+                    toldYen := true, AddLog("Slot " slot ": its menu didn't show, but the yen went down by its price (" yen0 " to " yen1 "): counted as placed")
+                return true
+            }
         }
     }
     if how != "" {
