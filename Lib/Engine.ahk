@@ -4575,15 +4575,30 @@ TryPlace(x, y, slot) {
         return false
     }
     ClosePanel()                            ; the unit panel covers the right side of the map
-    if UnitMenuOpen() {                     ; an open menu would look like this placement worked
+    loop 2 {
+        if !UnitMenuOpen()                  ; an open menu would look like this placement worked
+            break
         CloseMenuClick()
         Wait(250)
+        Stale()
     }
     Keys(String(slot))
     Sleep 50
     Clk(x, y)
-    Sleep 50
-    Keys("q")                               ; cancels the placing if the spot was refused (the path)
+    ; UPD 21: every placed unit's menu pops up on the left. Look for it FIRST, before any key: Q or the
+    ; next slot's key closed it before it was read, the unit counted as not placed and was placed
+    ; again (Chris: "add a little delay where you can read it first")
+    quick := false, t1 := A_TickCount
+    while A_TickCount - t1 < 1000 {
+        Sleep 60
+        Stale()
+        if NewMenu() {
+            quick := !IsSummonMenu()
+            break
+        }
+    }
+    if !quick
+        Keys("q")                           ; cancels the placing if the spot was refused (the path)
     ; Kept simple, as before 25 Oct (Chris: placing was fluid then): the game's red "Cannot place..."
     ; message is only looked for in Fool's Hunt (its 20-unit cap). Looking for it after every try
     ; (a read of half the screen each time) made a slower PC take ~40 s per unit (a player's log)
@@ -4597,7 +4612,7 @@ TryPlace(x, y, slot) {
     ; MenuParts): the yen can't be read reliably. The game lags now and then, so a late menu
     ; gets extra time.
     how := ""
-    if WaitUnitMenu(autoOpenOff ? 300 : PlaceTimeout())
+    if quick || WaitUnitMenu(autoOpenOff ? 300 : Max(300, PlaceTimeout() - 1000))   ; (1 s already looked)
         how := "auto"
     else if (refusals || CountPlaced(slot) >= 1) && PlaceRefused(slot)   ; a unique / limited unit's red text
         return false
@@ -4716,7 +4731,11 @@ PlaceRefused(slot) {
     ; the number tells them apart too: a unit's limit is small (3 of this unit), the map's is 20
     most := RegExMatch(said, "i)t{1,3}h?[ae]n\s*(\d[\dOo]?)", &mm) ? Integer(RegExReplace(mm[1], "[Oo]", "0")) : 0   ; "than", "tttan"
     mapWords := RegExMatch(said, "i)sell|weaker|make\s*r|r[o0][o0]m\b|un[il1]ts")
-    thisUnit := !mapWords && (RegExMatch(said, "i)th[il1]s\s*un[il1]t|of\s*th[il1]s|of\s*the\s*un") || most && most < 10)
+    ; since UPD 21 there's no 20-unit map cap: "Cannot place more than..." without the map's words
+    ; (sell / weaker / room / units) is this unit's limit, however garbled ("esnnotplace more than
+    ; ents Ynit!", Chris 2 Nov: it kept trying a 3rd of a unit allowed twice)
+    thisUnit := !mapWords && (RegExMatch(said, "i)th[il1]s\s*un[il1]t|of\s*th[il1]s|of\s*the\s*un") || most && most < 10
+        || RegExMatch(said, "i)m[o0]re\s*th|nn[o0]t\s*pl|place\s*m[o0]re"))
     if msg = "limit" && !thisUnit {
         ; Classic has no Fool's Hunt, the only mode whose 20-unit cap showed the real message in
         ; players' logs: anything read as it here was some other red text (Ted and others: "the map is
@@ -5271,8 +5290,10 @@ IsSummonMenu() {
     static toldAt := -60000
     ; UPD 21 menu: a summon only by its name (Abyssal Eel / Jelly). "Level 0 with MAX" isn't used there:
     ; the level isn't read reliably, and a maxed Bulma read as level 0 was skipped as a summon (Chris)
+    ; the name has to START with the summon's ("Abyssal Eel", "Abyssal Jelly", "Eel"): "Elyssia
+    ; (Abyssal)" herself was skipped as a summon, so her 2nd placement went unseen and a 3rd was tried
     if NewMenu()
-        hit := OcrFindWord(10, 226, 150, 22, "i)^(abyssal|eel|eels|jelly)$", &wx, &wy)
+        hit := RegExMatch(MenuUnitName(), "^(abyssal\s+)?(eel|eels|jelly)\b")
     else
         hit := Det("Elyssia") || (MaxShown() && (ReadLevel() = 0 || (OcrFindWord(4, 188, 160, 30, "i)^(abyssal|eel|eels)$", &wx, &wy) || OcrFindWord(10, 226, 150, 22, "i)^(abyssal|eel|eels)$", &wx, &wy))))
     if hit && A_TickCount - toldAt > 60000 {

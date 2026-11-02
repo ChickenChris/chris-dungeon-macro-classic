@@ -15,6 +15,8 @@ flag = "true" if "refusals := FoolMode()" in fn else "false"
 body = r'''#Requires AutoHotkey v2.0
 #Warn VarUnset, StdOut
 NewMenu() => false
+IsSummonMenu() => false
+Stale() => 0
 WrongUnitMenu(p*) => false
 MenuUnitName() => ""
 global slotMenuName := Map()
