@@ -75,6 +75,10 @@ global splashGui := 0, splashBar := 0, splashTrack := [0, 0], splashT := 0, spla
 global runState := "idle", robloxShown := -1, stepNow := ""
 global importCfg := 0               ; settings read from another macro, waiting for "Import"
 
+; the sakura icon (the app's background) on the taskbar, the window and the tray instead of
+; AutoHotkey's green H (the .exe has it built in)
+if !A_IsCompiled && FileExist(A_ScriptDir "\Images\ui\sakura.ico")
+    try TraySetIcon(A_ScriptDir "\Images\ui\sakura.ico")
 global MG := Gui("+AlwaysOnTop -Caption -DPIScale", "Chris's Dungeon Macro")
 MG.BackColor := "050506"
 MG.MarginX := 0, MG.MarginY := 0
