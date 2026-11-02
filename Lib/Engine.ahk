@@ -4290,12 +4290,114 @@ OverviewCards() {
                 }
                 if bd > 0.6 || second - bd < 0.1
                     best := 0                   ; not sure: left alone
-                cards.Push({slot: best, bx: bx + 26, by: by + 7, state: state})
+                cards.Push({slot: best, bx: bx + 26, by: by + 7, state: state, lv: OverviewBars(cx, y), cx: cx, cy: y})
             }
         }
     }
     return cards
 }
+; a card's level: its lit bars (green or yellow, the colour doesn't matter: Chris), 59 px under the
+; card's top, from 6 left of its picture, about 16 px each. -1 when the row isn't there
+OverviewBars(cx, y) {
+    try {
+        WinGetClientPos &ox, &oy, , , RBX
+        Fresh()
+        scr := FindText()
+        best := -1
+        for dy in [57, 58, 59, 60, 61] {        ; (the list can sit a pixel or two higher or lower)
+            runs := 0, len := 0, seen := 0, x := cx - 8
+            while x <= cx + 114 {
+                col := scr.GetColor(ox + x, oy + y + dy, 0)
+                r := (col >> 16) & 0xFF, g := (col >> 8) & 0xFF, b := col & 0xFF
+                lit := (g >= 150 && r <= 140) || (r >= 180 && g >= 150 && b <= 90)
+                seen += r + g + b >= 60
+                if lit
+                    len++
+                else
+                    runs += len >= 4, len := 0
+                x++
+            }
+            runs += len >= 4
+            if seen >= 30
+                best := Max(best, Min(runs, 12))
+        }
+        return best
+    }
+    return -1
+}
+; "upgrade slot N, T times" through the overview: every card of that slot gets T more lit bars than it
+; had when the step started (cards keep their order while nothing new is placed). "done" / "stage" / "fail"
+OverviewTimesSlot(slot, units, times) {
+    if !OverviewOpen()
+        return "fail"
+    starts := [], lastGain := A_TickCount, presses := 0
+    loop {
+        if StageOver() {
+            OverviewClose()
+            return "stage"
+        }
+        if VoteOnScreen() {
+            OverviewClose()
+            ClearVote()
+            continue
+        }
+        if !OverviewOpen() {
+            Wait(500)
+            continue
+        }
+        ScrollAt(660, 280, -10)
+        Wait(300)
+        k := 0, open := 0, prevSig := ""
+        loop 6 {
+            cards := OverviewCards()
+            sig := ""
+            for c in cards
+                sig .= c.slot c.state c.lv ","
+            if A_Index > 1 && sig = prevSig
+                break
+            prevSig := sig
+            for c in cards {
+                if c.slot != slot
+                    continue
+                k++
+                if starts.Length < k
+                    starts.Push(c.lv)           ; first pass: where each card starts
+                if c.lv < 0 || starts[k] < 0
+                    continue                    ; its bars aren't read: left to the map way
+                goal := starts[k] + times
+                n := 0
+                while c.state = "ok" && c.lv < goal && n < times + 2 {
+                    Clk(c.bx, c.by), presses++, n++, lastGain := A_TickCount
+                    Wait(400)
+                    c.state := OverviewStateAt(c.bx, c.by)
+                    c.lv := OverviewBars(c.cx, c.cy)
+                }
+                open += c.state != "max" && c.lv < goal
+            }
+            ScrollAt(660, 280, 2)
+            Wait(350)
+        }
+        if !k {
+            OverviewClose()
+            return "fail"
+        }
+        if !open {
+            for u in units
+                u.lvlEst := (u.HasOwnProp("lvlEst") ? u.lvlEst : 0) + times
+            OverviewClose()
+            AddLog("Slot " slot ": upgraded " times " time" (times = 1 ? "" : "s") " (Unit Overview, " k " unit" (k = 1 ? "" : "s") ")")
+            return "done"
+        }
+        if A_TickCount - lastGain > 150000 {
+            OverviewClose()
+            AddLog("Slot " slot ": no upgrade went through for 2.5 min (not enough yen?), moving to the next step")
+            return "done"
+        }
+        Step("build order: waiting for yen to upgrade slot " slot " (Unit Overview)")
+        Wait(1500)
+    }
+}
+
 ; all of a slot's units to max through the Unit Overview. "done", "stage" (the stage ended), or "fail"
 ; (the overview didn't open, or none of its cards is this slot's: the map way is used instead)
 OverviewMaxSlot(slot, units) {
@@ -4397,8 +4499,8 @@ UpgradeGroup(units, times) {
     ; counted from the level the menu shows ("Upgrade [5]") when it can be read: counting presses
     ; once called a unit done at level 5 of 6 (a misread level or a flickering price counted a
     ; press that didn't go through). Every unit is checked again before the step moves on.
-    if times < 0 && units.Length {              ; to max: through the Unit Overview (F) when it works
-        r := OverviewMaxSlot(units[1].slot, units)
+    if units.Length {                           ; through the Unit Overview (F) when it works
+        r := times < 0 ? OverviewMaxSlot(units[1].slot, units) : OverviewTimesSlot(units[1].slot, units, times)
         if r = "stage"
             return false
         if r = "done"
