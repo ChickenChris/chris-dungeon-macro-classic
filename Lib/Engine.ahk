@@ -4191,7 +4191,11 @@ GroupResult(units, done, times) {
 ;  dimmed hotbar cards too). "Upgrade slot N to max" goes through it: no clicking units on the map
 ;  (no Abyssal Eels or neighbours in the way), and "maxed" is the grey Max right there
 ; =====================================================================
-OverviewUp() => ColorShare(562, 57, 754, 81, (r, g, b) => r >= 220 && g >= 140 && b <= 70) >= 0.12
+; its orange title, with no orange right above and under it: a sandy/orange map passed for the title,
+; the macro pressed F to "close" it and opened the Unit Overview instead (kisurri's Summer Hunt, 2 Nov)
+OverviewUp() => ColorShare(562, 57, 754, 81, OverviewOrange) >= 0.12 && ColorShare(562, 84, 754, 104, OverviewOrange) < 0.05
+    && ColorShare(562, 36, 754, 52, OverviewOrange) < 0.05
+OverviewOrange(r, g, b) => r >= 220 && g >= 140 && b <= 70
 OverviewOpen() {
     if OverviewUp()
         return true
@@ -5063,9 +5067,9 @@ TryPlace(x, y, slot) {
 ; where no menu showed. Added as placed units, so they get upgraded like the others
 ; Each spot is clicked first: only one where this slot's unit opens its menu is taken (Chris 2 Nov:
 ; the latest spot was taken unchecked, nothing stood there, and the real 2nd Elyssia never got upgraded)
-FindUnseen(slot, k) {
+FindUnseen(slot, k, maxLook := 8) {
     found := 0, list := placeUnsure.Get(slot, []), i := list.Length, looked := 0
-    while k > 0 && i >= 1 && looked < 8 {
+    while k > 0 && i >= 1 && looked < maxLook {
         p := list[i], i--
         if NearUnit(p.x, p.y, 15)
             continue
@@ -5150,6 +5154,8 @@ PlaceRefused(slot) {
     ; the number tells them apart too: a unit's limit is small (3 of this unit), the map's is 20
     most := RegExMatch(said, "i)t{1,3}h?[ae]n\s*(\d[\dOo]?)", &mm) ? Integer(RegExReplace(mm[1], "[Oo]", "0")) : 0   ; "than", "tttan"
     mapWords := RegExMatch(said, "i)sell|weaker|make\s*r|r[o0][o0]m\b|un[il1]ts")
+    if most >= 10 && !mapWords                  ; a unit's own limit is one digit: "than 3 of" read as "than 30f"
+        most := Integer(SubStr(most, 1, 1))     ; ("the game allows 30 of this unit", kisurri)
     ; since UPD 21 there's no 20-unit map cap: "Cannot place more than..." without the map's words
     ; (sell / weaker / room / units) is this unit's limit, however garbled ("esnnotplace more than
     ; ents Ynit!", Chris 2 Nov: it kept trying a 3rd of a unit allowed twice)
@@ -5194,7 +5200,7 @@ PlaceRefused(slot) {
             ; down, "1 seen placed", and only one of them was upgraded to level 2
             list := placeUnsure.Get(slot, []), found := 0
             if list.Length && A_TickCount - list[list.Length].at < 15000
-                found := FindUnseen(slot, 1)
+                found := FindUnseen(slot, 1, 3)
             AddLog("Slot " slot ": the game says no more of this unit (" have + found " placed"
                 . (found ? ", 1 of them without its menu showing: found where it is, upgrading it too" : "") "), placing no more this stage")
         } else
