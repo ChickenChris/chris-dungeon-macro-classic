@@ -5020,7 +5020,7 @@ OpenUnit(u) {
         Clk(u.x + o[1], u.y + o[2])
         ; the menu can take a moment to slide in: give it a full second before calling it a miss.
         ; A maxed UPD 21 menu counts as opened too (a maxed Bulma's menu was missed this way, Chris)
-        if WaitUnitMenu(A_Index = 1 ? 1300 : 1000) || (Sleep(250), UnitMenuOpen()) || (Stale(), (NewMax() || MaxHere()) && !IsSummonMenu()) {
+        if WaitUnitMenu(A_Index = 1 ? 1300 : 1000) || (Sleep(250), UnitMenuOpen()) || (Stale(), (MaxHere()) && !IsSummonMenu()) {
             if WrongUnitMenu(u.slot) {          ; a neighbour's menu: off, and the next spot around
                 CloseMenuClick()
                 Sleep(250)
@@ -5051,7 +5051,7 @@ OpenUnit(u) {
         return false
     }
     Stale()
-    if (NewMax() || MaxHere()) && !IsSummonMenu() && !WrongUnitMenu(u.slot)   ; its menu is up and maxed after all
+    if (MaxHere()) && !IsSummonMenu() && !WrongUnitMenu(u.slot)   ; its menu is up and maxed after all
         return true
     static toldAt := -60000
     if A_TickCount - toldAt > 60000 {
@@ -5234,7 +5234,7 @@ UpgradeUnit(u, presses := 3, useLimit := true, toLvl := -1) {
         static missAt := -30000
         if NewMenu() && A_TickCount - missAt > 30000    ; a menu is open but wasn't taken as this unit's
             missAt := A_TickCount, AddLog("Slot " u.slot ": its menu showed but wasn't taken (Max " (NewMax() ? "seen" : "not seen") ", summon " (IsSummonMenu() ? "yes" : "no") ")")
-        if (NewMax() || MaxHere()) && !IsSummonMenu() && !WrongUnitMenu(u.slot) {   ; a maxed menu of THIS unit
+        if (MaxHere()) && !IsSummonMenu() && !WrongUnitMenu(u.slot) {   ; a maxed menu of THIS unit
             u.maxed := true
             AddLog("Slot " u.slot " is fully upgraded")
             CloseMenuClick()
@@ -5261,7 +5261,7 @@ UpgradeUnit(u, presses := 3, useLimit := true, toLvl := -1) {
     Stale()
     if !NewMax() && !MaxHere()
         Wait(300), Stale()
-    if (NewMax() || MaxHere()) && !IsSummonMenu() {
+    if (MaxHere()) && !IsSummonMenu() {
         u.maxed := true
         AddLog("Slot " u.slot " is fully upgraded")
         CloseMenuClick()
@@ -5338,7 +5338,7 @@ IsSummonMenu() {
     ; the name has to START with the summon's ("Abyssal Eel", "Abyssal Jelly", "Eel"): "Elyssia
     ; (Abyssal)" herself was skipped as a summon, so her 2nd placement went unseen and a 3rd was tried
     if NewMenu()
-        hit := RegExMatch(MenuUnitName(), "^(abyssal\s+)?(eel|eels|jelly)\b")
+        hit := (nm := MenuUnitName()) != "" && !RegExMatch(nm, "elys|lyss") && RegExMatch(nm, "^abys|\b(eel|eels|jel+y)\b")
     else
         hit := Det("Elyssia") || (MaxShown() && (ReadLevel() = 0 || (OcrFindWord(4, 188, 160, 30, "i)^(abyssal|eel|eels)$", &wx, &wy) || OcrFindWord(10, 226, 150, 22, "i)^(abyssal|eel|eels)$", &wx, &wy))))
     if hit && A_TickCount - toldAt > 60000 {
@@ -5360,8 +5360,9 @@ IsSummonMenu() {
 ; upgraded (3.2.74), as if the menu wasn't recognised
 NewMenu() => ColorShare(150, 234, 262, 250, (r, g, b) => r >= 55 && r <= 130 && g >= 35 && g <= 95 && b <= 25) >= 0.3
     && ColorShare(150, 262, 275, 355, (r, g, b) => r <= 45 && g <= 30 && b <= 35) >= 0.6
-NewMax() => NewMenu() && (ColorShare(170, 278, 272, 326, (r, g, b) => r >= 200 && g >= 140 && b <= 110 && r - b >= 120) >= 0.05
-    || MaxButtonGrey())
+NewMax() => NewMenu() && MaxHere()             ; both the yellow "Max Upgrade" and the grey Max button:
+                                                ; the grey alone was a dimmed Upgrade (too little yen) and
+                                                ; a unit at UPG 3 was left as "fully upgraded" (Chris 2 Nov)
 ; a maxed unit's bottom button is a grey "Max" (0.60+ grey on every maxed menu, 0.19 at most on others)
 ; "Max Upgrade" on screen, by itself: its big yellow letters (170-272 x 278-326) and the grey Max
 ; button under them. No other check in front of it (Chris: "just detect MAX UPGRADE on the screen")
@@ -5468,7 +5469,7 @@ ClickAuto() {
         Clk(373, 237)
 }
 
-MaxShown() => Det("Max") || Det("MaxNew") || NewMax()
+MaxShown() => NewMenu() ? MaxHere() : (Det("Max") || Det("MaxNew"))   ; (UPD 21 menu: only its own Max signs)
 
 ; the white price text on the green Upgrade button, as bits: if it changes after pressing R,
 ; the unit went up a level (used when the "Upgrade N" text can't be read)
