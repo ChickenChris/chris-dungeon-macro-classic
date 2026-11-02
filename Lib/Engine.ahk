@@ -5003,6 +5003,15 @@ NameAlike(a, b) {
         return true                             ; too little read to tell: don't block
     return InStr(wa, wb) || InStr(wb, wa) || Levenshtein(wa, wb) <= Max(1, StrLen(wb) // 4)
 }
+; a maxed menu only counts for this slot when its name says so (once the slot's name is known): an
+; Abyssal Eel's menu (maxed, its name not read) passed for Elyssia's, "Slot 1 is fully upgraded"
+; at UPG 1 (Chris 2 Nov). Unknown name = not this unit's MAX
+MaxIsThisUnit(slot) {
+    if !NewMenu() || !slotMenuName.Has(slot)
+        return true
+    nm := MenuUnitName()
+    return nm != "" && NameAlike(nm, slotMenuName[slot]) && !RegExMatch(nm, "^abys|\b(eel|eels|jel+y)\b")
+}
 ; is the open menu another slot's unit? (only when this slot's name is known and the menu's was read)
 WrongUnitMenu(slot) {
     if !NewMenu() || !slotMenuName.Has(slot)
@@ -5252,7 +5261,7 @@ UpgradeUnit(u, presses := 3, useLimit := true, toLvl := -1) {
         static missAt := -30000
         if NewMenu() && A_TickCount - missAt > 30000    ; a menu is open but wasn't taken as this unit's
             missAt := A_TickCount, AddLog("Slot " u.slot ": its menu showed but wasn't taken (Max " (NewMax() ? "seen" : "not seen") ", summon " (IsSummonMenu() ? "yes" : "no") ")")
-        if (MaxHere()) && !IsSummonMenu() && !WrongUnitMenu(u.slot) {   ; a maxed menu of THIS unit
+        if (MaxHere()) && !IsSummonMenu() && !WrongUnitMenu(u.slot) && MaxIsThisUnit(u.slot) {   ; a maxed menu of THIS unit
             u.maxed := true
             AddLog("Slot " u.slot " is fully upgraded")
             CloseMenuClick()
@@ -5279,7 +5288,7 @@ UpgradeUnit(u, presses := 3, useLimit := true, toLvl := -1) {
     Stale()
     if !NewMax() && !MaxHere()
         Wait(300), Stale()
-    if (MaxHere()) && !IsSummonMenu() {
+    if (MaxHere()) && !IsSummonMenu() && MaxIsThisUnit(u.slot) {
         u.maxed := true
         AddLog("Slot " u.slot " is fully upgraded")
         CloseMenuClick()
@@ -5381,6 +5390,7 @@ IsSummonMenu() {
     ; (Abyssal)" herself was skipped as a summon, so her 2nd placement went unseen and a 3rd was tried
     if NewMenu()
         hit := (nm := MenuUnitName()) != "" && !RegExMatch(nm, "elys|lyss") && RegExMatch(nm, "^abys|\b(eel|eels|jel+y)\b")
+            || MaxHere() && RegExMatch(NewMenuLabel(), "[\[\(]\s*[0oO]\s*[\]\)]")   ; "UPG [0] (MAX)": no real unit
     else
         hit := Det("Elyssia") || (MaxShown() && (ReadLevel() = 0 || (OcrFindWord(4, 188, 160, 30, "i)^(abyssal|eel|eels)$", &wx, &wy) || OcrFindWord(10, 226, 150, 22, "i)^(abyssal|eel|eels)$", &wx, &wy))))
     if hit && A_TickCount - toldAt > 60000 {
