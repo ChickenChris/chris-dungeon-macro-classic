@@ -5055,7 +5055,7 @@ TryPlace(x, y, slot) {
     ; (Skyyylyyyy's third Speedwagon was down and never upgraded). Kept in case the game says so later
     if !placeUnsure.Has(slot)
         placeUnsure[slot] := []
-    placeUnsure[slot].Push({x: x, y: y})
+    placeUnsure[slot].Push({x: x, y: y, at: A_TickCount})
     return false
 }
 
@@ -5167,7 +5167,13 @@ PlaceRefused(slot) {
         } else if have {
             ; the number wasn't read ("Cannot place more tttan 3"): no limit is saved for next time, a
             ; wrong 2 kept every later stage at 2 of a unit the game allows 3 of
-            AddLog("Slot " slot ": the game says no more of this unit (" have " seen placed), placing no more this stage")
+            ; the try just before got no menu (kept as "maybe placed"): it was placed. Chris 2 Nov: 2 Elyssia
+            ; down, "1 seen placed", and only one of them was upgraded to level 2
+            list := placeUnsure.Get(slot, []), found := 0
+            if list.Length && A_TickCount - list[list.Length].at < 15000
+                found := FindUnseen(slot, 1)
+            AddLog("Slot " slot ": the game says no more of this unit (" have + found " placed"
+                . (found ? ", 1 of them without its menu showing: found where it is, upgrading it too" : "") "), placing no more this stage")
         } else
             AddLog("Slot " slot ": the game says no more of this unit, but none were seen being placed. "
                 . "Placing it again next stage (if this keeps happening: Placement speed slower in Settings)")
