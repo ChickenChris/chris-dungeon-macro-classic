@@ -132,7 +132,7 @@ function RunUpdate {
     Step 2 'Installing...'
     Expand-Archive -LiteralPath $zip -DestinationPath (Join-Path $tmp 'x') -Force
     $src = Get-ChildItem -LiteralPath (Join-Path $tmp 'x') -Directory | Select-Object -First 1
-    if (-not $src -or -not (Test-Path -LiteralPath (Join-Path $src.FullName "Chris's Dungeon Macro.ahk"))) { Say 'failed' Red; throw 'The download looks broken. Try again later.' }
+    if (-not $src -or -not ((Test-Path -LiteralPath (Join-Path $src.FullName "Chris's Dungeon Macro.ahk")) -or (Test-Path -LiteralPath (Join-Path $src.FullName "Chris's Dungeon Macro.exe")))) { Say 'failed' Red; throw 'The download looks broken. Try again later.' }
     $have = VersionOf (Join-Path $dir 'version.txt')
     $new = VersionOf (Join-Path $src.FullName 'version.txt')
     robocopy $src.FullName $dir /E /XD Settings Logs .git /XF Update.bat .gitattributes .gitignore README.md /R:5 /W:1 /NFL /NDL /NJH /NJS /NP | Out-Null
@@ -161,11 +161,13 @@ if ($Auto) {
         Say '   Starting the version you have. Run Update.bat later to try again.' Yellow
     }
     Say ''
-    if ($Ahk -ne '' -and $Script -ne '') {
+    if ($Ahk -ne '') {
         Say '   Starting the macro...' Green
         Start-Sleep -Seconds $(if ($ok) { 2 } else { 10 })
         # no -WorkingDirectory (a folder name with [ ] broke it on Windows PowerShell); the macro sets its own
-        try { Start-Process -FilePath $Ahk -ArgumentList @(('"' + $Script + '"'), '--updated') }
+        # no -Script: the macro is an .exe (-Ahk is the .exe itself)
+        $a = if ($Script -ne '') { @(('"' + $Script + '"'), '--updated') } else { @('--updated') }
+        try { Start-Process -FilePath $Ahk -ArgumentList $a }
         catch { Say ('   Couldn''t start it: ' + $_.Exception.Message + '. Start it yourself.') Red; Start-Sleep -Seconds 15 }
     }
     exit $(if ($ok) { 0 } else { 1 })
@@ -192,7 +194,7 @@ $code = 0
 try {
     RunUpdate
     Say ''
-    Say '   Done! Start "Chris''s Dungeon Macro.ahk" again.' Green
+    Say '   Done! Start "Chris''s Dungeon Macro" again.' Green
 } catch {
     $code = 1
     Say ''

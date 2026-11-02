@@ -46,7 +46,7 @@ NewestVersion(repo, file) {
 StartUpdater() {
     try {
         Run 'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "' A_ScriptDir '\Lib\Updater.ps1" -Auto -Ahk "'
-            . A_AhkPath '" -Script "' A_ScriptFullPath '"', A_ScriptDir
+            . (A_IsCompiled ? A_ScriptFullPath '"' : A_AhkPath '" -Script "' A_ScriptFullPath '"'), A_ScriptDir   ; (.exe: started by itself)
         ExitApp
     }
 }

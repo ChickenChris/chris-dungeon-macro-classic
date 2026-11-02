@@ -88,7 +88,7 @@ SplashStart()                        ; a clean loading screen fades in until the
 
 if !StartWebView() {
     oldWin := A_ScriptDir "\Chris's Dungeon Macro (old window).ahk"
-    if FileExist(oldWin) {
+    if FileExist(oldWin) && !A_IsCompiled {
         Run '"' A_AhkPath '" "' oldWin '" --updated'        ; the update was checked already
         ExitApp
     }
