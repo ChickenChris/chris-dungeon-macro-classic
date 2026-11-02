@@ -5465,7 +5465,14 @@ StageOver() {
     FoolTick()                                  ; Fool's Hunt: card votes and the hotbar
     return Det("Xp") || Det("EndScreen") || Det("Next") || Det("Lobby") || EndButtonsSeen()
         || Det("FinishDungeon") || Det("DungeonDeath") || SpecialScreen() || ScanRooms().Length
+        || EndByColour()
 }
+
+; UPD 21's results box: the big red DEFEAT / gold VICTORY title and the green Next under it (Next
+; 268-372 x 378-410 on Chris's last_result.png). The pictures of the old end screen didn't always
+; match, and a lost round took long to be noticed (Chris)
+EndByColour() => ColorShare(280, 384, 360, 404, (r, g, b) => g >= 170 && r <= 120 && b <= 90) >= 0.45
+    && TitleColour() != ""
 
 ; =====================================================================
 ;  End of a stage
