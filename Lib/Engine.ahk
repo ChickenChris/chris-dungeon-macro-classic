@@ -4663,6 +4663,15 @@ TryPlace(x, y, slot) {
         ; placed again. There: an old one only where a counted unit already stands
         nm := NewMenu()
         lvl := nm ? 0 : ReadLevel()
+        ; the menu names another slot's unit (and not this slot's): the click opened that one
+        if nm && (mName := MenuUnitName()) != "" && !(slotMenuName.Has(slot) && NameAlike(mName, slotMenuName[slot])) {
+            for s, sn in slotMenuName
+                if s != slot && NameAlike(mName, sn) {
+                    CloseMenuClick()
+                    Wait(200)
+                    return false
+                }
+        }
         if nm ? NearUnit(x, y, 12) : (lvl > 0 || MaxShown()) {   ; (12: units can stand close together)
             if !NearUnit(x, y, 45) {        ; no known unit there: maybe a new unit with an odd menu
                 AddLog("Slot " slot ": a menu opened (" (lvl > 0 ? "level " lvl : "MAX") ") but no counted unit is near, treated as not placed")
@@ -4678,7 +4687,7 @@ TryPlace(x, y, slot) {
             autoOpenOff := true
             AddLog("The unit menu doesn't open by itself after placing, so the macro clicks each new unit. Faster: in the game's settings, set 'Disable Auto-Open Upgrade UI' so the menu pops up when you place a unit")
         }
-        if nm && !slotMenuName.Has(slot) && StrLen(name := MenuUnitName()) >= 3
+        if nm && !slotMenuName.Has(slot) && StrLen(name := (IsSet(mName) && mName != "" ? mName : MenuUnitName())) >= 3
             slotMenuName[slot] := name         ; this slot's unit, as its menu names it
         CheckAbility()
         CloseMenuClick()                       ; close the unit menu
@@ -4904,7 +4913,7 @@ MenuButtons() {
 
 WaitUnitMenu(timeout) {
     global menuLoose
-    static partsSeen := false, colourOnly := 0
+    static partsSeen := false, colourOnly := 0, newMenuSeen := false
     Wait(300)
     t0 := A_TickCount, n := 0, colourHit := false
     while A_TickCount - t0 < timeout {
@@ -4915,8 +4924,17 @@ WaitUnitMenu(timeout) {
         ; 4 of a unit set to 2, "Cannot place more than 2 of this unit!" (players' reports)
         if Mod(n, 2) = 0 {
             Stale()
-            if NewMenu()
+            if NewMenu() {
+                partsSeen := true, colourOnly := 0, newMenuSeen := true
                 return !IsSummonMenu()
+            }
+        }
+        ; once the UPD 21 menu has been seen, the old colour guess below is never used: dark ground with
+        ; something white on it passed for a menu, and slot 5 was "placed" where nothing was (Chris 2 Nov)
+        if newMenuSeen {
+            Sleep 25
+            n++
+            continue
         }
         if PixelSearch(&px, &py, 178, 309, 305, 336, 0x000000, 12)
             && (PixelSearch(&px, &py, 192, 244, 237, 400, 0xFFFFFF, 12) || PixelSearch(&px, &py, 192, 244, 237, 400, 0xFFC806, 20)) {
@@ -4938,7 +4956,7 @@ WaitUnitMenu(timeout) {
         }
         Sleep 25
     }
-    if colourHit && !partsSeen && !menuLoose && ++colourOnly >= 6 {
+    if colourHit && !partsSeen && !menuLoose && !newMenuSeen && ++colourOnly >= 6 {
         menuLoose := true
         AddLog("The unit menu's buttons aren't recognised on this PC, going by its colours instead")
         SaveDebugShot("unit_menu")
@@ -5275,6 +5293,12 @@ UpgradeUnit(u, presses := 3, useLimit := true, toLvl := -1) {
             AddLog("Slot " u.slot " reached upgrade " lim " (its Until limit on the Units tab)")
             break
         }
+        ; UPD 21: a dimmed Upgrade button = not enough yen, a press does nothing. Counting "the price
+        ; text changed" also counted the button just going dim or bright as the yen came and went:
+        ; an Elyssia at UPG 1 was "upgraded 2 times" (Chris 2 Nov). Only a bright button gets pressed
+        bright := !NewMenu() || UpgradeBright()
+        if !bright
+            break
         priceBefore := UpgradeButtonBits()
         Keys("r")
         if MaxReached() {
@@ -5303,7 +5327,25 @@ UpgradeUnit(u, presses := 3, useLimit := true, toLvl := -1) {
             u.maxed := true, gained++
             AddLog("Slot " u.slot " is fully upgraded")
             break
-        } else if BitDiff(priceBefore, UpgradeButtonBits()) >= 6 || (Wait(350), BitDiff(priceBefore, UpgradeButtonBits()) >= 6)
+        } else if NewMenu() && now >= 0 && lvl < 0 {
+            ; the level shows now: counted against the running estimate, then by the level from here on
+            gained += Max(0, now - (u.HasOwnProp("lvlEst") ? u.lvlEst : 0)), lvl := now
+            if toLvl >= 0 && lvl >= toLvl
+                break
+        } else if NewMenu() && now < 0 {
+            ; pressed on a bright button and the level no longer shows: it went through and the yen
+            ; left is short of the next one (the button went dim). Same price, still bright: it didn't
+            if !UpgradeBright() {
+                gained++
+                if lvl >= 0
+                    lvl++
+            } else if BitDiff(priceBefore, UpgradeButtonBits()) >= 6 {
+                gained++
+                if lvl >= 0
+                    lvl++
+            } else
+                break
+        } else if !NewMenu() && (BitDiff(priceBefore, UpgradeButtonBits()) >= 6 || (Wait(350), BitDiff(priceBefore, UpgradeButtonBits()) >= 6))
             gained++                            ; can't read the level, but the price changed: it went up
                                                 ; (looked at twice: the new price can show a moment late)
         else
@@ -5382,6 +5424,9 @@ NewMenuLabel() {
 ; UPD 21: the row of blocks at the bottom of the green Upgrade button (client 157-262, y 391-392): one
 ; bright green block per level done, the rest dark green (Chris's "UPG [1]" Bulby: 1 bright block). The
 ; "[N]" digits weren't read on his PC, so a unit at level 2 was still "not upgraded yet". -1: no row
+; UPD 21's Upgrade button is bright green when you can afford the next level, dimmed when not
+UpgradeBright() => ColorShare(165, 372, 255, 384, (r, g, b) => g >= 170 && r <= 110 && b <= 60) >= 0.3
+
 PipLevel() {
     ; only on the bright green button: dimmed (Chris's Dark Mage at UPG 3, "Upgrade: 7500") the blocks
     ; are dark and olive and can't be told apart, and that read as level 0
