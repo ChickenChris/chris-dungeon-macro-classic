@@ -4181,6 +4181,213 @@ GroupResult(units, done, times) {
     return txt
 }
 
+; =====================================================================
+;  UPD 21: the Unit Overview (F) - every placed unit in one list, newest on top, 2 a row, 4 rows on
+;  show (scrolls for more). Each card: the unit's picture, an "Upg: price" button (bright green or
+;  yellow = you can afford it, dimmed = not yet, grey "Max" = maxed), First, and level blocks.
+;  Measured on Chris's clip (game-area coords): pictures at x 546 / 676, rows from y 110, 88 apart;
+;  Upg buttons at x 597 / 726, y 117 + 88 per row (52 x 15); "Unit Overview" title 562-754 x 57-81.
+;  A card's slot: its picture's colours against the hotbar's pictures (all 8 cards right on his clip,
+;  dimmed hotbar cards too). "Upgrade slot N to max" goes through it: no clicking units on the map
+;  (no Abyssal Eels or neighbours in the way), and "maxed" is the grey Max right there
+; =====================================================================
+OverviewUp() => ColorShare(562, 57, 754, 81, (r, g, b) => r >= 220 && g >= 140 && b <= 70) >= 0.12
+OverviewOpen() {
+    if OverviewUp()
+        return true
+    Keys("f")
+    WaitFor(OverviewUp, 1500, 150)
+    return OverviewUp()
+}
+OverviewClose() {
+    if !OverviewUp()
+        return
+    Keys("f")
+    WaitFor(() => !OverviewUp(), 1200, 150)
+}
+; colour make-up of a picture (brightness left out, so a dimmed hotbar card still matches)
+ChromaHist(x1, y1, x2, y2) {
+    h := [], n := 0
+    loop 36
+        h.Push(0)
+    try {
+        WinGetClientPos &ox, &oy, , , RBX
+        Fresh()
+        scr := FindText()
+        x := x1
+        while x < x2 {
+            y := y1
+            while y < y2 {
+                col := scr.GetColor(ox + x, oy + y, 0)
+                r := (col >> 16) & 0xFF, g := (col >> 8) & 0xFF, b := col & 0xFF, s := r + g + b
+                if s >= 60 {
+                    h[Min(5, r * 6 // s) * 6 + Min(5, g * 6 // s) + 1] += 1
+                    n++
+                }
+                y += 2
+            }
+            x += 2
+        }
+    }
+    if n
+        for i, v in h
+            h[i] := v / n
+    return h
+}
+HistDist(a, b) {
+    d := 0
+    for i, v in a
+        d += Abs(v - b[i])
+    return d
+}
+; the hotbar's pictures, once a stage (the team can change between stages)
+SlotHists() {
+    static hs := [], mark := -1
+    if mark != stageStart || !hs.Length {
+        mark := stageStart, hs := []
+        loop 6 {
+            xr := SlotPriceRight(A_Index)
+            hs.Push(ChromaHist(xr - 50, 522, xr - 8, 552))
+        }
+    }
+    return hs
+}
+; the cards on show: [{slot, bx, by, state: "max" / "ok" / "dim"}], slot 0 when it can't tell
+OverviewCards() {
+    cards := [], hs := SlotHists()
+    try {
+        WinGetClientPos &ox, &oy, , , RBX
+        Fresh()
+        scr := FindText()
+        loop 4 {
+            row := A_Index - 1, y := 110 + 88 * row
+            for i, cx in [546, 676] {
+                c := scr.GetColor(ox + cx - 12, oy + y - 7, 0)      ; the card's red X: there's a card
+                if !(((c >> 16) & 0xFF) >= 170 && ((c >> 8) & 0xFF) <= 70)
+                    continue
+                bx := i = 1 ? 597 : 726, by := 117 + 88 * row
+                sr := 0, sg := 0, sb := 0, n := 0, x := bx
+                while x < bx + 52 {
+                    yy := by
+                    while yy < by + 15 {
+                        col := scr.GetColor(ox + x, oy + yy, 0)
+                        sr += (col >> 16) & 0xFF, sg += (col >> 8) & 0xFF, sb += col & 0xFF, n++
+                        yy += 3
+                    }
+                    x += 3
+                }
+                r := sr // n, g := sg // n, b := sb // n
+                state := Abs(r - g) <= 12 && Abs(g - b) <= 12 ? "max"
+                    : (g >= 140 && r <= 120) || (r >= 145 && g >= 125 && b <= 95) ? "ok" : "dim"
+                h := ChromaHist(cx + 4, y + 10, cx + 40, y + 36)
+                best := 0, bd := 99, second := 99
+                for s, sh in hs {
+                    d := HistDist(h, sh)
+                    if d < bd
+                        second := bd, bd := d, best := s
+                    else if d < second
+                        second := d
+                }
+                if bd > 0.6 || second - bd < 0.1
+                    best := 0                   ; not sure: left alone
+                cards.Push({slot: best, bx: bx + 26, by: by + 7, state: state})
+            }
+        }
+    }
+    return cards
+}
+; all of a slot's units to max through the Unit Overview. "done", "stage" (the stage ended), or "fail"
+; (the overview didn't open, or none of its cards is this slot's: the map way is used instead)
+OverviewMaxSlot(slot, units) {
+    if !OverviewOpen()
+        return "fail"
+    t0 := A_TickCount, lastGain := A_TickCount, seenAny := false, presses := 0
+    loop {
+        if StageOver() {
+            OverviewClose()
+            return "stage"
+        }
+        if VoteOnScreen() {                     ; a card vote: the overview covers the right card, so it
+            OverviewClose()                     ; goes first
+            ClearVote()
+            continue
+        }
+        if !OverviewOpen() {                    ; closed by something (a vote, a popup): open it again
+            Wait(500)
+            continue
+        }
+        ScrollAt(660, 280, -10)                 ; the top of the list
+        Wait(300)
+        open := 0, waiting := 0, prevSig := ""
+        loop 6 {                                ; a page at a time
+            cards := OverviewCards()
+            sig := ""
+            for c in cards
+                sig .= c.slot c.state ","
+            if A_Index > 1 && sig = prevSig
+                break                           ; scrolling changed nothing: the end of the list
+            prevSig := sig
+            for c in cards {
+                if c.slot != slot
+                    continue
+                seenAny := true
+                k := 0
+                while c.state = "ok" && k < 12 {          ; up as far as the yen goes
+                    Clk(c.bx, c.by), presses++, k++, lastGain := A_TickCount
+                    Wait(350)
+                    c.state := OverviewStateAt(c.bx, c.by)
+                }
+                if c.state = "dim"
+                    waiting++
+                open += c.state != "max"
+            }
+            ScrollAt(660, 280, 2)
+            Wait(350)
+        }
+        if !seenAny {
+            OverviewClose()
+            return "fail"
+        }
+        if !open {
+            for u in units
+                u.maxed := true
+            OverviewClose()
+            AddLog("Slot " slot ": all fully upgraded (Unit Overview, " presses " upgrade" (presses = 1 ? "" : "s") ")")
+            return "done"
+        }
+        if A_TickCount - lastGain > 300000 {
+            OverviewClose()
+            AddLog("Slot " slot ": no upgrade went through for 5 min (not enough yen?), moving to the next step")
+            return "done"
+        }
+        Step("build order: waiting for yen to upgrade slot " slot " to max (Unit Overview)")
+        Wait(1500)
+    }
+}
+; one card's Upg button state again (after a press)
+OverviewStateAt(cx, cy) {
+    sr := 0, sg := 0, sb := 0, n := 0
+    try {
+        WinGetClientPos &ox, &oy, , , RBX
+        Stale(), Fresh()
+        scr := FindText()
+        x := cx - 26
+        while x < cx + 26 {
+            y := cy - 7
+            while y < cy + 8 {
+                col := scr.GetColor(ox + x, oy + y, 0)
+                sr += (col >> 16) & 0xFF, sg += (col >> 8) & 0xFF, sb += col & 0xFF, n++
+                y += 3
+            }
+            x += 3
+        }
+    }
+    if !n
+        return "dim"
+    r := sr // n, g := sg // n, b := sb // n
+    return Abs(r - g) <= 12 && Abs(g - b) <= 12 ? "max" : (g >= 140 && r <= 120) || (r >= 145 && g >= 125 && b <= 95) ? "ok" : "dim"
+}
+
 ; Upgrades a group of units `times` times each (-1 = to max), taking turns:
 ; unit 1 as far as it can afford -> unit 2 -> unit 3 -> back to unit 1 ... until every
 ; unit has reached the target. Waits for yen when nobody can afford anything.
@@ -4190,6 +4397,13 @@ UpgradeGroup(units, times) {
     ; counted from the level the menu shows ("Upgrade [5]") when it can be read: counting presses
     ; once called a unit done at level 5 of 6 (a misread level or a flickering price counted a
     ; press that didn't go through). Every unit is checked again before the step moves on.
+    if times < 0 && units.Length {              ; to max: through the Unit Overview (F) when it works
+        r := OverviewMaxSlot(units[1].slot, units)
+        if r = "stage"
+            return false
+        if r = "done"
+            return true
+    }
     done := Map(), start := Map(), checked := false
     ; each unit's level as the step starts: its running estimate (0 when placed, corrected every time
     ; the menu shows its level). Before, the start was the first level READ, which could come halfway
