@@ -3007,7 +3007,7 @@ PlayStage() {
         ; Dungeon: the green "<map> Dungeon Room (Depth N)" title above the boss bar names the room's real
         ; map. The small room panel can be misread: "Snowy Kingdom" was taken as Fabled Kingdom (both end
         ; in Kingdom) and the loading screen's text was unreadable, so nothing caught it (a player's screenshot)
-        if cfg["mode"] = "Dungeon"
+        if cfg.Get("mode", "Dungeon") = "Dungeon"   ; (no "mode" saved yet = Dungeon: Rengo's "Item has no value")
             DungeonTitleCheck()
         if ICMode() && curMap = "Unknown" {
             curMap := "Infinity Castle"            ; couldn't read the floor's map: its own walk/spots
