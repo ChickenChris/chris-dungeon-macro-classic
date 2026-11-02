@@ -5182,6 +5182,11 @@ UpgradeUnit(u, presses := 3, useLimit := true) {
             break
         }
         now := ReadLevel()
+        if lvl >= 0 && now >= 0 && now <= lvl {
+            Wait(350)                           ; the game can be a moment late showing the new level
+            Stale()
+            now := ReadLevel()
+        }
         if lvl >= 0 && now >= 0 {
             if now <= lvl {                     ; level didn't change: not enough yen yet, or maxed
                 if MaxByText() {
@@ -5195,8 +5200,9 @@ UpgradeUnit(u, presses := 3, useLimit := true) {
             u.maxed := true, gained++
             AddLog("Slot " u.slot " is fully upgraded")
             break
-        } else if BitDiff(priceBefore, UpgradeButtonBits()) >= 6
+        } else if BitDiff(priceBefore, UpgradeButtonBits()) >= 6 || (Wait(350), BitDiff(priceBefore, UpgradeButtonBits()) >= 6)
             gained++                            ; can't read the level, but the price changed: it went up
+                                                ; (looked at twice: the new price can show a moment late)
         else
             break                               ; same price: not enough yen yet
     }
@@ -5265,11 +5271,45 @@ NewMenuLabel() {
     return ""
 }
 ; the level in "UPG [N]", -1 when it can't be read
+; UPD 21: the row of blocks at the bottom of the green Upgrade button (client 157-262, y 391-392): one
+; bright green block per level done, the rest dark green (Chris's "UPG [1]" Bulby: 1 bright block). The
+; "[N]" digits weren't read on his PC, so a unit at level 2 was still "not upgraded yet". -1: no row
+PipLevel() {
+    try {
+        WinGetClientPos &ox, &oy, , , RBX
+        Fresh()
+        scr := FindText()
+        best := -1
+        for y in [391, 392] {
+            runs := 0, len := 0, filled := 0, dark := 0, x := 157
+            while x <= 263 {
+                col := scr.GetColor(ox + x, oy + y, 0)
+                r := (col >> 16) & 0xFF, g := (col >> 8) & 0xFF, b := col & 0xFF
+                lit := g >= 180 && r <= 110 && b <= 60
+                dark += g >= 50 && g <= 110 && r <= 45 && b <= 20
+                if lit
+                    len++, filled++
+                else {
+                    runs += len >= 3, len := 0
+                }
+                x++
+            }
+            runs += len >= 3
+            if filled + dark >= 50              ; the row is there (75 dark + 16 bright on the screenshot)
+                best := Max(best, runs)
+        }
+        return best
+    }
+    return -1
+}
+
 NewLevel() {
     ; the digits in "[N]" are orange like the yen: read on their own (client 174-207 x 235-250), the
     ; whole bar read as text came back empty on Chris's PC ("Its menu says ''")
     v := ReadYellowNumber(174, 235, 34, 16)
     if v >= 0 && v <= 20
+        return v
+    if (v := PipLevel()) >= 0                   ; the bright green blocks under "Upgrade: ..."
         return v
     t := NewMenuLabel()
     if RegExMatch(t, "[\[\(\{]\s*([0-9lI]{1,2})\s*[\]\)\}]", &m) || RegExMatch(t, "i)UP\w?\W{0,3}([0-9]{1,2})(?!\d)", &m) {
@@ -6613,7 +6653,8 @@ FoolCards() {
     if voteNew {
         if !firstSeen
             firstSeen := A_TickCount
-        if A_TickCount - firstSeen < 3500 {
+        if A_TickCount - firstSeen < 1500 {     ; (was 3.5 s: votes got cut short, Chris. Unit clicks
+                                                ;  are held while the cards are up anyway: Clk)
             Step("Summer Hunt: cards up, waiting a moment")
             return true
         }
@@ -6640,7 +6681,7 @@ FoolCards() {
         }
         eff := "", green := false
         if voteNew
-            pearls := CardPearls(cx), eff := CardEffect(cx), green := CardGreen(cx)
+            pearls := CardPearls(cx), green := CardGreen(cx)
         key := ""
         for w in words
             if RegExMatch(txt, "i)" w[1]) {
@@ -6649,6 +6690,8 @@ FoolCards() {
             }
         ; the weather cards (Washout, Sandblast, Arcane Storm, Rain Barrel...) have names of their own:
         ; what they do decides instead. A green card is yours (no SummerPearls), a red one the enemies'
+        if key = "" && voteNew                  ; (only then: a read less per card, the vote is short)
+            eff := CardEffect(cx)
         if key = "" && eff != ""
             for w in green ? [["\byen\b|¥|\d{3,}\s*[y¥]", "yen"], ["attack|\batk\b|damage", "attack"], ["range", "range"],
                 ["cool|\bcd\b", "cooldown"], ["flying|flyer", "grounded"], ["enemy\s*speed|slow", "slow"]]
