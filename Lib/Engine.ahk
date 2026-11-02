@@ -6164,9 +6164,62 @@ FixWindow() {
                 break
         }
         Stale()
-        return WindowOk()
+        if WindowOk()
+            return true
+        SnapWhy()
+        return false
     }
     return false
+}
+
+; Roblox wouldn't snap in: why, once per session, with what to do (players: "it won't snap", fixed by
+; a PC restart for some and not for others). Windows silently refuses to move a program that runs as
+; administrator when the macro doesn't, and the Microsoft Store Roblox can't be moved like a window
+SnapWhy() {
+    static told := false
+    if told || !WinExist(RBX)
+        return
+    told := true
+    why := [], fix := ""
+    try {
+        WinGetPos &x, &y, &w, &h, RBX
+        WinGetClientPos , , &cw, &ch, RBX
+        why.Push("size " w "x" h " (wanted " WIN_W "x" WIN_H ")" (HasFrame() ? "" : ", no window border (fullscreen?)"))
+        pid := WinGetPID(RBX)
+        path := ""
+        try path := ProcessGetPath(pid)
+        if InStr(path, "WindowsApps") {
+            why.Push("the Microsoft Store Roblox")
+            fix := "Install Roblox from roblox.com instead of the Microsoft Store: the Store version can't be moved by the macro"
+        }
+        if ProcElevated(pid) && !A_IsAdmin {
+            why.Push("Roblox runs as administrator, the macro doesn't")
+            fix := "Close Roblox and open it normally (not as administrator), or right-click the macro and choose Run as administrator"
+        }
+        if A_ScreenDPI != 96
+            why.Push("Windows scaling " Round(A_ScreenDPI / 96 * 100) "%")
+        if !HasFrame() && fix = ""
+            fix := "Press F11 in Roblox to leave fullscreen, then F1"
+        if fix = ""
+            fix := "Close Roblox, open it again and press F1 (Snap Roblox). Still not: right-click the macro, Run as administrator"
+    }
+    AddLog("Roblox didn't snap into the frame (" (why.Length ? Join(why, ", ") : "no details") "). " fix)
+}
+; does this process run as administrator? (its token's elevation; false when it can't be read)
+ProcElevated(pid) {
+    elevated := false
+    h := DllCall("OpenProcess", "UInt", 0x1000, "Int", 0, "UInt", pid, "Ptr")
+    if !h
+        return false                            ; not readable (Roblox's anti-cheat can refuse): unknown
+    tok := 0
+    if DllCall("advapi32\OpenProcessToken", "Ptr", h, "UInt", 0x0008, "Ptr*", &tok) {
+        buf := Buffer(4, 0), ret := 0
+        if DllCall("advapi32\GetTokenInformation", "Ptr", tok, "Int", 20, "Ptr", buf, "UInt", 4, "UInt*", &ret)
+            elevated := NumGet(buf, 0, "UInt") != 0
+        DllCall("CloseHandle", "Ptr", tok)
+    }
+    DllCall("CloseHandle", "Ptr", h)
+    return elevated
 }
 
 ; true when Roblox has its window border and title bar around the game
@@ -7204,4 +7257,12 @@ CaptchaUp() {
         return n >= 5 && n <= 7
     }
     return false
+}
+
+
+Join(arr, sep := ", ") {
+    s := ""
+    for i, v in arr
+        s .= (i > 1 ? sep : "") v
+    return s
 }
