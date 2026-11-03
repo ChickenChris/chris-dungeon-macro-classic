@@ -5226,15 +5226,16 @@ TryPlace(x, y, slot) {
     ; 1 s, the try counted as nothing and the unit was placed again ("place, wait 2 seconds to read the
     ; UI on the left", Chris 3 Nov). Found: a moment more so its name and level have drawn
     quick := false, t1 := A_TickCount, lookMs := autoOpenOff ? 1000 : Max(2000, PlaceTimeout())
-    redLooked := false
+    redNext := 900
     while A_TickCount - t1 < lookMs {
         Sleep 60
         Stale()
         ; the red "Cannot place more" / "Max placement" fades after ~2 s, and the longer wait for the
-        ; menu read it too late (it kept placing): looked for once, after 0.9 s (Summer Hunt, or a
-        ; slot with one down already, like before)
-        if !redLooked && (FoolMode() || CountPlaced(slot) >= 1) && A_TickCount - t1 >= 900 && !NewMenu() {
-            redLooked := true
+        ; menu read it too late (it kept placing): looked for after 0.9 s (Summer Hunt, or a slot with
+        ; one down already, like before), and again each second while the menu is waited for: with a
+        ; laggy game it came later, was never read and the slot was tried for minutes (mmanimals' video)
+        if A_TickCount - t1 >= redNext && (FoolMode() || CountPlaced(slot) >= 1) && !NewMenu() {
+            redNext += 1000
             if PlaceRefused(slot) {
                 Keys("q")
                 return false
