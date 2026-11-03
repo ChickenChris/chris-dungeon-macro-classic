@@ -2708,8 +2708,9 @@ MinimapNote(known) {
         Wait(500)
     }
     pct := Round(score * 100)
+    same := StrReplace(mm, " (Summer)") = StrReplace(known, " (Summer)")   ; Planet Greenie (Summer) has the same path (Chris)
     if mm != ""
-        AddLog("  Minimap: " mm " (" pct "%)" (mm = known ? ", same" : ", not " known))
+        AddLog("  Minimap: " mm " (" pct "%)" (same ? ", same" : ", not " known))
     else
         AddLog("  Minimap: not sure" (guess != "" ? " (closest " guess " " pct "%)" : " (no path seen)"))
 }
