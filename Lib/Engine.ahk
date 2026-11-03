@@ -97,7 +97,7 @@ DetDefs() {
     if IsObject(d)
         return d
     d := Map()
-    DetAdd(d, "Lobby", "Lobby", 746, 514, 789, 530, 0, AreaText)
+    DetAdd(d, "Lobby", "Lobby", 740, 508, 796, 536, 0, AreaText)   ; (a few px around the label, 3 Nov)
     DetAdd(d, "EnterDungeon", "Enter dungeon (lobby)", 310, 395, 495, 440, 0.2, EnterDungeon)
     DetAdd(d, "RoomBorder", "Room picker", 200, 340, 600, 437, 0.2, DungeonRoomBorder)
     DetAdd(d, "Enter", "Room Enter button", 120, 425, 680, 500, 0.2, Enter, EnterNew)
@@ -198,8 +198,10 @@ LobbyByText(&x := "", &y := "") {
     last := A_TickCount, hit := false
     try {
         WinGetClientPos &ox, &oy, , , RBX
-        txt := OCR.FromRect(ox + 728, oy + 500, 72, 40, OcrLang(), {scale: 3, grayscale: true}).Text
-        hit := RegExMatch(txt, "i)\bar[e3c]a[s5]\b") > 0
+        ; the "Areas" label under the bottom-right button is at about 749-782 x 481-496 (two players'
+        ; screenshots, 3 Nov); the box used to be 500-540, under it, so this never found anything
+        txt := OCR.FromRect(ox + 735, oy + 472, 65, 32, OcrLang(), {scale: 3, grayscale: true}).Text
+        hit := RegExMatch(txt, "i)\bar[e3c]?a?[s5]\b") > 0
     }
     if hit {
         x := 767, y := 522
@@ -597,7 +599,7 @@ IdleTick() {
         areas := "", bright := -1
         try {
             WinGetClientPos &ox, &oy, &cw, &ch, RBX
-            areas := Trim(RegExReplace(OCR.FromRect(ox + 728, oy + 500, 72, 40, OcrLang(), {scale: 3, grayscale: true}).Text, "\s+", " "))
+            areas := Trim(RegExReplace(OCR.FromRect(ox + 735, oy + 472, 65, 32, OcrLang(), {scale: 3, grayscale: true}).Text, "\s+", " "))
             bright := Round(ColorShare(0, 0, 800, 600, (r, g, b) => r + g + b > 90) * 100)
             AddLog("Looking for something to do for 20 s: the screen isn't recognised (Roblox " cw "x" ch
                 . ", " bright "% not dark, bottom right reads '" SubStr(areas, 1, 30) "'). Send Logs\idle_....bmp in Discord")
