@@ -2543,22 +2543,38 @@ SummerRoundMap() {
             AddLog((curMap = "Unknown" ? "Map: " name : "The " (mapHow != "" ? mapHow : "loading screen") " said " curMap ", the title says " name ". Going with " name) "  (the green title)")
         curMap := name, mapHow := "title"
         UpdateMapLabel()
+        MinimapNote(name)
         return
     }
-    if mapHow = "map banner" && curMap != "Unknown"
+    if mapHow = "map banner" && curMap != "Unknown" {
+        MinimapNote(curMap)
         return                                  ; the blue name was read already while the round loaded
-                                                ; (it's gone a moment later: Cursed Festival was read at
+    }                                           ; (it's gone a moment later: Cursed Festival was read at
                                                 ; 12.8 s, then thrown away for not being seen again, Chris)
     Step("reading the map name")
-    name := "", t0 := A_TickCount, tEnd := A_TickCount + 10000
+    name := "", mm := "", mmScore := 0, t0 := A_TickCount, tEnd := A_TickCount + 10000
     while A_TickCount < tEnd {
         if (name := MapFromBanner()) != ""
             break
+        if mm = ""
+            mm := MinimapMap(&mmScore)          ; the minimap is up during Find Match's countdown already
         ; Find Match: "Starts in: 43 / You can change your units before the game starts" first, the
         ; blue name only comes after it. Read during the countdown, the map was given up on (a player's log)
         if RegExMatch(lastMapRaw, "i)start\S*\s*in\W*\d|change\s*your") && A_TickCount - t0 < 75000
             tEnd := Max(tEnd, A_TickCount + 5000), Step("reading the map name (the round starts after its countdown)")
         Wait(200)
+    }
+    if name = "" && mm = ""
+        mm := MinimapMap(&mmScore)
+    if name = "" && mm != "" {
+        ; no blue name, but the minimap's path is clearly one map's
+        if curMap = "Unknown" || curMap = mm
+            AddLog("Map: " mm "  (minimap, " Round(mmScore * 100) "%)")
+        else
+            AddLog("The " (mapHow != "" ? mapHow : "loading screen") " said " curMap ", the minimap says " mm " (" Round(mmScore * 100) "%). Going with " mm)
+        curMap := mm, mapHow := "minimap"
+        UpdateMapLabel()
+        return
     }
     if name = "" {
         if cfg.Has("foolMatch") && cfg["foolMatch"] && curMap != "Unknown" {
@@ -2574,6 +2590,128 @@ SummerRoundMap() {
         AddLog("The loading screen said " curMap ", the blue map name says " name ". Going with " name)
     curMap := name, mapHow := "map banner"
     UpdateMapLabel()
+    if mm = ""
+        MinimapNote(name)
+    else if mm != name
+        AddLog("  (the minimap said " mm " " Round(mmScore * 100) "%, the blue name wins)")
+}
+
+; ---------------------------------------------------------------------
+;  The map off the minimap (bottom right, client 652,452, 136 x 136): the shape of its bright green
+;  path, laid on a 32 x 32 grid, against the shapes in Lib\minimaps.txt (taken from Chris's rounds).
+;  Two shapes are alike when the squares of each sit on or next to the other's (min of both ways).
+;  The white arrow (you), units and enemies aren't green, so they only hide a bit of the path.
+;  "" unless one map is clearly the closest: 80 % alike and 5 points ahead of any other map
+;  (Otherwordly Plane and Fabled Kingdom are only ~10 points apart: Fabled has a loop at the bottom)
+MinimapMap(&score := 0, &guess := "") {
+    static refs := 0
+    score := 0, guess := ""
+    if !IsObject(refs)
+        refs := MinimapRefs()
+    cells := MinimapCells()
+    if !refs.Length || cells.Length < 20
+        return ""
+    near := MinimapNear(cells), best := Map()
+    for r in refs {
+        s := MinimapSim(cells, near, r.cells, r.near)
+        if s > best.Get(r.name, 0)
+            best[r.name] := s
+    }
+    s1 := 0, s2 := 0
+    for name, s in best {
+        if s > s1
+            s2 := s1, s1 := s, guess := name
+        else if s > s2
+            s2 := s
+    }
+    score := s1
+    return (s1 >= 0.8 && s1 - s2 >= 0.05) ? guess : ""
+}
+
+; the grid squares (y * 34 + x, 0-31 each) where the minimap shows its green path
+MinimapCells() {
+    cells := [], seen := Map()
+    try {
+        WinGetClientPos &ox, &oy, , , RBX
+        Fresh()
+        scr := FindText()
+        py := 0
+        while py < 136 {
+            px := 0
+            while px < 136 {
+                col := scr.GetColor(ox + 652 + px, oy + 452 + py, 0) & 0xFFFFFF
+                cr := (col >> 16) & 0xFF, cg := (col >> 8) & 0xFF, cb := col & 0xFF
+                if cg >= 150 && cg - cr >= 60 && cg - cb >= 70 {
+                    k := (py * 32 // 136) * 34 + px * 32 // 136
+                    if !seen.Has(k)
+                        seen[k] := 1, cells.Push(k)
+                }
+                px += 2
+            }
+            py += 2
+        }
+    }
+    return cells
+}
+
+; the squares on or next to these (rows are 34 wide, so a step off the edge never lands on a real square)
+MinimapNear(cells) {
+    near := Map()
+    for k in cells
+        for d in [-35, -34, -33, -1, 0, 1, 33, 34, 35]
+            near[k + d] := 1
+    return near
+}
+
+MinimapSim(a, nearA, b, nearB) {
+    if !a.Length || !b.Length
+        return 0
+    hitA := 0, hitB := 0
+    for k in a
+        hitA += nearB.Has(k)
+    for k in b
+        hitB += nearA.Has(k)
+    return Min(hitA / a.Length, hitB / b.Length)
+}
+
+; Lib\minimaps.txt: "map|" then 32 rows of 8 hex digits, the top bit being the left square
+MinimapRefs() {
+    refs := []
+    try txt := FileRead(A_ScriptDir "\Lib\minimaps.txt")
+    catch
+        return refs
+    for line in StrSplit(txt, "`n", "`r") {
+        if !RegExMatch(line, "^([^;|][^|]*)\|([0-9A-Fa-f]{256})$", &m)
+            continue
+        cells := []
+        loop 32 {
+            y := A_Index - 1, v := Integer("0x" SubStr(m[2], y * 8 + 1, 8))
+            loop 32 {
+                x := A_Index - 1
+                if (v >> (31 - x)) & 1
+                    cells.Push(y * 34 + x)
+            }
+        }
+        refs.Push({name: m[1], cells: cells, near: MinimapNear(cells)})
+    }
+    return refs
+}
+
+; for testing: logs what the minimap makes of the round, next to the name read another way
+; (waits up to 3 s for the minimap's path to show)
+MinimapNote(known) {
+    t0 := A_TickCount
+    loop {
+        mm := MinimapMap(&score, &guess)
+        if mm != "" || guess != "" || A_TickCount - t0 >= 3000
+            break
+        Wait(500)
+    }
+    pct := Round(score * 100)
+    if mm != ""
+        AddLog("  Minimap: " mm " (" pct "%)" (mm = known ? ", same" : ", not " known))
+    else
+        AddLog("  Minimap: not sure" (guess != "" ? " (closest " guess " " pct "%)" : " (no path seen)"))
 }
 
 ; the green "<map> (Summer) Summer Hunt" title over the boss's HP bar, "" when not read in time
