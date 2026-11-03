@@ -5022,12 +5022,19 @@ TryPlace(x, y, slot) {
     ; UPD 21: every placed unit's menu pops up on the left. Look for it FIRST, before any key: Q or the
     ; next slot's key closed it before it was read, the unit counted as not placed and was placed
     ; again (Chris: "add a little delay where you can read it first")
-    quick := false, t1 := A_TickCount
-    while A_TickCount - t1 < 1000 {
+    ; up to 2 s for it (the Placement speed setting when that's slower): a laggy game showed it after
+    ; 1 s, the try counted as nothing and the unit was placed again ("place, wait 2 seconds to read the
+    ; UI on the left", Chris 3 Nov). Found: a moment more so its name and level have drawn
+    quick := false, t1 := A_TickCount, lookMs := autoOpenOff ? 1000 : Max(2000, PlaceTimeout())
+    while A_TickCount - t1 < lookMs {
         Sleep 60
         Stale()
         if NewMenu() {
             quick := !IsSummonMenu()
+            if quick {
+                Sleep 250
+                Stale()
+            }
             break
         }
     }
@@ -5046,7 +5053,7 @@ TryPlace(x, y, slot) {
     ; MenuParts): the yen can't be read reliably. The game lags now and then, so a late menu
     ; gets extra time.
     how := ""
-    if quick || WaitUnitMenu(autoOpenOff ? 300 : Max(300, PlaceTimeout() - 1000))   ; (1 s already looked)
+    if quick || WaitUnitMenu(autoOpenOff ? 300 : Max(300, PlaceTimeout() - lookMs))   ; (looked for lookMs already)
         how := "auto"
     else if (refusals || CountPlaced(slot) >= 1) && PlaceRefused(slot)   ; a unique / limited unit's red text
         return false
