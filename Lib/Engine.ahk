@@ -5976,17 +5976,16 @@ NewMenuLabel() {
 ; bright green block per level done, the rest dark green (Chris's "UPG [1]" Bulby: 1 bright block). The
 ; "[N]" digits weren't read on his PC, so a unit at level 2 was still "not upgraded yet". -1: no row
 ; UPD 21's Upgrade button is bright green when you can afford the next level, dimmed when not
-; Gold instead of green when the next level brings a new move ("+ Thunder Lance"): that one is just as
-; pressable (a Dark Mage at UPG 1 with 56k yen was never upgraded, Chris 2 Nov)
-; Any bright, strong green or yellow counts (Wides 3 Nov: a gold "Upgrade: 7500" for "+ Ice Dragons" still
-; wasn't pressed on his PC, its gold a shade off the one measured). Dimmed ones are dark, Max is grey
-UpgradeBright() => ColorShare(165, 372, 255, 384, (r, g, b) => g >= 170 && r <= 110 && b <= 60
-    || r >= 200 && g >= 150 && b <= 100 && r - b >= 110) >= 0.3
+; Pressable = the solid strip at the top of the button (y 369, above its white text) is a strong, bright
+; colour: green, gold for a new move ("+ Thunder Lance"), blue for another (Chris 3 Nov, "+ Cycle of
+; Samsara"), whatever shade. Dimmed ones are dark there, Max is grey. Read under the text before, a
+; bright green Bulby button came out at 0.21 (not pressed) and a yellow weather alert over a dim one at 0.27
+UpgradeBright() => ColorShare(160, 369, 262, 369, (r, g, b) => Max(r, g, b) >= 190 && Max(r, g, b) - Min(r, g, b) >= 120) >= 0.6
 
 PipLevel() {
     ; only on the bright green button: dimmed (Chris's Dark Mage at UPG 3, "Upgrade: 7500") the blocks
     ; are dark and olive and can't be told apart, and that read as level 0
-    if ColorShare(165, 372, 255, 384, (r, g, b) => g >= 170 && r <= 110 && b <= 60) < 0.3
+    if !UpgradeBright()
         return -1
     try {
         WinGetClientPos &ox, &oy, , , RBX
