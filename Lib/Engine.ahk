@@ -482,7 +482,7 @@ StartInfinityCastle() {
     Clk(400, 340), Clk(400, 390)
     CloseChat()
     loop 3 {
-        if FT(&fx, &fy, 325, 520, 489, 587, 0.15, 0.15, ModeCancel)
+        if ICWindowUp(&fx, &fy)
             break
         before := SceneSig()
         Clk(765, 475)                           ; Areas
@@ -503,7 +503,7 @@ StartInfinityCastle() {
         Wait(500)
         Stale()
     }
-    if !FT(&fx, &fy, 325, 520, 489, 587, 0.15, 0.15, ModeCancel) {
+    if !ICWindowUp(&fx, &fy) {
         AddLog("Couldn't reach the Infinity Castle entrance. Send Logs\inf_castle_....bmp in Discord so it can be fixed")
         SaveDebugShot("inf_castle")
         Wait(3000)
@@ -525,7 +525,7 @@ StartInfinityCastle() {
             Stale()
             continue
         }
-        if !FT(&fx, &fy, 325, 520, 489, 587, 0.15, 0.15, ModeCancel)
+        if !ICWindowUp(&fx, &fy)
             break
         StartClick(fx - 10, fy - 120)           ; Start (its green button wherever it is)
         Wait(800)
@@ -7262,6 +7262,21 @@ ClickDet(name, ox, oy, maxMs := 20000) {
 
 ; a click Roblox reliably registers (it needs the mouse to move first)
 global voteClick := false       ; the vote's own clicks (everything else waits until the cards are gone)
+; Infinity Castle's mode window (Normal / Hard, green Start, red Cancel) is open. Its Cancel picture,
+; or else the buttons' colours: on Infinity Mansion's wooden background (Season 13) the picture was
+; missed and the macro said it couldn't reach the entrance with the window open (Julian's video).
+; fx, fy: where the Cancel picture is (Start is clicked 120 px above it)
+ICWindowUp(&fx := 0, &fy := 0) {
+    if FT(&fx, &fy, 325, 520, 489, 587, 0.15, 0.15, ModeCancel)
+        return true
+    if ColorShare(355, 424, 447, 452, (r, g, b) => g >= 150 && r <= 140 && b <= 110) >= 0.4      ; Start
+        && ColorShare(355, 512, 447, 540, (r, g, b) => r >= 150 && g <= 70 && b <= 70) >= 0.3 {  ; Cancel
+        fx := 413, fy := 557                    ; (the picture's spot: Start at 403, 437)
+        return true
+    }
+    return false
+}
+
 Clk(x, y, btn := "Left") {
     ; a card vote up (Summer Hunt): a click anywhere in the middle of the screen can pick or unpick a
     ; card (a unit behind the middle card was clicked over and over, Chris). The vote is done first
