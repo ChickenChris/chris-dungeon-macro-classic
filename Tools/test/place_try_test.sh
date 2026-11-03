@@ -46,6 +46,7 @@ PlaceRefused(slot) {
 ClearVote() => 0
 VoteOnScreen() => false
 ClosePanel() => 0
+OverviewClose() => 0
 UnitMenuOpen() => false
 Keys(k) => 0
 Clk(x, y, p*) {

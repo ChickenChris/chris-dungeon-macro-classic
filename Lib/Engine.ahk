@@ -4698,7 +4698,13 @@ PlacementPoints() {
     SortByDistance(extra, 390, 300)
     for p in extra
         pts.Push(p)
-    return pts
+    ; never on the yellow "F" button at the map's right edge (about 762-795 x 280-316): a click there
+    ; opens the Unit Overview, which covers the map ("Random sometimes clicks F", a player)
+    out := []
+    for p in pts
+        if !(p.x >= 735 && p.y >= 260 && p.y <= 340)
+            out.Push(p)
+    return out
 }
 
 PatternPoints(name) {
@@ -5009,6 +5015,7 @@ TryPlace(x, y, slot) {
         return false
     }
     ClosePanel()                            ; the unit panel covers the right side of the map
+    OverviewClose()                         ; the Unit Overview (F) too, if something opened it
     loop 2 {
         if !UnitMenuOpen()                  ; an open menu would look like this placement worked
             break
