@@ -1172,6 +1172,7 @@ ImportDo(parts) {
                     cfg["walks"][name] := route
                 if n := UpgradeOldWalks()
                     AddLog(n " of the imported walks were old ones the macro has replaced: the new ones are used")
+                LoadShippedWalks(true)          ; Chris's own walks and spots win over imported ones
                 copyKeys(["useSpots"]), done.Push("spots and walks")
             case "general":
                 copyKeys(["placeSpeed", "zoom", "tpSpawn", "fixOnStart", "tolerance", "hookRuns"]), done.Push("other settings")
@@ -1269,22 +1270,31 @@ UpgradeOldWalks() {
     return n
 }
 
-LoadShippedWalks() {
+; overwrite: Chris's walk and spots replace the player's for every map he has them for (after an import)
+LoadShippedWalks(overwrite := false) {
     file := A_ScriptDir "\Lib\defaults.ini"
     if !FileExist(file)
         return
+    ; everyone's walks and spots reset to Chris's when [Reset] Walks= in defaults.ini changes: recorded
+    ; ones sent players somewhere else than his spots ("the spawns I made need to be exact same for
+    ; everyone else", Chris 3 Nov). Recorded again afterwards = kept until the next reset
+    rv := IniRead(file, "Reset", "Walks", "")
+    if rv != "" && cfg.Get("walksReset", "") != rv {
+        cfg["walks"] := Map(), cfg["spots"] := Map(), cfg["walksReset"] := rv
+        try SaveConfig()
+    }
     try sec := IniRead(file, "Walks")
     catch
         sec := ""
     for line in StrSplit(sec, "`n", "`r")
-        if (eq := InStr(line, "=")) && SubStr(line, eq + 1) != "" && !cfg["walks"].Has(SubStr(line, 1, eq - 1))
+        if (eq := InStr(line, "=")) && SubStr(line, eq + 1) != "" && (overwrite || !cfg["walks"].Has(SubStr(line, 1, eq - 1)))
             cfg["walks"][SubStr(line, 1, eq - 1)] := SubStr(line, eq + 1)
     UpgradeOldWalks()
     try sec := IniRead(file, "Spots")
     catch
         sec := ""
     for line in StrSplit(sec, "`n", "`r") {
-        if !(eq := InStr(line, "=")) || cfg["spots"].Has(SubStr(line, 1, eq - 1))
+        if !(eq := InStr(line, "=")) || (!overwrite && cfg["spots"].Has(SubStr(line, 1, eq - 1)))
             continue
         list := []
         for pair in StrSplit(SubStr(line, eq + 1), "|") {
@@ -1351,7 +1361,7 @@ DefaultConfig() {
         "denyAllShrines", 0, "denyUnknownShrine", 1, "stopAfterDefeat", 0,
         "placeSpeed", 1, "webhook", "", "hookRuns", 1, "psLink", "", "fixOnStart", 1, "tolerance", 2, "retries", 3, "useBuild", 0,
         "bgStrength", 3, "bgGif", "", "accent", "Crimson",
-        "bgOpacity", 70, "bgBlur", 0, "glass", 60, "bgAnimate", 1, "bgFile", "", "bgName", "", "lastSpotMap", "", "elemTeams", 0, "keyboard", "Auto", "mode", "Dungeon", "legendWorld", "Magic Hills (Elf Invasion)", "legendStage", 1, "autoChallenge", 0, "challengeSlot", 0, "icHard", 0, "icStopFloors", 0, "foolCoins", 0, "foolSafe", 0, "foolMatch", 0, "foolCards", FOOL_CARDS(), "team", 1, "teamDefault", 1, "teams", [],
+        "bgOpacity", 70, "bgBlur", 0, "glass", 60, "bgAnimate", 1, "bgFile", "", "bgName", "", "lastSpotMap", "", "elemTeams", 0, "keyboard", "Auto", "mode", "Dungeon", "legendWorld", "Magic Hills (Elf Invasion)", "legendStage", 1, "autoChallenge", 0, "challengeSlot", 0, "icHard", 0, "icStopFloors", 0, "foolCoins", 0, "foolSafe", 0, "walksReset", "", "foolMatch", 0, "foolCards", FOOL_CARDS(), "team", 1, "teamDefault", 1, "teams", [],
         "route", ["Rare_Chest", "Chest", "Shop", "Hoard", "Shrine", "Boss"],
         "avoid", Map("Flying", 1, "Wind", 0, "Money", 1, "Health", 1, "Exploding", 0, "Shielding", 1, "Regen", 1),
         "curseRank", ["Flying", "Money", "Health", "Shielding", "Regen", "Wind", "Exploding"], "skipWorst", 5,
@@ -1483,7 +1493,7 @@ class IniDoc {
 
 ScalarKeys() => ["pattern", "useSpots", "saveForTop", "autoAbility", "zoom", "tpSpawn", "saveChests", "buyShop",
     "denyAllShrines", "denyUnknownShrine", "stopAfterDefeat", "placeSpeed", "webhook", "hookRuns", "psLink", "fixOnStart", "tolerance", "skipWorst", "retries", "useBuild",
-    "bgStrength", "bgGif", "accent", "bgOpacity", "bgBlur", "glass", "bgAnimate", "bgFile", "bgName", "lastSpotMap", "elemTeams", "keyboard", "mode", "legendWorld", "legendStage", "autoChallenge", "challengeSlot", "icHard", "icStopFloors", "foolCoins", "foolSafe", "foolMatch"]
+    "bgStrength", "bgGif", "accent", "bgOpacity", "bgBlur", "glass", "bgAnimate", "bgFile", "bgName", "lastSpotMap", "elemTeams", "keyboard", "mode", "legendWorld", "legendStage", "autoChallenge", "challengeSlot", "icHard", "icStopFloors", "foolCoins", "foolSafe", "foolMatch", "walksReset"]
 
 ; Fool's Hunt cards (Premium): only shown, locked, on the Dungeon page
 FOOL_CARDS() => ["shield", "regen", "health", "speed", "yen", "range", "cooldown", "attack", "grounded", "slow", "explosive", "resistant", "spellproof", "plated", "gale", "updraft", "boss"]
