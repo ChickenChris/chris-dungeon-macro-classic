@@ -1,12 +1,40 @@
 ﻿#Requires AutoHotkey v2.0
 #NoTrayIcon
-; Chris's Dungeon Macro is an .exe now ("Chris's Dungeon Macro.exe" in this folder). This file only
-; starts it, for shortcuts to the old .ahk and for updaters from before the .exe
+; Chris's Dungeon Macro is an .exe ("Chris's Dungeon Macro.exe" in this folder). This file starts it, for
+; shortcuts to the old .ahk and updaters from before the .exe. When Windows won't run the .exe (Smart
+; App Control: "an Application Control policy has blocked this file"), the same macro runs through
+; AutoHotkey itself instead (Lib\macro.dat)
 args := ""
 for a in A_Args
     args .= ' "' a '"'
 exe := A_ScriptDir "\Chris's Dungeon Macro.exe"
-if FileExist(exe)
-    Run '"' exe '"' args, A_ScriptDir
-else
-    MsgBox "Chris's Dungeon Macro.exe is missing from this folder. Download the newest version from the Discord server.", "Chris's Dungeon Macro", "Icon!"
+if FileExist(exe) {
+    try {
+        Run '"' exe '"' args, A_ScriptDir
+        ExitApp
+    }
+}
+dat := A_ScriptDir "\Lib\macro.dat"
+if !FileExist(dat) {
+    MsgBox "Chris's Dungeon Macro.exe is missing or blocked, and Lib\macro.dat is missing too. Download the newest version from the Discord server.", "Chris's Dungeon Macro", "Icon!"
+    ExitApp
+}
+key := "7e1310b5ac64b1948c4b8dd12512a3d2"
+buf := FileRead(dat, "RAW")
+k1 := 0, k2 := 0
+loop 8
+    k1 |= Integer("0x" SubStr(key, A_Index * 2 - 1, 2)) << ((A_Index - 1) * 8), k2 |= Integer("0x" SubStr(key, 16 + A_Index * 2 - 1, 2)) << ((A_Index - 1) * 8)
+i := 0
+while i + 8 <= buf.Size {
+    NumPut("int64", NumGet(buf, i, "int64") ^ (Mod(i, 16) ? k2 : k1), buf, i)
+    i += 8
+}
+tmp := A_ScriptDir "\.macro run.ahk"
+try FileSetAttrib "-H", tmp
+f := FileOpen(tmp, "w", "UTF-8-RAW")
+f.RawWrite(buf)
+f.Close()
+try FileSetAttrib "+H", tmp
+Run '"' A_AhkPath '" "' tmp '"' args, A_ScriptDir
+Sleep 5000                                  ; AutoHotkey has read it by now
+try FileDelete tmp

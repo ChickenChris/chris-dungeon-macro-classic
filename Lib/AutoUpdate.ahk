@@ -40,7 +40,7 @@ CleanOldScripts() {
     for f in ["Chris's Dungeon Macro (classic).ahk", "Chris's Dungeon Macro (old window).ahk", "AA Dungeon Macro (classic).ahk"]
         try FileDelete A_ScriptDir "\" f
     main := A_ScriptDir "\Chris's Dungeon Macro.ahk", starter := A_ScriptDir "\Lib\starter.txt"
-    if FileExist(main) && FileExist(starter) && FileGetSize(main) > 3000   ; the whole script: the starter instead
+    if FileExist(main) && FileExist(starter) && FileGetSize(main) != FileGetSize(starter)   ; the whole script (or an older starter): this starter instead
         try FileCopy starter, main, 1
 }
 
