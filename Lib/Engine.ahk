@@ -482,7 +482,7 @@ StartInfinityCastle() {
     Clk(400, 340), Clk(400, 390)
     CloseChat()
     loop 3 {
-        if FT(&fx, &fy, 325, 520, 489, 587, 0, 0, ModeCancel)
+        if FT(&fx, &fy, 325, 520, 489, 587, 0.15, 0.15, ModeCancel)
             break
         before := SceneSig()
         Clk(765, 475)                           ; Areas
@@ -503,7 +503,7 @@ StartInfinityCastle() {
         Wait(500)
         Stale()
     }
-    if !FT(&fx, &fy, 325, 520, 489, 587, 0, 0, ModeCancel) {
+    if !FT(&fx, &fy, 325, 520, 489, 587, 0.15, 0.15, ModeCancel) {
         AddLog("Couldn't reach the Infinity Castle entrance. Send Logs\inf_castle_....bmp in Discord so it can be fixed")
         SaveDebugShot("inf_castle")
         Wait(3000)
@@ -525,7 +525,7 @@ StartInfinityCastle() {
             Stale()
             continue
         }
-        if !FT(&fx, &fy, 325, 520, 489, 587, 0, 0, ModeCancel)
+        if !FT(&fx, &fy, 325, 520, 489, 587, 0.15, 0.15, ModeCancel)
             break
         StartClick(fx - 10, fy - 120)           ; Start (its green button wherever it is)
         Wait(800)
@@ -3304,31 +3304,14 @@ GoToSpot(mapName, walk := true, force := false) {
                 break
         }
     }
-    if tp && walk {
-        ; lost here last time after the walk: the walk went somewhere the enemies never pass
-        ; (Magic Hills in the dungeon: every unit down, 5 defeats in a row, "it puts units behind
-        ; the spawn"). Placed from spawn this time instead
-        if !force && walkLost.Get(mapName, 0) && (cfg["walks"].Has(mapName) || HasBuiltInWalk(mapName)) {
-            AddLog("Lost on " mapName " last time after walking to its spot, so placing from spawn this time "
-                . "(record your own walk for it on the Spots page if spawn doesn't work either)")
-            return
-        }
-        WalkRoute(mapName)
-    }
+    if tp && walk
+        WalkRoute(mapName)                  ; every time the map is known: a loss after the walk once
+                                            ; made it stay at spawn for the rest of the session (Chris 3 Nov:
+                                            ; "make it so it moves whenever they detect map")
 }
 
-; a stage ended: lost after the walk -> from spawn next time on this map; lost from spawn -> the
-; walk again; a win keeps whatever won. Only for this session (a later update can fix the walk)
-global walkLost := Map()
-WalkLearn() {
-    key := curMap
-    if lastResult != "loss"
-        return
-    if walkedHere
-        walkLost[key] := 1
-    else if walkLost.Has(key)
-        walkLost.Delete(key)
-}
+; (a loss after the walk used to send the next stages on that map to spawn: no longer, see GoToSpot)
+WalkLearn() => 0
 
 ; the camera is being zoomed: fully zoomed in, Roblox is in first person and a click turns the
 ; camera, so nothing else may click (a Fool's Hunt card vote picked here left the camera stuck)
@@ -3540,8 +3523,12 @@ WalkRoute(mapName) {
     key := PlaceKey(mapName)
     ; Fool's Hunt spawns you elsewhere on a map than its dungeon: only a walk recorded there
     route := cfg["walks"].Has(key) ? cfg["walks"][key] : key = mapName ? BuiltInWalk(mapName) : ""
-    if route = ""
+    if route = "" {
+        static told := Map()
+        if mapName != "Unknown" && !told.Has(key)
+            told[key] := 1, AddLog("No walk for " key " yet, placing from spawn (record one on the Spots page)")
         return
+    }
     Step("walking to the spot")
     if RegExMatch(route, "^click:(\d+),(\d+)", &cm)
         ClickWalk(Integer(cm[1]), Integer(cm[2]))

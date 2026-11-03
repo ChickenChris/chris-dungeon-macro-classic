@@ -1,8 +1,6 @@
 #!/bin/bash
-# A map lost after walking to its spot: the walk went somewhere the enemies never pass (Magic Hills
-# in the dungeon: all 14 units placed, 5 defeats in a row at depth 3, players: "it puts units
-# behind the spawn"). The next time on that map it places from spawn instead; a loss from spawn
-# too goes back to the walk; a win keeps whatever won. The game is faked. Run under Wine
+# A map lost after walking to its spot used to be placed from spawn next time (and stayed there after a
+# win). Chris 3 Nov: "make it so it moves whenever they detect map", so it always walks now.
 cd "$(dirname "$0")/../.."
 AHK=/tmp/claude-0/-home-claude/cf9d9217-0cd8-5fd7-b7c3-bca236a851f1/scratchpad/ahkbin/AutoHotkey64.exe
 T=$(mktemp -d)
@@ -60,16 +58,11 @@ Stage(result) {
 body += "\n".join(parts) + "\n"
 body += r'''
 Check("first time: walks", Stage("loss") = 1)
-Check("lost after the walk: from spawn next time, and says why", Stage("loss") = 0 && InStr(logs, "from spawn"), logs)
-Check("lost from spawn too: the walk again", Stage("win") = 1)
-Check("won after the walk: keeps walking", Stage("win") = 1)
-Stage("loss")
-Check("lost again: spawn", Stage("win") = 0)
-Check("won from spawn: stays at spawn", Stage("win") = 0)
+Check("lost after the walk: still walks next time (Chris: move whenever the map is known)", Stage("loss") = 1 && !InStr(logs, "from spawn"), logs)
+Check("and after a win", Stage("win") = 1)
 Check("the Spots page's Test walk still walks", (walks := 0, GoToSpot(curMap, true, true), walks) = 1)
-Check("other maps keep their walk", (curMap := "Snowy Town", walks := 0, cfg["walks"]["Snowy Town"] := "d+0", Stage("loss")) = 1)
 curMap := "Puppet Island"
-Check("a map with no walk: nothing changes, nothing said", (Stage("loss"), Stage("loss")) = 0 && !InStr(logs, "spawn"), logs)
+Check("a map with no walk: no walk", (Stage("loss"), Stage("loss")) = 0)
 FileAppend(fails ? "FAILED " fails "`n" : "ALL PASSED`n", "*", "UTF-8")
 ExitApp fails ? 1 : 0
 '''
