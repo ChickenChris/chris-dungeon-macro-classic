@@ -4244,11 +4244,28 @@ OverviewOpen() {
     WaitFor(OverviewUp, 1500, 150)
     return OverviewUp()
 }
+; F only when the overview really is up: a map's colours that pass for its title made F OPEN it before
+; every placement (3.2.93, "the detection got even worse", Chris). Up = its title AND its dark card
+; panel, twice. Pressed F and it's still "up": it wasn't the overview, F again undoes it, and the
+; check is off for the rest of that stage
 OverviewClose() {
+    static offStage := -1
+    if offStage = stageStart
+        return
+    if !OverviewUp() || ColorShare(520, 120, 780, 420, (r, g, b) => r <= 60 && g <= 60 && b <= 80) < 0.5
+        return
+    Wait(200)
+    Stale()
     if !OverviewUp()
         return
     Keys("f")
-    WaitFor(() => !OverviewUp(), 1200, 150)
+    if WaitFor(() => !OverviewUp(), 1200, 150)
+        return
+    Keys("f")                                   ; it wasn't the overview: put it back as it was
+    Wait(400)
+    Stale()
+    offStage := stageStart
+    AddLog("The Unit Overview check doesn't work on this map, it's left alone for this stage")
 }
 ; colour make-up of a picture (brightness left out, so a dimmed hotbar card still matches)
 ChromaHist(x1, y1, x2, y2) {
@@ -5033,9 +5050,20 @@ TryPlace(x, y, slot) {
     ; 1 s, the try counted as nothing and the unit was placed again ("place, wait 2 seconds to read the
     ; UI on the left", Chris 3 Nov). Found: a moment more so its name and level have drawn
     quick := false, t1 := A_TickCount, lookMs := autoOpenOff ? 1000 : Max(2000, PlaceTimeout())
+    redLooked := false
     while A_TickCount - t1 < lookMs {
         Sleep 60
         Stale()
+        ; the red "Cannot place more" / "Max placement" fades after ~2 s, and the longer wait for the
+        ; menu read it too late (it kept placing): looked for once, after 0.9 s (Summer Hunt, or a
+        ; slot with one down already, like before)
+        if !redLooked && (FoolMode() || CountPlaced(slot) >= 1) && A_TickCount - t1 >= 900 && !NewMenu() {
+            redLooked := true
+            if PlaceRefused(slot) {
+                Keys("q")
+                return false
+            }
+        }
         if NewMenu() {
             quick := !IsSummonMenu()
             if quick {
@@ -7331,7 +7359,7 @@ StartSummerHunt() {
         Wait(3000)
         return
     }
-    matched := cfg.Has("foolMatch") && cfg["foolMatch"] && FoolFindMatch()   ; Global Matchmaking: you type the number
+    matched := cfg.Has("foolMatch") && cfg["foolMatch"] && FoolMatchTries()   ; Global Matchmaking: you type the number
     if !matched {
         Clk(330, 325)                           ; Play Here
         Wait(800)
@@ -7782,6 +7810,11 @@ FoolToPad() {
     ; Play can't work from there, it kept saying "Play didn't teleport". Back to the lobby first
     if !Det("Lobby") && !FoolJoinUp()
         BackToLobby()
+    if CaptchaUp() {                            ; Find Match's number window left open: Play did nothing under it
+        AddLog("A Find Match number window was left open, closing it")   ; (Pepperchini: all night)
+        Clk(586, 192)
+        Wait(800)
+    }
     Clk(400, 340), Clk(400, 390)
     CloseChat()
     loop 2 {
@@ -7846,13 +7879,13 @@ FoolToPad() {
     return false
 }
 
-FoolFindMatch() {
+FoolFindMatch(last := true) {
     Step("Summer Hunt: Find Match, waiting for you to type the number")
     Clk(460, 330)                               ; Find Match
     Wait(1500)
     if !CaptchaUp() {
         AddLog("Find Match: no number window came up, using Play Here")
-        return false
+        return "nowin"
     }
     ; the game's owner allows macros to type the number in (UPD 21 announcement, Chris): read it, type
     ; it into the box, Submit. 3 tries, then it waits for you as before
@@ -7887,6 +7920,11 @@ FoolFindMatch() {
             return true
         }
     }
+    if !last {                                  ; not the last go: closed, Play, walk back, again (Chris)
+        Clk(586, 192)                           ; its red X
+        Wait(1000)
+        return "retry"
+    }
     AddLog("Find Match: type the number in Roblox yourself and press Submit. The macro waits up to 3 minutes")
     Notify("Find Match: type the number in Roblox", "bad")
     SendWebhook("Find Match needs you", "Type the matchmaking number in Roblox, the macro is waiting (3 minutes).", 0xF59E0B, "", "", false)
@@ -7906,6 +7944,26 @@ FoolFindMatch() {
     AddLog("Find Match: nobody typed the number in 3 minutes, using Play Here instead")
     Clk(586, 192)                               ; its red X
     Wait(1000)
+    return false
+}
+
+; Find Match up to 3 times: when the number didn't go through, its window is closed, Play, walk back
+; to the pad and Find Match again (Chris 3 Nov). True when matched; false = Play Here instead
+FoolMatchTries() {
+    loop 3 {
+        r := FoolFindMatch(A_Index = 3)
+        if r == "nowin"
+            return false
+        if r == "retry" {
+            AddLog("Find Match didn't go through: Play, walking back and trying again (" A_Index + 1 " of 3)")
+            if CaptchaUp()
+                Clk(586, 192), Wait(800)
+            if !FoolToPad()
+                return false
+            continue
+        }
+        return !!r
+    }
     return false
 }
 
