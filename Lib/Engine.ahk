@@ -588,6 +588,22 @@ IdleTick() {
         return
     }
     Step("looking for something to do  (" secs "s)")
+    ; 20 s of not knowing the screen: once per idle spell, what the macro sees goes in the log and a
+    ; picture is saved (players stuck on "looking for something to do" in the lobby sent logs with
+    ; nothing in them, 3 Nov)
+    static toldIdle := 0
+    if secs >= 20 && toldIdle != idleSince {
+        toldIdle := idleSince
+        areas := "", bright := -1
+        try {
+            WinGetClientPos &ox, &oy, &cw, &ch, RBX
+            areas := Trim(RegExReplace(OCR.FromRect(ox + 728, oy + 500, 72, 40, OcrLang(), {scale: 3, grayscale: true}).Text, "\s+", " "))
+            bright := Round(ColorShare(0, 0, 800, 600, (r, g, b) => r + g + b > 90) * 100)
+            AddLog("Looking for something to do for 20 s: the screen isn't recognised (Roblox " cw "x" ch
+                . ", " bright "% not dark, bottom right reads '" SubStr(areas, 1, 30) "'). Send Logs\idle_....bmp in Discord")
+        }
+        SaveDebugShot("idle")
+    }
     static lastServer := 0
     if secs >= 3 && A_TickCount - lastServer > 5000 {  ; (an OCR read: not on every pass)
         lastServer := A_TickCount
