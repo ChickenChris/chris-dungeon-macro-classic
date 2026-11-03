@@ -2547,7 +2547,8 @@ SummerRoundMap() {
         return
     }
     if mapHow = "map banner" && curMap != "Unknown" {
-        MinimapNote(curMap)
+        mm := MinimapNote(curMap, &mmScore)
+        MinimapOverBanner(curMap, mm, mmScore, "")
         return                                  ; the blue name was read already while the round loaded
     }                                           ; (it's gone a moment later: Cursed Festival was read at
                                                 ; 12.8 s, then thrown away for not being seen again, Chris)
@@ -2584,16 +2585,33 @@ SummerRoundMap() {
         }
         return
     }
+    if mm = ""
+        mm := MinimapNote(name, &mmScore)
+    if MinimapOverBanner(name, mm, mmScore, curMap)
+        return
     if curMap = "Unknown"
         AddLog("Map: " name "  (the blue map name)")
     else if name != curMap
         AddLog("The loading screen said " curMap ", the blue map name says " name ". Going with " name)
     curMap := name, mapHow := "map banner"
     UpdateMapLabel()
-    if mm = ""
-        MinimapNote(name)
-    else if mm != name
+    if mm != "" && mm != name
         AddLog("  (the minimap said " mm " " Round(mmScore * 100) "%, the blue name wins)")
+}
+
+; The blue name can be misread: Snowy Town on Otherwordly Plane every round (Ikyuuko's log: the loading
+; screen and the minimap, 98 %, both said Otherwordly Plane). The minimap wins over it when it's very
+; sure (95 %) or the loading screen said the same map. True when it did
+MinimapOverBanner(banner, mm, score, loadName) {
+    global curMap, mapHow
+    if mm = "" || StrReplace(mm, " (Summer)") = StrReplace(banner, " (Summer)")
+        return false
+    if !(score >= 0.95 || mm = loadName)
+        return false
+    AddLog("The blue map name says " banner ", the minimap says " mm " (" Round(score * 100) "%" (mm = loadName ? ", the loading screen too" : "") "). Going with " mm)
+    curMap := mm, mapHow := "minimap"
+    UpdateMapLabel()
+    return true
 }
 
 ; ---------------------------------------------------------------------
@@ -2699,7 +2717,7 @@ MinimapRefs() {
 
 ; for testing: logs what the minimap makes of the round, next to the name read another way
 ; (waits up to 3 s for the minimap's path to show)
-MinimapNote(known) {
+MinimapNote(known, &score := 0) {
     t0 := A_TickCount
     loop {
         mm := MinimapMap(&score, &guess)
@@ -2713,6 +2731,7 @@ MinimapNote(known) {
         AddLog("  Minimap: " mm " (" pct "%)" (same ? ", same" : ", not " known))
     else
         AddLog("  Minimap: not sure" (guess != "" ? " (closest " guess " " pct "%)" : " (no path seen)"))
+    return mm
 }
 
 ; the green "<map> (Summer) Summer Hunt" title over the boss's HP bar, "" when not read in time

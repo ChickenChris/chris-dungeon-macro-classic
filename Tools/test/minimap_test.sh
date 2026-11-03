@@ -9,7 +9,7 @@ python3 - "$T" <<'P'
 import re, sys
 T = sys.argv[1]
 src = open("Lib/Engine.ahk", encoding="utf-8-sig").read()
-fns = [re.search(r"^" + n + r"\(.*?^\}", src, re.S | re.M).group(0) for n in ["MinimapMap", "MinimapNear", "MinimapSim", "MinimapRefs"]]
+fns = [re.search(r"^" + n + r"\(.*?^\}", src, re.S | re.M).group(0) for n in ["MinimapMap", "MinimapNear", "MinimapSim", "MinimapRefs", "MinimapOverBanner"]]
 lines = open("Lib/minimaps.txt", encoding="ascii").read().splitlines()
 held, keep = [], []
 # the last shape of these maps is held out; Haunted Academy (Summer) has one shape, so it's then unknown
@@ -28,8 +28,13 @@ open(T + "/Lib/minimaps.txt", "w", newline="\r\n").write("\n".join(keep) + "\n")
 checks = "\n".join(f'Held("{l.split("|")[0]}", "{l.split("|")[1]}", "{want[l.split("|")[0]]}")' for l in held)
 body = """#Requires AutoHotkey v2.0
 #Warn VarUnset, StdOut
-global testCells := []
+global testCells := [], curMap := "Unknown", mapHow := "", logged := ""
 fails := 0
+AddLog(t) {
+    global logged
+    logged := t
+}
+UpdateMapLabel() => 0
 Check(name, ok) {
     global fails
     FileAppend((ok ? "PASS " : "FAIL ") name "`n", "*", "UTF-8"), fails += !ok
@@ -52,6 +57,15 @@ Held(map, hex, expect) {
     Check(map " held out: read as '" got "' (" Round(score * 100) "%, closest " guess "), want '" expect "'", got = expect)
 }
 """ + "\n".join(fns) + "\n" + checks + """
+; the blue name misread as Snowy Town on Otherwordly Plane (Ikyuuko): the minimap wins when sure or backed up
+curMap := "Snowy Town"
+Check("a 98 % minimap wins over the blue name", MinimapOverBanner("Snowy Town", "Otherwordly Plane", 0.98, "") && curMap = "Otherwordly Plane" && mapHow = "minimap")
+curMap := "Snowy Town"
+Check("an 85 % minimap wins when the loading screen said the same", MinimapOverBanner("Snowy Town", "Otherwordly Plane", 0.85, "Otherwordly Plane") && curMap = "Otherwordly Plane")
+curMap := "Snowy Town"
+Check("an 85 % minimap on its own doesn't", !MinimapOverBanner("Snowy Town", "Otherwordly Plane", 0.85, "Snowy Town") && curMap = "Snowy Town")
+Check("Planet Greenie (Summer) isn't swapped for Planet Greenie", !MinimapOverBanner("Planet Greenie (Summer)", "Planet Greenie", 0.99, ""))
+Check("no minimap, the blue name stays", !MinimapOverBanner("Cursed Festival", "", 0, ""))
 testCells := [5, 6, 7]
 Check("a few green specks aren't a path", MinimapMap() = "")
 testCells := []
