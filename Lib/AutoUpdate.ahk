@@ -7,6 +7,7 @@
 
 ; repo: the GitHub repo holding `file`, a text with the newest version in it
 AutoUpdate(repo, file) {
+    CleanOldScripts()
     for a in MacroArgs()
         if a = "--updated"                      ; just updated (or the update failed): start as it is
             return
@@ -26,6 +27,22 @@ AutoUpdate(repo, file) {
 }
 
 MacroArgs() => A_Args
+
+; the .exe: the script files from before it (Lib\*.ahk, the old window ones) are removed, so the code
+; isn't lying around in the folder (Chris 3 Nov). The main .ahk becomes the small starter for the .exe
+; (Lib\starter.txt: old shortcuts and updaters start that one). Not in a folder with a ".dev" file
+; (Chris's test folder, where the scripts are run as well)
+CleanOldScripts() {
+    if !A_IsCompiled || FileExist(A_ScriptDir "\.dev")
+        return
+    loop files A_ScriptDir "\Lib\*.ahk", "R"
+        try FileDelete A_LoopFileFullPath
+    for f in ["Chris's Dungeon Macro (classic).ahk", "Chris's Dungeon Macro (old window).ahk", "AA Dungeon Macro (classic).ahk"]
+        try FileDelete A_ScriptDir "\" f
+    main := A_ScriptDir "\Chris's Dungeon Macro.ahk", starter := A_ScriptDir "\Lib\starter.txt"
+    if FileExist(main) && FileExist(starter) && FileGetSize(main) > 3000   ; the whole script: the starter instead
+        try FileCopy starter, main, 1
+}
 
 ; the newest version's text, "" when nothing answers (GitHub, then a CDN copy; a few seconds at most)
 NewestVersion(repo, file) {

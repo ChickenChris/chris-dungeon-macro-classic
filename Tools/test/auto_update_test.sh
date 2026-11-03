@@ -39,6 +39,7 @@ StartUpdater() {
     started++
 }
 MacroArgs() => args
+CleanOldScripts() => 0
 Try1(ver, have := "3.2.67", a := "") {
     global started, online, APP_VER, args
     started := 0, online := ver, APP_VER := have, args := a = "" ? [] : [a]

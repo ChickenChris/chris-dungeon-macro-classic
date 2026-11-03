@@ -1,0 +1,12 @@
+﻿#Requires AutoHotkey v2.0
+#NoTrayIcon
+; Chris's Dungeon Macro is an .exe now ("Chris's Dungeon Macro.exe" in this folder). This file only
+; starts it, for shortcuts to the old .ahk and for updaters from before the .exe
+args := ""
+for a in A_Args
+    args .= ' "' a '"'
+exe := A_ScriptDir "\Chris's Dungeon Macro.exe"
+if FileExist(exe)
+    Run '"' exe '"' args, A_ScriptDir
+else
+    MsgBox "Chris's Dungeon Macro.exe is missing from this folder. Download the newest version from the Discord server.", "Chris's Dungeon Macro", "Icon!"
