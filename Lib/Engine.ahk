@@ -5978,8 +5978,10 @@ NewMenuLabel() {
 ; UPD 21's Upgrade button is bright green when you can afford the next level, dimmed when not
 ; Gold instead of green when the next level brings a new move ("+ Thunder Lance"): that one is just as
 ; pressable (a Dark Mage at UPG 1 with 56k yen was never upgraded, Chris 2 Nov)
+; Any bright, strong green or yellow counts (Wides 3 Nov: a gold "Upgrade: 7500" for "+ Ice Dragons" still
+; wasn't pressed on his PC, its gold a shade off the one measured). Dimmed ones are dark, Max is grey
 UpgradeBright() => ColorShare(165, 372, 255, 384, (r, g, b) => g >= 170 && r <= 110 && b <= 60
-    || r >= 220 && g >= 170 && g <= 235 && b <= 70) >= 0.3
+    || r >= 200 && g >= 150 && b <= 100 && r - b >= 110) >= 0.3
 
 PipLevel() {
     ; only on the bright green button: dimmed (Chris's Dark Mage at UPG 3, "Upgrade: 7500") the blocks
