@@ -5233,7 +5233,7 @@ PlaceRefused(slot) {
     ; (sell / weaker / room / units) is this unit's limit, however garbled ("esnnotplace more than
     ; ents Ynit!", Chris 2 Nov: it kept trying a 3rd of a unit allowed twice)
     thisUnit := !mapWords && (RegExMatch(said, "i)th[il1]s\s*un[il1]t|of\s*th[il1]s|of\s*the\s*un") || most && most < 10
-        || RegExMatch(said, "i)m[o0]re\s*th|nn[o0]t\s*pl|place\s*m[o0]re"))
+        || RegExMatch(said, "i)m[o0]re\s*th|nn[o0]t\s*pl|place\s*m[o0]re|m[a@]x\W{0,2}\s*p[l1I]\w*c|p[l1I]acement\s*(l[il1]m|reach|max)"))
     if msg = "limit" && !thisUnit {
         ; Classic has no Fool's Hunt, the only mode whose 20-unit cap showed the real message in
         ; players' logs: anything read as it here was some other red text (Ted and others: "the map is
@@ -5312,7 +5312,8 @@ LimitMessage(&txt := "") {
     ; the text reader garbles it often over a busy map ("Cannot place more than 20 units!" came
     ; out as "Cannot,rldc"), so any piece of it counts; a second, closer read of the strip under
     ; the wave counter when the first finds nothing
-    static limitWords := "i)un[il1]que|[il1]ts\s*k[il1]nd|c[a@]nn[o0]t|can.t\s*pl|m[o0]re\s*th|rn[o0]re\s*th|th[ae]n\s*\d+\s*un|sell\s*s|make\s*r[o0]|weaker"
+    ; ("Max placement" too: the red text players see now, Chris 3 Nov)
+    static limitWords := "i)un[il1]que|[il1]ts\s*k[il1]nd|c[a@]nn[o0]t|can.t\s*pl|m[o0]re\s*th|rn[o0]re\s*th|th[ae]n\s*\d+\s*un|sell\s*s|make\s*r[o0]|weaker|m[a@]x\W{0,2}\s*p[l1I]\w*c|p[l1I]acement\s*(l[il1]m|reach|max)"
     try {
         WinGetClientPos &ox, &oy, , , RBX
         txt := OCR.FromRect(ox + 100, oy + 60, 600, 450, OcrLang(), {scale: 2, grayscale: true}).Text
