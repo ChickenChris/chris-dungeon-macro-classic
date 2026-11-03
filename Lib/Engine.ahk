@@ -8059,8 +8059,15 @@ FoolToPad() {
 FoolFindMatch(last := true) {
     Step("Summer Hunt: Find Match, waiting for you to type the number")
     Clk(460, 330)                               ; Find Match
-    Wait(1500)
+    t0 := A_TickCount                           ; up to 4 s for the number window: the first Find Match
+    Wait(1500)                                  ; after starting was given up on at 1.5 s (Dark's log)
+    while !CaptchaUp() && A_TickCount - t0 < 4000
+        Wait(250)
     if !CaptchaUp() {
+        if !last {                              ; not the last go: Play, walk back, again (as when it fails)
+            AddLog("Find Match: no number window came up")
+            return "retry"
+        }
         AddLog("Find Match: no number window came up, using Play Here")
         return "nowin"
     }
