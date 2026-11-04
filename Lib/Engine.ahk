@@ -6500,7 +6500,9 @@ HeldAtLimit(slot, most) {
 ; Chris's screenshots); before, the switch was at 373,237 and the button at 338-399 x 257-318
 AutoOffSeen() => Det("AutoOff") || (NewMenu()
     && ColorShare(320, 256, 346, 277, (r, g, b) => r <= 12 && g >= 18 && g <= 50 && b >= 8 && b <= 28) >= 0.4
-    && ColorShare(294, 258, 315, 275, (r, g, b) => r >= 18 && r <= 34 && g >= 18 && g <= 34 && b >= 18 && b <= 34) >= 0.5)
+    && ColorShare(294, 258, 315, 275, (r, g, b) => r >= 18 && r <= 34 && g >= 18 && g <= 34 && b >= 18 && b <= 34) >= 0.25)
+    ; (the switch's grey knob: 0.22-0.56 on Chris's recording of Windsong's "Off" 4 Nov, it was 0.5 and the
+    ;  2nd Wenda's switch wasn't seen: its menu was closed with Auto still off)
 ClickAuto() {
     if NewMenu()
         Clk(319, 266)
