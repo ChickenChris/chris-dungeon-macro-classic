@@ -7697,7 +7697,21 @@ BuiltInWalks() {
 FoolMode() => cfg.Has("mode") && cfg["mode"] = "Fool's Hunt"
 global foolBusy := false, foolVotes := 0
 FoolRandom() => false
-FoolWaitHook() => 0
+; cards first (Chris 4 Nov: "always pick cards before anything else"): every wait looks for the card vote
+; (every 0.7 s); when it's up, a unit still held is let go and the cards are picked until the vote is
+; gone, before anything else goes on. Clicking a card several times is fine
+FoolWaitHook() {
+    global foolBusy
+    static last := 0
+    if foolBusy || camBusy || !stageActive || A_TickCount - last < 700 || !FoolMode()
+        return                                  ; (not mid-zoom: the vote is picked right after it)
+    last := A_TickCount
+    if !FoolVoteUp()
+        return
+    Keys("q")
+    Sleep 100
+    FoolCardsNow(15000)
+}
 ; a map's own Summer Hunt walk ("Haunted Mansion (Fool's Hunt)") when there is one, else the map's
 PlaceKey(mapName) => FoolMode() && mapName != "" && cfg["walks"].Has(mapName " (Fool's Hunt)") ? mapName " (Fool's Hunt)"
     : FoolMode() && VariantBase(mapName) != "" && cfg["walks"].Has(VariantBase(mapName) " (Fool's Hunt)") ? VariantBase(mapName) " (Fool's Hunt)" : mapName
