@@ -3890,6 +3890,7 @@ HillGreen(c) => c[2] >= 150 && c[1] <= 40 && c[3] <= 40
 HillPoints(slot) {
     static told := Map()
     step := 12
+    CardsPause()
     ClearVote()                                 ; a card vote over the map hides the hills
     Keys(String(slot))
     Sleep 450
@@ -5308,6 +5309,7 @@ NearUnit(x, y, r) {
 
 TryPlace(x, y, slot) {
     global autoOpenSeen, autoOpenOff, clickOpened
+    CardsPause()                            ; a wave just ended: its cards may be about to come
     ClearVote()                             ; Fool's Hunt: a card vote first (a long run of tries let it run out)
     votes0 := foolVotes
     yen0 := ReadYen()                       ; the yen before: a drop by the unit's price = it went down
@@ -7708,11 +7710,13 @@ FoolRandom() => false
 ; (every 0.7 s); when it's up, a unit still held is let go and the cards are picked until the vote is
 ; gone, before anything else goes on. Clicking a card several times is fine
 FoolWaitHook() {
-    global foolBusy
+    global foolBusy, waveDoneAt
     static last := 0
     if foolBusy || camBusy || !stageActive || A_TickCount - last < 700 || !FoolMode()
         return                                  ; (not mid-zoom: the vote is picked right after it)
     last := A_TickCount
+    if WaveDoneUp()
+        waveDoneAt := A_TickCount
     if !FoolVoteUp()
         return
     Keys("q")
@@ -7735,6 +7739,26 @@ FoolTick() {
     finally foolBusy := false
 }
 VoteOnScreen() => FoolMode() && FoolVoteUp()
+; "Wave Completed!" (light green, 300-497 x 452-476): the card vote often slides in a second after it
+; fades. A unit picked up in that gap was still in hand when the cards came, and the click meant for the
+; map voted a card (Chris's recording 4 Nov). So no unit is picked up for 4 s after it: the cards first
+global waveDoneAt := 0
+; (its both ends: "Wave 7" in the same green and place is narrower, and showed on 30 of 341 shots)
+WaveDoneUp() => FoolMode() && ColorShare(300, 452, 330, 476, (r, g, b) => g >= 200 && r >= 40 && r <= 160 && b <= 120) >= 0.15
+    && ColorShare(467, 452, 497, 476, (r, g, b) => g >= 200 && r >= 40 && r <= 160 && b <= 120) >= 0.15
+CardsPause() {
+    global waveDoneAt
+    if !FoolMode() || !stageActive
+        return
+    if WaveDoneUp()
+        waveDoneAt := A_TickCount
+    if A_TickCount - waveDoneAt >= 4000 || VoteOnScreen()
+        return
+    Step("Summer Hunt: wave done, waiting a moment for the cards")
+    while A_TickCount - waveDoneAt < 4000 && !VoteOnScreen() && !StageOver()
+        Wait(250)
+}
+
 ClearVote() {
     if VoteOnScreen() {
         Keys("q")                               ; a unit still held is let go first: the cards were picked

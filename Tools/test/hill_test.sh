@@ -18,6 +18,7 @@ Check(name, ok) {
 }
 Keys(k) => 0
 ClearVote() => 0
+CardsPause() => 0
 Stale() => 0
 SaveDebugShot(t) => 0
 AddLog(t) {
