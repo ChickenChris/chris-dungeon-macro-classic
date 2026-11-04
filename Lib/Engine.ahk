@@ -7550,10 +7550,10 @@ StartSummerHunt() {
     t0 := A_TickCount, backSince := 0, started := 0
     while A_TickCount - t0 < 150000 {
         Stale()
-        if CaptchaWindowUp() {                  ; a number window still up: nothing starts under it
-            AddLog("A Find Match number window is still open, closing it")
-            CaptchaClose()
-            continue
+        if CaptchaWindowUp() {                  ; a number window still up: nothing starts under it. Closed,
+            AddLog("A Find Match number window is still open: closing it and going for Find Match again")
+            CaptchaClose()                      ; and Find Match again from the start (it was only closed,
+            return                              ; and the macro waited there for nothing, Chris 4 Nov)
         }
         if !FoolGear() {                        ; the loading screen hides the settings gear
             LoadStage()
@@ -8179,16 +8179,18 @@ CaptchaUp() => CaptchaNumberUp() || CaptchaWindowUp()
 CaptchaWindowUp() => ColorShare(262, 370, 350, 404, (r, g, b) => g >= 120 && g - r >= 60 && g - b >= 60) >= 0.25
     && ColorShare(452, 370, 540, 404, (r, g, b) => r >= 120 && r - g >= 70 && r - b >= 70) >= 0.25
     && ColorShare(340, 200, 470, 226, (r, g, b) => r >= 200 && g >= 130 && b <= 90) >= 0.1
-; closes it: Cancel, and its X if it's still up
+; closes it: Cancel, then its red X (two spots: it sits 570-590 across) while it's still up. True when gone
 CaptchaClose() {
-    Clk(496, 387)                               ; Cancel
-    Wait(800)
-    Stale()
-    if CaptchaUp() {
-        Clk(586, 192)                           ; its red X
+    for pt in [[496, 387], [586, 192], [572, 190], [496, 387]] {
+        Clk(pt[1], pt[2])
         Wait(800)
         Stale()
+        if !CaptchaUp()
+            return true
     }
+    AddLog("Couldn't close the Find Match number window (Cancel and its X did nothing)")
+    SaveDebugShot("captcha")
+    return false
 }
 CaptchaNumberUp() {
     try {
