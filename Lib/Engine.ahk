@@ -5361,6 +5361,11 @@ TryPlace(x, y, slot) {
                 return false
             }
         }
+        if Mod(A_Index, 4) = 0 && VoteOnScreen() {   ; the cards came up during the try: cards first
+            Keys("q")
+            ClearVote()
+            return false
+        }
         if NewMenu() {
             quick := !IsSummonMenu()
             if quick {
