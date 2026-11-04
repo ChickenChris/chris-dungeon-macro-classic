@@ -109,6 +109,8 @@ function Fetch($url, $out) {
 }
 
 function RunUpdate {
+    # Chris's test folder (a .dev file in it): an update would put the published version over the test one
+    if (Test-Path -LiteralPath (Join-Path $dir '.dev')) { throw 'This is a test folder (it has a .dev file): not updated, so your test version stays.' }
     $tmp = Join-Path $env:TEMP 'cdm-classic'
     if (Test-Path $tmp) { Remove-Item $tmp -Recurse -Force }
     New-Item -ItemType Directory -Path $tmp | Out-Null
