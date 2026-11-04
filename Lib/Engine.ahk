@@ -116,9 +116,11 @@ DetDefs() {
     DetAdd(d, "DungeonDeath", "Out of lives", 370, 225, 545, 300, 0.1, DungeonDeath)
     DetAdd(d, "DeathContinue", "Out of lives: continue", 308, 391, 494, 437, 0, DungeonDeathContinue)
     DetAdd(d, "RedX", "Red X close", 588, 107, 780, 249, 0, DungeonRedX)
-    DetAdd(d, "VoteStart", "Vote start", 301, 64, 503, 154, 0, VoteStart, VoteStartLaptop)
+    ; UPD 21: "Vote start" only matched at 10 % and the Units button moved to the left side (Chris's
+    ; load_wait picture 4 Nov): the stage wasn't seen and the macro sat through the minute's countdown
+    DetAdd(d, "VoteStart", "Vote start", 301, 64, 503, 154, 0.15, VoteStart, VoteStartLaptop)
     DetAdd(d, "Yen", "Yen counter", 340, 537, 468, 557, 0, YenHud)
-    DetAdd(d, "Units", "Units button", 742, 287, 832, 377, 0.1, Units)
+    DetAdd(d, "Units", "Units button", 0, 280, 832, 377, 0.15, Units)   ; (left since UPD 21, right before)
     DetAdd(d, "Spawn", "Teleport to Spawn (settings)", 215, 160, 596, 480, 0.2, Spawn)
     ; the two MAX styles each in their own small spot (as in Ryn's macro): one big box over the
     ; whole menu let the new-style MAX match among the stats, so units counted as maxed too early
@@ -7855,8 +7857,10 @@ FoolVoteDy() {
     ; Start text in the lobby passed for a vote and a card was "picked" there, Chris 3.2.74)
     dark := (r, g, b) => r + g + b < 150
     ; ("Vote ends in" isn't needed: it shows a second after the cards, and those first clicks hit them)
+    ; the 1st card isn't needed: a unit's menu open on the left covers it, and the cards weren't seen
+    ; while the Wenda step had a menu open (the macro kept placing under them, Chris 4 Nov)
     if ColorShare(317, 154, 487, 171, white) >= 0.12
-        && ColorShare(172, 330, 272, 410, dark) >= 0.85 && ColorShare(350, 330, 450, 410, dark) >= 0.85
+        && ColorShare(350, 330, 450, 410, dark) >= 0.85
         && ColorShare(527, 330, 627, 410, dark) >= 0.85 {   ; (0.85: a card can show an item's picture)
         voteNew := true
         return 0
@@ -7924,7 +7928,7 @@ FoolCards() {
     }
     Step("Summer Hunt: picking a card")
     ; a unit's menu open on the left covers the first card: close it first
-    if !voteNew && UnitMenuOpen() {             ; (the UPD 21 menu doesn't reach the cards)
+    if UnitMenuOpen() {                         ; (the UPD 21 menu covers the 1st card too)
         CloseMenuClick()
         Wait(400)
         Stale()
