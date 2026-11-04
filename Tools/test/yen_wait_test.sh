@@ -16,7 +16,7 @@ def fn(n):
         return m.group(0)
     missing.append(n)
     return n + '(p*) => ""'
-parts = [fn(n) for n in ["PlaceSlot", "EnoughYen"]]
+parts = [fn(n) for n in ["PlaceSlot", "PlaceSlotAt", "EnoughYen"]]
 if missing:
     print("FAIL not defined: " + ", ".join(missing))
 body = r'''#Requires AutoHotkey v2.0
@@ -24,6 +24,8 @@ body = r'''#Requires AutoHotkey v2.0
 OnError((e, m) => (FileAppend("ERROR " e.Message " (line " e.Line ")`n", "*"), ExitApp(3)))
 global fails := 0, yen := 0, now := 0, tries := 0, placedUnits := [], goodSpots := Map(), slotStops := Map()
 global slotCap := Map(), walkedHere := false, curMap := "Test", barShown := false, cost := 600, rate := 100
+HillSlot(n) => false                   ; no hill units here (hill_test.sh)
+HillPoints(n) => []
 Check(name, ok, got := "") {
     global fails
     FileAppend((ok ? "PASS " : "FAIL ") name (ok ? "" : " (got " got ")") "`n", "*", "UTF-8")

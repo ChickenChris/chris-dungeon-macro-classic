@@ -3865,7 +3865,115 @@ PlaceAll(ctx := "") {
 ; Places up to `need` more units of slot n and returns the ones it placed.
 ; A new round carries on to new spots instead of going back to ones that just failed;
 ; a spot that fails twice is skipped. Sets ctx.over if the stage ends.
+; a hill unit (its switch on the Units page) is placed on the hills the game shows in green while it's
+; held, not on the usual spots; the usual spots when no hill is seen
 PlaceSlot(ctx, n, need) {
+    if !HillSlot(n)
+        return PlaceSlotAt(ctx, n, need)
+    hp := HillPoints(n)
+    if !hp.Length
+        return PlaceSlotAt(ctx, n, need)
+    keep := [ctx.pts, ctx.cursor], ctx.pts := hp, ctx.cursor := 1
+    try return PlaceSlotAt(ctx, n, need)
+    finally ctx.pts := keep[1], ctx.cursor := keep[2]
+}
+
+HillSlot(n) => n >= 1 && n <= cfg["slots"].Length && cfg["slots"][n].HasOwnProp("hill") && cfg["slots"][n].hill
+
+; Hill units: while one is held the game colours the map red where it can't go and green on the hills
+; (Chris). The view is read before and while it's held: cells that turned green are hill. Spots in them,
+; the biggest hill first and each hill's middle first
+global HILL_GREEN := 25                         ; how much greener a cell gets when it's a hill
+HillPoints(slot) {
+    static told := Map()
+    step := 12
+    a := HillGrid(step)
+    Keys(String(slot))
+    Sleep 450
+    Stale()
+    b := HillGrid(step)
+    Keys("q")
+    on := Map()
+    for k, cb in b {
+        if !a.Has(k)
+            continue
+        ca := a[k]
+        if cb[2] - ca[2] >= HILL_GREEN && cb[1] - ca[1] <= 10 && cb[2] > cb[1]
+            on[k] := 1
+    }
+    ; hills: cells side by side
+    comps := [], seen := Map()
+    for k in on {
+        if seen.Has(k)
+            continue
+        list := [], todo := [k], seen[k] := 1
+        while todo.Length {
+            c := todo.Pop(), list.Push(c)
+            cx := c // 10000, cy := Mod(c, 10000)
+            for d in [[step, 0], [-step, 0], [0, step], [0, -step]] {
+                nk := (cx + d[1]) * 10000 + cy + d[2]
+                if on.Has(nk) && !seen.Has(nk)
+                    seen[nk] := 1, todo.Push(nk)
+            }
+        }
+        if list.Length >= 3
+            comps.Push(list)
+    }
+    ; biggest first
+    loop comps.Length - 1 {
+        i := A_Index
+        loop comps.Length - i
+            if comps[A_Index].Length < comps[A_Index + 1].Length
+                t := comps[A_Index], comps[A_Index] := comps[A_Index + 1], comps[A_Index + 1] := t
+    }
+    pts := []
+    for list in comps {
+        sx := 0, sy := 0
+        for c in list
+            sx += c // 10000, sy += Mod(c, 10000)
+        mx := sx / list.Length, my := sy / list.Length
+        cells := []
+        for c in list
+            cells.Push({x: c // 10000, y: Mod(c, 10000)})
+        SortByDistance(cells, mx, my)
+        loop Min(cells.Length, 8)
+            pts.Push(cells[A_Index])
+    }
+    key := slot "|" stageStart
+    if !told.Has(key) {
+        told[key] := 1
+        AddLog("Slot " slot " (hill unit): " (comps.Length ? comps.Length " hill" (comps.Length = 1 ? "" : "s") " seen, placing there"
+            : "no hills seen in green while holding it, trying the usual spots"))
+        if !comps.Length
+            SaveDebugShot("hill")
+    }
+    return pts
+}
+
+; the view's colours on a grid over the map (not the top bar, the info panel, the F button or the minimap)
+HillGrid(step) {
+    g := Map()
+    try {
+        WinGetClientPos &ox, &oy, , , RBX
+        Snap()
+        scr := FindText()
+        y := 96
+        while y <= 500 {
+            x := 30
+            while x <= 760 {
+                if !(x >= 630 && y >= 160 && y <= 340) && !(x >= 640 && y >= 440) {
+                    col := scr.GetColor(ox + x, oy + y, 0)
+                    g[x * 10000 + y] := [(col >> 16) & 0xFF, (col >> 8) & 0xFF, col & 0xFF]
+                }
+                x += step
+            }
+            y += step
+        }
+    }
+    return g
+}
+
+PlaceSlotAt(ctx, n, need) {
     global placedUnits
     need := SlotRoom(n, need)
     lv := ctx.lv, pts := ctx.pts

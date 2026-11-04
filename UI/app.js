@@ -178,6 +178,7 @@ function renderUnits() {
         <div class="row"><span class="lbl">Priority</span><span class="stepper" data-p="prio"></span></div>
         <div class="row"><span class="lbl">Upgrade</span><i class="switch ${s.up ? "on" : ""}" data-p="up"></i></div>
         <div class="row"><span class="lbl">Until</span><select data-p="limit">${options(lim, s.limit)}</select></div>
+        <div class="row" title="Placed only on the green hill spots the game shows while it's held"><span class="lbl">Hill unit</span><i class="switch ${s.hill ? "on" : ""}" data-p="hill"></i></div>
       </div>
     </div>`).join("");
   $$(".slot").forEach((card) => {
@@ -990,7 +991,7 @@ if (!host) setTimeout(() => window.ui.init(window.DEMO || {
   roomKeys: ["Rare_Chest", "Chest", "Hoard", "Shop", "Shrine", "Boss", "None"], roomNames: ["Rare chest", "Chest", "Hoard", "Shop", "Shrine", "Boss", "(nothing)"],
   curses: ["Flying", "Wind", "Money", "Health", "Exploding", "Shielding", "Regen"], speeds: ["Super fast (1s)", "Fast (1.5s)"],
   upNames: ["no upgrades", "upgrade each 1 time", "upgrade each to max"], upValues: [0, 1, -1], hasRoblox: false,
-  cfg: { slots: Array.from({ length: 6 }, (_, i) => ({ on: i < 5 ? 1 : 0, count: 2, prio: i + 1, up: 1, limit: 0 })), pattern: "Spiral", retries: 3,
+  cfg: { slots: Array.from({ length: 6 }, (_, i) => ({ on: i < 5 ? 1 : 0, count: 2, prio: i + 1, up: 1, limit: 0, hill: 0 })), pattern: "Spiral", retries: 3,
     build: [], route: ["Rare_Chest", "Chest", "Shop", "Hoard", "Shrine", "Boss"], curseRank: ["Flying", "Money", "Health", "Shielding", "Regen", "Wind", "Exploding"],
     foolMatch: 0, foolOwnTeam: 0, foolFreeze: 80, foolAccounts: 2, foolCards: ["shield", "regen", "health", "speed", "yen", "range", "cooldown", "attack", "grounded", "slow", "explosive", "resistant", "spellproof", "plated", "gale", "updraft", "boss"], skipWorst: 5, denyShrine: { Burst: 0, Armor: 0, Chaos: 1, Vamparism: 0, Frenzy: 0, Eruption: 0, Vitality: 0 }, placeSpeed: 1, accent: "Crimson", bgOpacity: 70, bgBlur: 0, glass: 60, bgAnimate: 1 },
 }), 50);

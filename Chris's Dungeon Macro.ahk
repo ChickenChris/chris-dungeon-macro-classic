@@ -342,7 +342,7 @@ HandleMessage(msg) {
                 UpdateMapLabel(), UpdateStats()
         case "slot":
             i := m.Get("i", 0), prop := m.Get("prop", "")
-            if IsInteger(i) && i >= 1 && i <= 6 && IndexOf(["on", "count", "prio", "up", "limit"], prop) && IsInteger(m.Get("value", ""))
+            if IsInteger(i) && i >= 1 && i <= 6 && IndexOf(["on", "count", "prio", "up", "limit", "hill"], prop) && IsInteger(m.Get("value", ""))
                 cfg["slots"][i].%prop% := prop = "count" ? ClampInt(m["value"], 1, MaxCount(), 1) : Integer(m["value"]), SaveSoon()
         case "route":
             i := m.Get("i", 0), key := m.Get("key", "")
@@ -1369,12 +1369,12 @@ DefaultConfig() {
         ; Premium-only (look-ahead, F-panel upgrades, shop item choices): fixed here, not saved
         "dmgType", "Both", "shopUnknown", 1, "lookAhead", 0, "shopMinCoins", 0, "usePanel", 0, "shopRank", SHOP_ITEMS(), "shopOff", Map(),
         "slots", [
-            {on: 1, count: 2, prio: 3, up: 0, limit: 0},
-            {on: 1, count: 1, prio: 1, up: 1, limit: 0},
-            {on: 1, count: 3, prio: 4, up: 0, limit: 0},
-            {on: 1, count: 4, prio: 5, up: 0, limit: 0},
-            {on: 1, count: 1, prio: 2, up: 0, limit: 0},
-            {on: 0, count: 1, prio: 6, up: 0, limit: 0}
+            {on: 1, count: 2, prio: 3, up: 0, limit: 0, hill: 0},
+            {on: 1, count: 1, prio: 1, up: 1, limit: 0, hill: 0},
+            {on: 1, count: 3, prio: 4, up: 0, limit: 0, hill: 0},
+            {on: 1, count: 4, prio: 5, up: 0, limit: 0, hill: 0},
+            {on: 1, count: 1, prio: 2, up: 0, limit: 0, hill: 0},
+            {on: 0, count: 1, prio: 6, up: 0, limit: 0, hill: 0}
         ],
         "spots", Map(),
         "walks", Map(),
@@ -1388,7 +1388,7 @@ MaxCount() => 6
 CopySlots(list) {
     out := []
     for s in list
-        out.Push({on: s.on, count: s.count, prio: s.prio, up: s.up, limit: s.limit})
+        out.Push({on: s.on, count: s.count, prio: s.prio, up: s.up, limit: s.limit, hill: s.HasOwnProp("hill") ? s.hill : 0})
     return out
 }
 
@@ -1402,6 +1402,7 @@ ReadSlots(prefix, base, most) {
         s.prio := ClampInt(IniRead(cfgFile, sec, "Priority", s.prio), 1, 6, s.prio)
         s.up := ClampInt(IniRead(cfgFile, sec, "Upgrade", s.up), 0, 1, s.up)
         s.limit := ClampInt(IniRead(cfgFile, sec, "Limit", s.limit), 0, 9, s.limit)
+        s.hill := ClampInt(IniRead(cfgFile, sec, "Hill", s.hill), 0, 1, s.hill)
     }
     return list
 }
@@ -1424,7 +1425,7 @@ WriteSlots(ini, prefix, list) {
     for i, s in list {
         sec := prefix i
         ini.Set(sec, "On", s.on), ini.Set(sec, "Count", s.count), ini.Set(sec, "Priority", s.prio)
-        ini.Set(sec, "Upgrade", s.up), ini.Set(sec, "Limit", s.limit)
+        ini.Set(sec, "Upgrade", s.up), ini.Set(sec, "Limit", s.limit), ini.Set(sec, "Hill", s.HasOwnProp("hill") ? s.hill : 0)
     }
 }
 
