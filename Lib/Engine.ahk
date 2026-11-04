@@ -7550,6 +7550,11 @@ StartSummerHunt() {
     t0 := A_TickCount, backSince := 0, started := 0
     while A_TickCount - t0 < 150000 {
         Stale()
+        if CaptchaWindowUp() {                  ; a number window still up: nothing starts under it
+            AddLog("A Find Match number window is still open, closing it")
+            CaptchaClose()
+            continue
+        }
         if !FoolGear() {                        ; the loading screen hides the settings gear
             LoadStage()
             return
@@ -7992,8 +7997,7 @@ FoolToPad() {
         BackToLobby()
     if CaptchaUp() {                            ; Find Match's number window left open: Play did nothing under it
         AddLog("A Find Match number window was left open, closing it")   ; (Pepperchini: all night)
-        Clk(586, 192)
-        Wait(800)
+        CaptchaClose()
     }
     Clk(400, 340), Clk(400, 390)
     CloseChat()
@@ -8108,15 +8112,15 @@ FoolFindMatch(last := true) {
         }
     }
     if !last {                                  ; not the last go: closed, Play, walk back, again (Chris)
-        Clk(586, 192)                           ; its red X
-        Wait(1000)
+        CaptchaClose()
         return "retry"
     }
-    AddLog("Find Match: type the number in Roblox yourself and press Submit. The macro waits up to 3 minutes")
+    ; a minute for you (it was 3: an AFK macro stood there, Chris 4 Nov "we need some failsafe"), then Play Here
+    AddLog("Find Match: type the number in Roblox yourself and press Submit. The macro waits up to 1 minute, then plays alone")
     Notify("Find Match: type the number in Roblox", "bad")
-    SendWebhook("Find Match needs you", "Type the matchmaking number in Roblox, the macro is waiting (3 minutes).", 0xF59E0B, "", "", false)
+    SendWebhook("Find Match needs you", "Type the matchmaking number in Roblox, the macro is waiting (1 minute).", 0xF59E0B, "", "", false)
     t0 := A_TickCount, gone := 0, lastBeep := 0
-    while A_TickCount - t0 < 180000 {
+    while A_TickCount - t0 < 60000 {
         if A_TickCount - lastBeep > 20000 {     ; a beep now and then until it's done
             lastBeep := A_TickCount
             try SoundPlay "*48"
@@ -8128,9 +8132,8 @@ FoolFindMatch(last := true) {
             return true
         }
     }
-    AddLog("Find Match: nobody typed the number in 3 minutes, using Play Here instead")
-    Clk(586, 192)                               ; its red X
-    Wait(1000)
+    AddLog("Find Match: nobody typed the number in a minute, using Play Here instead")
+    CaptchaClose()
     return false
 }
 
@@ -8144,7 +8147,7 @@ FoolMatchTries() {
         if r == "retry" {
             AddLog("Find Match didn't go through: Play, walking back and trying again (" A_Index + 1 " of 3)")
             if CaptchaUp()
-                Clk(586, 192), Wait(800)
+                CaptchaClose()
             if !FoolToPad()
                 return false
             continue
@@ -8168,7 +8171,26 @@ CaptchaNumber() {
     }
     return ""
 }
-CaptchaUp() {
+; the number window is up: its number read, or else its look (the yellow "Captcha" title over a green
+; Submit and a red Cancel side by side).
+; The number alone wasn't always read: the window was taken for gone and left open, and everything
+; after it clicked under it (players stuck at the Captcha window)
+CaptchaUp() => CaptchaNumberUp() || CaptchaWindowUp()
+CaptchaWindowUp() => ColorShare(262, 370, 350, 404, (r, g, b) => g >= 120 && g - r >= 60 && g - b >= 60) >= 0.25
+    && ColorShare(452, 370, 540, 404, (r, g, b) => r >= 120 && r - g >= 70 && r - b >= 70) >= 0.25
+    && ColorShare(340, 200, 470, 226, (r, g, b) => r >= 200 && g >= 130 && b <= 90) >= 0.1
+; closes it: Cancel, and its X if it's still up
+CaptchaClose() {
+    Clk(496, 387)                               ; Cancel
+    Wait(800)
+    Stale()
+    if CaptchaUp() {
+        Clk(586, 192)                           ; its red X
+        Wait(800)
+        Stale()
+    }
+}
+CaptchaNumberUp() {
     try {
         WinGetClientPos &ox, &oy, , , RBX
         txt := OCR.FromRect(ox + 244, oy + 260, 300, 50, OcrLang(), {grayscale: true, scale: 2}).Text
