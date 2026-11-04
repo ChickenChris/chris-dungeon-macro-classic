@@ -102,12 +102,14 @@ DetDefs() {
     DetAdd(d, "RoomBorder", "Room picker", 200, 340, 600, 437, 0.2, DungeonRoomBorder)
     DetAdd(d, "Enter", "Room Enter button", 120, 425, 680, 500, 0.2, Enter, EnterNew)
     DetAdd(d, "FinalRoom", "Final room label", 434, 215, 479, 230, 0, FinalRoom)
-    DetAdd(d, "Shop", "Shop", 140, 200, 375, 250, 0, Shop)
-    DetAdd(d, "Shrine", "Shrine", 140, 200, 375, 250, 0, Shrine)
+    ; UPD 21's "Dungeon Run" window: the titles and Continue only matched at 10 % (Chris's shop screenshots
+    ; 4 Nov: the shop wasn't seen, so the macro stood in it, mwuahahaha). 15 % for the dungeon's windows
+    DetAdd(d, "Shop", "Shop", 140, 200, 375, 250, 0.15, Shop)
+    DetAdd(d, "Shrine", "Shrine", 140, 200, 375, 250, 0.15, Shrine)
     DetAdd(d, "ShrineAccept", "Shrine accept", 334, 395, 672, 483, 0, ShrineAccept)
     DetAdd(d, "ShrineDeny", "Shrine deny", 334, 395, 672, 483, 0, DenyShrine)
-    DetAdd(d, "Chest", "Chest room", 140, 200, 604, 261, 0, ChestRoom, ChestRoomLuck)
-    DetAdd(d, "DungeonContinue", "Dungeon continue", 380, 385, 615, 490, 0, DungeonContinue)
+    DetAdd(d, "Chest", "Chest room", 140, 200, 604, 261, 0.15, ChestRoom, ChestRoomLuck)
+    DetAdd(d, "DungeonContinue", "Dungeon continue", 380, 385, 615, 490, 0.15, DungeonContinue)
     DetAdd(d, "FinishText", "Finish dungeon text", 174, 102, 631, 545, 0, FinishDungeonText)
     DetAdd(d, "FinishButton", "Finish button", 174, 102, 631, 545, 0, DungeonFinish)
     DetAdd(d, "FinishDungeon", "Dungeon cleared popup", 240, 180, 565, 480, 0.1, FinishDungeon)
@@ -175,7 +177,7 @@ Det(name, &x := "", &y := "") {
     o := DetDefs()[name]
     a := o.area
     if !FT(&x, &y, a[1], a[2], a[3], a[4], o.err, o.err, o.pats)
-        return name = "Lobby" && LobbyByText(&x, &y)
+        return name = "Lobby" && LobbyByText(&x, &y) || name = "Shop" && ShopByText()
     if !OnAd(x, y, &b)
         return true
     ; it found the tournament ad: look again above and left of it
@@ -1627,6 +1629,18 @@ ReadShopRows() {
         rows.Push({y: y, name: ShopRowName(raw), raw: raw})
     }
     return rows
+}
+
+; the shop by its words: the big "SHOP" title over a green Continue (in case its picture misses again)
+ShopByText() {
+    if !ContinueGreen(&cx, &cy)
+        return false
+    try {
+        WinGetClientPos &ox, &oy, , , RBX
+        t := OCR.FromRect(ox + 190, oy + 170, 150, 45, OcrLang(), {scale: 2, grayscale: true}).Text
+        return RegExMatch(Trim(t), "i)^\W*SH[O0Q]P\W*$")
+    }
+    return false
 }
 
 HandleShop() {
