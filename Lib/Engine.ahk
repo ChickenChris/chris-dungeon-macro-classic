@@ -7879,20 +7879,36 @@ global voteNew := false          ; the vote panel since UPD 21 (Summer Hunt): ta
 
 FoolVoteDy() {
     global voteNew
+    static halfAt := 0
     white := (r, g, b) => r > 220 && g > 220 && b > 220
     ; since UPD 21: "Vote ends in" at 340-462 x 457-473 and the title ("Choose a card..." or "The weather
     ; shifts...") at 317-487 x 154-171 (Chris's screenshots, 0.27+ and 0.21+ white; none without a vote)
     ; and the 3 cards' dark insides (1.00 on every vote, never all three on other screens: the white
     ; Start text in the lobby passed for a vote and a card was "picked" there, Chris 3.2.74)
     dark := (r, g, b) => r + g + b < 150
-    ; ("Vote ends in" isn't needed: it shows a second after the cards, and those first clicks hit them)
-    ; the 1st card isn't needed: a unit's menu open on the left covers it, and the cards weren't seen
-    ; while the Wenda step had a menu open (the macro kept placing under them, Chris 4 Nov)
-    if ColorShare(317, 154, 487, 171, white) >= 0.12
-        && ColorShare(350, 330, 450, 410, dark) >= 0.85
-        && ColorShare(527, 330, 627, 410, dark) >= 0.85 {   ; (0.85: a card can show an item's picture)
+    ; any 2 of the 3 signs: the title, "Vote ends in" and the cards' dark insides (2 of the 3 cards,
+    ; 0.6+). One sign alone is never a vote; all 3 were asked for before, and the cards were missed while
+    ; something covered one of them: the Unit Overview over the right card (0.54), a unit's menu over the
+    ; left one, the round's end panel over the title. Checked on 345 of Chris's screenshots: every vote
+    ; found, nothing else (the lobby's "Opened a portal!" has the title's white but neither of the others)
+    t := ColorShare(317, 154, 487, 171, white) >= 0.12
+    e := ColorShare(340, 457, 462, 473, white) >= 0.12
+    c := 0
+    if t + e = 1 {
+        for cx in [400, 577, 223]
+            if ColorShare(cx - 50, 330, cx + 50, 410, dark) >= 0.6 && ++c >= 2
+                break
+        c := c >= 2
+    }
+    if t + e + c >= 2 {
         voteNew := true
         return 0
+    }
+    if t && stageActive && FoolMode() && A_TickCount - halfAt > 60000 {   ; the title alone in a round:
+        halfAt := A_TickCount                   ; a line and a screenshot, to see why
+        AddLog("Card title seen without the cards (cards " Round(ColorShare(350, 330, 450, 410, dark), 2)
+            ", " Round(ColorShare(527, 330, 627, 410, dark), 2) ")")
+        SaveDebugShot("cards_half")
     }
     voteNew := false
     return ""                                   ; (the April Fool's Hunt layout is gone: its looser check
