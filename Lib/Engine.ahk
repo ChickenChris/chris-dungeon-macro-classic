@@ -2576,9 +2576,15 @@ SummerRoundMap() {
             break
         if mm = ""
             mm := MinimapMap(&mmScore)          ; the minimap is up during Find Match's countdown already
+        ; the minimap says the loading screen's map (or is very sure): that's the map. The blue name only
+        ; shows after the start countdown, and the whole minute was waited for it (Chris's recording)
+        if mm != "" && (SameMap(mm, curMap) || (curMap = "Unknown" && mmScore >= 0.95))
+            break
         ; Find Match: "Starts in: 43 / You can change your units before the game starts" first, the
-        ; blue name only comes after it. Read during the countdown, the map was given up on (a player's log)
-        if RegExMatch(lastMapRaw, "i)start\S*\s*in\W*\d|change\s*your") && A_TickCount - t0 < 75000
+        ; blue name only comes after it. Read during the countdown, the map was given up on (a player's log).
+        ; With the map known from the loading screen, 20 s is enough (Chris)
+        if RegExMatch(lastMapRaw, "i)start\S*\s*in\W*\d|change\s*your")
+            && A_TickCount - t0 < (curMap != "Unknown" && !(cfg.Has("foolMatch") && cfg["foolMatch"]) ? 20000 : 75000)
             tEnd := Max(tEnd, A_TickCount + 5000), Step("reading the map name (the round starts after its countdown)")
         Wait(200)
     }
@@ -2586,7 +2592,7 @@ SummerRoundMap() {
         mm := MinimapMap(&mmScore)
     if name = "" && mm != "" {
         ; no blue name, but the minimap's path is clearly one map's
-        if curMap = "Unknown" || curMap = mm
+        if curMap = "Unknown" || SameMap(curMap, mm)
             AddLog("Map: " mm "  (minimap, " Round(mmScore * 100) "%)")
         else
             AddLog("The " (mapHow != "" ? mapHow : "loading screen") " said " curMap ", the minimap says " mm " (" Round(mmScore * 100) "%). Going with " mm)
@@ -2615,6 +2621,9 @@ SummerRoundMap() {
     if mm != "" && mm != name
         AddLog("  (the minimap said " mm " " Round(mmScore * 100) "%, the blue name wins)")
 }
+
+; the same map, a "(Summer)" or not
+SameMap(a, b) => a != "" && StrReplace(a, " (Summer)") = StrReplace(b, " (Summer)")
 
 ; The blue name can be misread: Snowy Town on Otherwordly Plane every round (Ikyuuko's log: the loading
 ; screen and the minimap, 98 %, both said Otherwordly Plane). The minimap wins over it when it's very
