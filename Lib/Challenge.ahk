@@ -140,6 +140,11 @@ ChallengeEnded() {
 ; at the end of a Legend / Infinite / Infinity Castle round: a challenge due -> the lobby (it goes
 ; first there) instead of Replay. True if it left
 ChallengeLeave() {
+    if OrderDue() {                             ; the Order list's time for this mode is up too
+        AddLog("Order list: " OrderModeName(cfg["mode"]) "'s time is up, back to the lobby")
+        BackToLobby()
+        return true
+    }
     if !ChallengeDue()
         return false
     AddLog("A new challenge is up, back to the lobby for it")

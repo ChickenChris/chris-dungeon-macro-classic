@@ -572,3 +572,11 @@ body.build-full #steps .item { padding-top: 9px; padding-bottom: 9px; font-size:
 #steps .item .txt small { display: block; color: var(--mist); font-size: 11px; }
 .diff { display: inline-block; margin-right: 8px; padding: 1px 7px; border-radius: 5px; font-size: 11px; font-weight: 600; color: var(--mist); background: rgba(255,255,255,.08); }
 .diff.hard { color: #fff; background: color-mix(in srgb, var(--bad) 70%, transparent); }
+
+/* Order list (dashboard): modes one after another */
+.order-in { flex-direction: column; align-items: stretch; gap: 6px; padding-left: 0; }
+.order-row { display: flex; align-items: center; gap: 8px; }
+.order-row .n { width: 18px; text-align: right; opacity: .55; font-size: 12px; }
+.order-row select { flex: 1; min-width: 0; }
+.order-row select.t { flex: 0 0 96px; }
+.order-foot { display: flex; align-items: center; gap: 10px; }

@@ -93,6 +93,37 @@ function buildOn() {
   unitsLockState();
 }
 
+// Order list: modes one after another, each for its time (Chris 4 Nov). The list is sent whole on every change
+const ORDER_MINS = [15, 30, 45, 60, 90, 120, 180, 240, 360, 480, 720];
+const minsLabel = (m) => m < 60 ? m + " min" : (m % 60 ? (m / 60).toFixed(1) : m / 60) + " h";
+function renderOrder() {
+  const on = !!+S.cfg.orderOn, list = S.cfg.order || [];
+  $("#orderSub").classList.toggle("open", on);
+  const modes = isClassic() ? MODES.filter((m) => FREE_MODES.includes(m)) : MODES;
+  const save = () => send("order", { list: S.cfg.order });
+  $("#orderList").innerHTML = list.map((e, i) => {
+    const mins = ORDER_MINS.includes(+e.mins) ? ORDER_MINS : [...ORDER_MINS, +e.mins].sort((a, b) => a - b);
+    return `<div class="order-row" data-i="${i}"><span class="n">${i + 1}</span>
+      <select class="m">${options(modes.map(modeLabel), Math.max(0, modes.indexOf(e.mode)))}</select>
+      <select class="t">${options(mins.map(minsLabel), mins.indexOf(+e.mins))}</select>
+      <button class="btn sm sq" title="Remove">${icon("x")}</button></div>`;
+  }).join("") || `<div class="muted" style="font-size:12px">No modes yet: add the first one</div>`;
+  $$("#orderList .order-row").forEach((r) => {
+    const i = +r.dataset.i, e = list[i];
+    const mins = ORDER_MINS.includes(+e.mins) ? ORDER_MINS : [...ORDER_MINS, +e.mins].sort((a, b) => a - b);
+    $("select.m", r).onchange = (ev) => { e.mode = modes[+ev.target.value]; save(); };
+    $("select.t", r).onchange = (ev) => { e.mins = mins[+ev.target.value]; save(); renderOrder(); };
+    $("button", r).onclick = () => { list.splice(i, 1); save(); renderOrder(); };
+  });
+  $("#orderAdd").onclick = () => {
+    if (list.length >= 20) return toast("20 modes at most", "bad");
+    list.push({ mode: list.length ? (list[list.length - 1].mode === "Dungeon" ? "Fool's Hunt" : "Dungeon") : (S.cfg.mode || "Dungeon"), mins: 120 });
+    S.cfg.order = list; save(); renderOrder();
+  };
+  const total = list.reduce((a, e) => a + +e.mins, 0);
+  $("#orderTotal").textContent = list.length ? "Total " + minsLabel(total) : "";
+}
+
 function bindToggles() {
   $$(".toggle[data-key]").forEach((t) => {
     const sw = $(".switch", t), key = t.dataset.key;
@@ -104,6 +135,7 @@ function bindToggles() {
       setVal(key, v);
       if (key === "bgAnimate") applyLook();
       if (key === "useBuild") unitsLockState();
+      if (key === "orderOn") renderOrder();
     };
   });
 }
@@ -704,7 +736,7 @@ function renderAll() {
   spotMap = S.maps.includes(S.cfg.lastSpotMap) ? S.cfg.lastSpotMap : S.maps[0];
   // each part on its own: one that fails (a new feature meeting settings it didn't expect) can't take
   // the rest of the page down with it (an empty team list once left no Mode buttons and no slots)
-  for (const f of [bindToggles, renderTeams, renderUnits, renderBuild, initBuilder, renderSpotsPage, renderDungeon, renderSettings, renderLook, applyLook]) {
+  for (const f of [bindToggles, renderOrder, renderTeams, renderUnits, renderBuild, initBuilder, renderSpotsPage, renderDungeon, renderSettings, renderLook, applyLook]) {
     try { f(); } catch (e) { console.error(e); send("jsError", { msg: (f.name || "?") + ": " + (e && e.message || e) }); }
   }
 }
@@ -993,5 +1025,5 @@ if (!host) setTimeout(() => window.ui.init(window.DEMO || {
   upNames: ["no upgrades", "upgrade each 1 time", "upgrade each to max"], upValues: [0, 1, -1], hasRoblox: false,
   cfg: { slots: Array.from({ length: 6 }, (_, i) => ({ on: i < 5 ? 1 : 0, count: 2, prio: i + 1, up: 1, limit: 0, hill: 0 })), pattern: "Spiral", retries: 3,
     build: [], route: ["Rare_Chest", "Chest", "Shop", "Hoard", "Shrine", "Boss"], curseRank: ["Flying", "Money", "Health", "Shielding", "Regen", "Wind", "Exploding"],
-    foolMatch: 0, foolOwnTeam: 0, foolFreeze: 80, foolAccounts: 2, foolCards: ["shield", "regen", "health", "speed", "yen", "range", "cooldown", "attack", "grounded", "slow", "explosive", "resistant", "spellproof", "plated", "gale", "updraft", "boss"], skipWorst: 5, denyShrine: { Burst: 0, Armor: 0, Chaos: 1, Vamparism: 0, Frenzy: 0, Eruption: 0, Vitality: 0 }, placeSpeed: 1, accent: "Crimson", bgOpacity: 70, bgBlur: 0, glass: 60, bgAnimate: 1 },
+    foolMatch: 0, foolOwnTeam: 0, foolFreeze: 80, foolAccounts: 2, foolCards: ["shield", "regen", "health", "speed", "yen", "range", "cooldown", "attack", "grounded", "slow", "explosive", "resistant", "spellproof", "plated", "gale", "updraft", "boss"], skipWorst: 5, denyShrine: { Burst: 0, Armor: 0, Chaos: 1, Vamparism: 0, Frenzy: 0, Eruption: 0, Vitality: 0 }, placeSpeed: 1, accent: "Crimson", bgOpacity: 70, bgBlur: 0, glass: 60, bgAnimate: 1, orderOn: 1, orderRepeat: 1, order: [{ mode: "Dungeon", mins: 120 }, { mode: "Fool's Hunt", mins: 120 }] },
 }), 50);

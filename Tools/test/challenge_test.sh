@@ -57,6 +57,8 @@ SaveDebugShot(t) {
 }
 CloseChat() => 0
 AddLog(t) => 0
+OrderDue() => false                     ; no Order list here (order_test.sh)
+OrderModeName(m) => m
 Step(t) => 0
 Wait(ms) => 0
 Stale() => 0

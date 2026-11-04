@@ -450,6 +450,7 @@ Tick() {
     }
     if Det("Lobby") {
         idleSince := 0
+        OrderNext()                          ; Order list: this mode's time is up -> the next one
         if ChallengeLobby()                  ; Auto challenge: a new one goes first
             StartChallenge()
         else if ICMode()
@@ -7774,6 +7775,12 @@ StartSummerHunt() {
 SummerReplay() {
     if cfg.Has("foolMatch") && cfg["foolMatch"] {   ; Find Match: back to the lobby for a new match
         AddLog("Summer Hunt: " (lastResult = "win" ? "won" : lastResult = "loss" ? "lost" : "round over") ", back to the lobby to Find Match again")
+        BackToLobby()
+        Wait(800)
+        return
+    }
+    if OrderDue() {                             ; Order list: Summer Hunt's time is up
+        AddLog("Order list: Summer Hunt's time is up, back to the lobby")
         BackToLobby()
         Wait(800)
         return

@@ -24,6 +24,7 @@ SendMode "Event"
 #Include %A_ScriptDir%\Lib\Engine.ahk
 #Include %A_ScriptDir%\Lib\Story.ahk
 #Include %A_ScriptDir%\Lib\Challenge.ahk
+#Include %A_ScriptDir%\Lib\Order.ahk
 #Include %A_ScriptDir%\Lib\AutoUpdate.ahk
 
 global APP_VER := AppVersion()
@@ -340,6 +341,9 @@ HandleMessage(msg) {
             SetCfg(m.Get("key", ""), m.Get("value", ""))
             if IndexOf(["mode", "icHard"], m.Get("key", ""))      ; the floor instead of the room trail; Floors
                 UpdateMapLabel(), UpdateStats()
+        case "order":
+            SetOrder(m.Get("list", []), ["Dungeon", "Legend", "Infinity Castle", "Fool's Hunt"])
+            UI("refresh", UiState())
         case "slot":
             i := m.Get("i", 0), prop := m.Get("prop", "")
             if IsInteger(i) && i >= 1 && i <= 6 && IndexOf(["on", "count", "prio", "up", "limit", "hill"], prop) && IsInteger(m.Get("value", ""))
@@ -430,7 +434,7 @@ UiState() {
     c := Map()
     for k in ScalarKeys()
         c[k] := cfg[k]
-    for k in ["route", "curseRank", "denyShrine", "slots", "build", "shopRank", "shopOff"]
+    for k in ["route", "curseRank", "denyShrine", "slots", "build", "shopRank", "shopOff", "order"]
         c[k] := cfg[k]
     ; Premium's parts show locked on the page, with what Classic does there
     c["foolCards"] := cfg.Has("foolCards") ? cfg["foolCards"] : FOOL_CARDS()   ; the Summer Hunt's card list (free since UPD 21)
@@ -635,6 +639,7 @@ StartMacro(*) {
     SetRun("running")
     SetTimer ClockTick, 1000
     AddLog("Macro started (v" APP_VER ")")
+    OrderStart()                            ; the Order list from its top (its first mode)
     if FollowCamera()
         Notify("Set Roblox's Camera Mode to Classic (Esc > Settings). Follow makes the walks go the wrong way", "bad")
     if cfg["fixOnStart"]
@@ -1361,7 +1366,7 @@ DefaultConfig() {
         "denyAllShrines", 0, "denyUnknownShrine", 1, "stopAfterDefeat", 0,
         "placeSpeed", 1, "webhook", "", "hookRuns", 1, "psLink", "", "fixOnStart", 1, "tolerance", 2, "retries", 3, "useBuild", 0,
         "bgStrength", 3, "bgGif", "", "accent", "Crimson",
-        "bgOpacity", 70, "bgBlur", 0, "glass", 60, "bgAnimate", 1, "bgFile", "", "bgName", "", "lastSpotMap", "", "elemTeams", 0, "keyboard", "Auto", "mode", "Dungeon", "legendWorld", "Magic Hills (Elf Invasion)", "legendStage", 1, "autoChallenge", 0, "challengeSlot", 0, "icHard", 0, "icStopFloors", 0, "foolCoins", 0, "foolSafe", 0, "walksReset", "", "foolMatch", 0, "foolCards", FOOL_CARDS(), "team", 1, "teamDefault", 1, "teams", [],
+        "bgOpacity", 70, "bgBlur", 0, "glass", 60, "bgAnimate", 1, "bgFile", "", "bgName", "", "lastSpotMap", "", "elemTeams", 0, "keyboard", "Auto", "mode", "Dungeon", "legendWorld", "Magic Hills (Elf Invasion)", "legendStage", 1, "autoChallenge", 0, "orderOn", 0, "orderRepeat", 1, "order", [], "challengeSlot", 0, "icHard", 0, "icStopFloors", 0, "foolCoins", 0, "foolSafe", 0, "walksReset", "", "foolMatch", 0, "foolCards", FOOL_CARDS(), "team", 1, "teamDefault", 1, "teams", [],
         "route", ["Rare_Chest", "Chest", "Shop", "Hoard", "Shrine", "Boss"],
         "avoid", Map("Flying", 1, "Wind", 0, "Money", 1, "Health", 1, "Exploding", 0, "Shielding", 1, "Regen", 1),
         "curseRank", ["Flying", "Money", "Health", "Shielding", "Regen", "Wind", "Exploding"], "skipWorst", 5,
@@ -1494,7 +1499,7 @@ class IniDoc {
 
 ScalarKeys() => ["pattern", "useSpots", "saveForTop", "autoAbility", "zoom", "tpSpawn", "saveChests", "buyShop",
     "denyAllShrines", "denyUnknownShrine", "stopAfterDefeat", "placeSpeed", "webhook", "hookRuns", "psLink", "fixOnStart", "tolerance", "skipWorst", "retries", "useBuild",
-    "bgStrength", "bgGif", "accent", "bgOpacity", "bgBlur", "glass", "bgAnimate", "bgFile", "bgName", "lastSpotMap", "elemTeams", "keyboard", "mode", "legendWorld", "legendStage", "autoChallenge", "challengeSlot", "icHard", "icStopFloors", "foolCoins", "foolSafe", "foolMatch", "walksReset"]
+    "bgStrength", "bgGif", "accent", "bgOpacity", "bgBlur", "glass", "bgAnimate", "bgFile", "bgName", "lastSpotMap", "elemTeams", "keyboard", "mode", "legendWorld", "legendStage", "autoChallenge", "challengeSlot", "orderOn", "orderRepeat", "icHard", "icStopFloors", "foolCoins", "foolSafe", "foolMatch", "walksReset"]
 
 ; Fool's Hunt cards (Premium): only shown, locked, on the Dungeon page
 FOOL_CARDS() => ["shield", "regen", "health", "speed", "yen", "range", "cooldown", "attack", "grounded", "slow", "explosive", "resistant", "spellproof", "plated", "gale", "updraft", "boss"]
@@ -1543,6 +1548,7 @@ LoadConfig() {
     cfg["tolerance"] := ClampInt(cfg["tolerance"], 1, 3, 2)
     cfg["retries"] := ClampInt(cfg["retries"], 1, RETRIES.Length, 3)
     cfg["build"] := ReadBuild("Build", 6)
+    cfg["order"] := ReadOrder(["Dungeon", "Legend", "Infinity Castle", "Fool's Hunt"])
     ; Element teams: team 1 is [Slot1..6] / [Build] (the setup from before teams), team k [TkSlot..] / [TkBuild]
     n := ClampInt(IniRead(cfgFile, "Teams", "Count", 1), 1, 8, 1), teams := []
     loop n {
@@ -1644,6 +1650,8 @@ SaveConfig(*) {
         ini.Drop("Walks")
         for name, route in cfg["walks"]
             ini.Set("Walks", name, route)
+        ini.Drop("Order")
+        WriteOrder(ini)
         ini.Save()
     } catch as err {
         AddLog("Couldn't save settings: " err.Message)

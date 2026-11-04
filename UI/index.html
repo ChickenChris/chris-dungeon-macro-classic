@@ -80,6 +80,15 @@
           <div class="lbl" style="flex:none">Portal</div><input type="text" id="portalName" maxlength="40" placeholder="Shibuya Portal" style="flex:1" data-tip="The portal's name as its card in your items shows it. The macro opens that kind (Open, Friends Only) one after another, and stops with a Discord message when none are left">
         </div></div>
         <label class="toggle" data-key="autoChallenge" id="autoChallenge" data-tip="A new Challenge comes up every half hour (:00 and :30). The macro plays each one once with your units, then goes back to farming: a dungeon is finished first, Legend / Infinite / Infinity Castle leave after the round. Not in Summer Hunt"><span>Auto challenge <small>Plays each half-hour Challenge once, then back to farming</small></span><i class="switch"></i></label>
+        <label class="toggle" data-key="orderOn" data-tip="A list of modes, each for its time: 2 h Dungeon, then 2 h Summer Hunt, then... It starts from the top when you press Start. A mode's time ends at a safe moment: a round or dungeon is finished first. With Repeat on it starts over at the end, without it the macro stops"><span>Order list <small>Modes one after another, each for its own time</small></span><i class="switch"></i></label>
+        <div class="mode-sub" id="orderSub"><div class="mode-sub-in order-in">
+          <div id="orderList"></div>
+          <div class="order-foot">
+            <button class="btn sm" id="orderAdd"><svg class="i" data-icon="plus"></svg>Add a mode</button>
+            <span class="muted" id="orderTotal"></span>
+            <label class="toggle" data-key="orderRepeat" style="margin:0 0 0 auto" data-tip="Starts the list over after the last mode (off: the macro stops after it)"><span>Repeat</span><i class="switch"></i></label>
+          </div>
+        </div></div>
       </div>
 
       <div class="pane hero">
