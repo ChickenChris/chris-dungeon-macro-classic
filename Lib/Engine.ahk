@@ -5330,6 +5330,11 @@ TryPlace(x, y, slot) {
         HeldAtLimit(slot, most)
         return false
     }
+    if VoteOnScreen() {                         ; the cards came up while it was held: cards first
+        Keys("q")
+        ClearVote()
+        return false
+    }
     Clk(x, y)
     ; UPD 21: every placed unit's menu pops up on the left. Look for it FIRST, before any key: Q or the
     ; next slot's key closed it before it was read, the unit counted as not placed and was placed
@@ -7707,8 +7712,11 @@ FoolTick() {
 }
 VoteOnScreen() => FoolMode() && FoolVoteUp()
 ClearVote() {
-    if VoteOnScreen()
+    if VoteOnScreen() {
+        Keys("q")                               ; a unit still held is let go first: the cards were picked
+        Sleep 100                               ; with it in hand (Chris 4 Nov, "choose cards first")
         FoolCardsNow(15000)                     ; the cards stay ~10 s: no unit clicks until they're gone
+    }
 }
 
 StartSummerHunt() {
