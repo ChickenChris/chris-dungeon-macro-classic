@@ -3880,27 +3880,23 @@ PlaceSlot(ctx, n, need) {
 
 HillSlot(n) => n >= 1 && n <= cfg["slots"].Length && cfg["slots"][n].HasOwnProp("hill") && cfg["slots"][n].hill
 
-; Hill units: while one is held the game colours the map red where it can't go and green on the hills
-; (Chris). The view is read before and while it's held: cells that turned green are hill. Spots in them,
-; the biggest hill first and each hill's middle first
-global HILL_GREEN := 25                         ; how much greener a cell gets when it's a hill
+; Hill units: while one is held the game paints the hills solid pure green (about 0,200,0) and the path
+; red (Chris's screenshots 4 Nov, Ruined City). Read while it's held: spots in the green, the biggest
+; hill first and each hill's middle first. ("Wave 2" and other green text is lighter: 95,255,71)
+HillGreen(c) => c[2] >= 150 && c[1] <= 40 && c[3] <= 40
 HillPoints(slot) {
     static told := Map()
     step := 12
-    a := HillGrid(step)
+    ClearVote()                                 ; a card vote over the map hides the hills
     Keys(String(slot))
     Sleep 450
     Stale()
     b := HillGrid(step)
     Keys("q")
     on := Map()
-    for k, cb in b {
-        if !a.Has(k)
-            continue
-        ca := a[k]
-        if cb[2] - ca[2] >= HILL_GREEN && cb[1] - ca[1] <= 10 && cb[2] > cb[1]
+    for k, cb in b
+        if HillGreen(cb)
             on[k] := 1
-    }
     ; hills: cells side by side
     comps := [], seen := Map()
     for k in on {
