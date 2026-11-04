@@ -47,6 +47,8 @@ ClearVote() => 0
 VoteOnScreen() => false
 ClosePanel() => 0
 OverviewClose() => 0
+HeldCount(slot, &most := 0) => -1      ; the game's count over the card: not read (its own test below)
+HeldAtLimit(p*) => 0
 UnitMenuOpen() => false
 Keys(k) => 0
 Clk(x, y, p*) {

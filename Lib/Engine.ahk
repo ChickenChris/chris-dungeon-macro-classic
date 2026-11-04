@@ -5204,7 +5204,14 @@ TryPlace(x, y, slot) {
         Stale()
     }
     Keys(String(slot))
-    Sleep 50
+    Sleep 200                               ; (the game's "placed / most" over its card shows while it's held)
+    Stale()
+    ; the game's own count says it's at its limit ("2/2" over the card, Chris 4 Nov): no try at all
+    if (n0 := HeldCount(slot, &most)) >= 0 && n0 >= most {
+        Keys("q")
+        HeldAtLimit(slot, most)
+        return false
+    }
     Clk(x, y)
     ; UPD 21: every placed unit's menu pops up on the left. Look for it FIRST, before any key: Q or the
     ; next slot's key closed it before it was read, the unit counted as not placed and was placed
@@ -5334,6 +5341,22 @@ TryPlace(x, y, slot) {
     }
     if SettingsInTheWay()                   ; the game's Settings window over the map: nothing placed
         return false
+    ; no menu: the game's own count over the card says whether it went down (held again, read, let go).
+    ; With a slow game the menu came too late, the unit wasn't counted and was placed again (mmanimals)
+    ; (only when the count was read before the click: on a PC where it isn't, failed spots stay quick)
+    if n0 >= 0 {
+        Keys(String(slot))
+        Sleep 200
+        Stale()
+        n := HeldCount(slot, &most)
+        Keys("q")
+        if n > n0 {
+            static toldCount := false
+            if !toldCount
+                toldCount := true, AddLog("Slot " slot ": its menu didn't show, but the game's count over its card went from " n0 " to " n " (of " most "): counted as placed")
+            return true
+        }
+    }
     ; no menu and no refusal: usually nothing was placed, but a slow menu means it may have been
     ; (Skyyylyyyy's third Speedwagon was down and never upgraded). Kept in case the game says so later
     if !placeUnsure.Has(slot)
@@ -6309,6 +6332,45 @@ GreenBarAt(x, y) {
 ; the unit bar since UPD 21: wider cards, 64 apart; slot n's price ends at x = 263 + 64 * (n - 1),
 ; its digits on rows 546-558 (measured on Chris's screenshots)
 SlotPriceRight(n) => 263 + 64 * (n - 1)
+
+; while a unit is held for placing, the game shows "placed / most" over its hotbar card (UPD 21, Chris's
+; recording 4 Nov: "0/2", "1/2" white, "2/2" red at the limit, Bulby's "1/1"). The placed count, -1 when
+; not read; most gets the limit. Read twice (plain and inverted) and only taken when both agree, so a
+; misread can't stop a slot or count a unit that isn't there
+HeldCount(slot, &most := 0) {
+    most := 0
+    got := []
+    try {
+        WinGetClientPos &ox, &oy, , , RBX
+        cx := SlotPriceRight(slot) - 22
+        for tf in [{scale: 4, grayscale: true}, {scale: 4, grayscale: true, invertcolors: true}] {
+            t := OCR.FromRect(ox + cx - 28, oy + 505, 56, 25, OcrLang(), tf).Text
+            t := StrReplace(StrReplace(StrReplace(StrReplace(t, "l", "1"), "I", "1"), "O", "0"), "o", "0")
+            if !RegExMatch(t, "(?<!\d)(\d)\s*[/\\|]\s*(\d)(?!\d)", &m) || Integer(m[2]) < 1 || Integer(m[1]) > Integer(m[2])
+                return -1
+            got.Push(m[1] "/" m[2])
+        }
+    }
+    if got.Length != 2 || got[1] != got[2]
+        return -1
+    p := StrSplit(got[1], "/"), most := Integer(p[2])
+    return Integer(p[1])
+}
+
+; the held count says the slot is at its limit: no more of it this stage. Units the macro didn't see
+; going down are looked for where no menu showed, so they're upgraded too
+HeldAtLimit(slot, most) {
+    have := CountPlaced(slot)
+    slotCap[CapKey(slot)] := most
+    found := most > have ? FindUnseen(slot, most - have) : 0
+    static told := Map()
+    if !told.Has(slot "|" stageStart) {
+        told[slot "|" stageStart] := 1
+        AddLog("Slot " slot ": the game counts " most "/" most " (its limit), placing no more this stage"
+            . (most > have ? ". " most - have " went down without the macro seeing it" (found ? ", found " found : "") : ""))
+    }
+    slotFull[slot] := stageStart
+}
 
 ; the ability's Auto switch and its button: since UPD 21 they sit right of the menu, the switch at
 ; 291-348 x 254-279 (click 319,266) and the button at 291-347 x 286-341 (Commander and Windsong on
@@ -8106,6 +8168,12 @@ FoolFindMatch(last := true) {
         Clk(305, 384)                           ; Submit
         Wait(2000)
         Stale()
+        ; a wrong number closes the window too, with "Incorrect Captcha, please try again!" in red: that
+        ; was taken as matching and the macro waited for a round that never came (Chris's recording)
+        if CaptchaWrong() {
+            AddLog("Find Match: the game says the number was wrong (typed " n "), trying again")
+            return "retry"
+        }
         if !CaptchaUp() {
             AddLog("Find Match: typed the number (" n "), matching")
             return true
@@ -8145,6 +8213,8 @@ FoolMatchTries() {
         if r == "nowin"
             return false
         if r == "retry" {
+            if A_Index = 3                      ; (a wrong number on the last go) Play Here instead
+                break
             AddLog("Find Match didn't go through: Play, walking back and trying again (" A_Index + 1 " of 3)")
             if CaptchaUp()
                 CaptchaClose()
@@ -8154,6 +8224,8 @@ FoolMatchTries() {
         }
         return !!r
     }
+    if !FoolJoinUp()                            ; the last go closed it (a wrong number): back for Play Here
+        FoolToPad()
     return false
 }
 
@@ -8163,11 +8235,11 @@ CaptchaNumber() {
     try {
         WinGetClientPos &ox, &oy, , , RBX
         txt := StrSplit(OCR.FromRect(ox + 244, oy + 260, 300, 50, OcrLang(), {grayscale: true, scale: 2}).Text, "`n")[1]
-        for pair in [["O", "0"], ["o", "0"], ["D", "0"], ["l", "1"], ["I", "1"], ["|", "1"], ["S", "5"], ["B", "8"], ["Z", "2"]]
+        for pair in [["O", "0"], ["o", "0"], ["D", "0"], ["Ø", "0"], ["ø", "0"], ["θ", "0"], ["l", "1"], ["I", "1"], ["|", "1"], ["S", "5"], ["B", "8"], ["Z", "2"]]
             txt := StrReplace(txt, pair[1], pair[2])
         n := RegExReplace(txt, "[^\d]")
         if StrLen(n) >= 5 && StrLen(n) <= 7
-            return n
+            return RegExMatch(n, "[08]") ? CaptchaZeros(n) : n
     }
     return ""
 }
@@ -8192,6 +8264,72 @@ CaptchaClose() {
     SaveDebugShot("captcha")
     return false
 }
+; "Incorrect Captcha, please try again!" (red, low in the middle) after Submit
+CaptchaWrong() {
+    try {
+        WinGetClientPos &ox, &oy, , , RBX
+        t := OCR.FromRect(ox + 150, oy + 425, 500, 60, OcrLang(), {scale: 2, grayscale: true}).Text
+        return RegExMatch(t, "i)inc[o0]rr\w*\s*capt|try\s*aga[il1]n|[il1]ncorrect")
+    }
+    return false
+}
+
+; the captcha's zero has a slash through it and was read as 8 ("13097" typed as 13897, Chris's recording).
+; Each digit read as 8 or 0 is looked at: a zero has its side strokes where an 8 pinches in (its middle)
+CaptchaZeros(n) {
+    try {
+        WinGetClientPos &ox, &oy, , , RBX
+        Fresh()
+        scr := FindText()
+        G(x, y) {
+            col := scr.GetColor(ox + x, oy + y, 0)
+            cr := (col >> 16) & 0xFF, cg := (col >> 8) & 0xFF, cb := col & 0xFF
+            return cg >= 140 && cg - cr >= 70 && cg - cb >= 40
+        }
+        segs := [], start := 0
+        x := 244
+        while x <= 545 {                        ; the digits: runs of columns with green in them
+            on := false
+            y := 262
+            while y <= 310 && !on
+                on := G(x, y), y += 1
+            if on && !start
+                start := x
+            else if !on && start
+                segs.Push([start, x - 1]), start := 0
+            x += 1
+        }
+        if segs.Length != StrLen(n)
+            return n
+        out := ""
+        for i, sg in segs {
+            d := SubStr(n, i, 1)
+            if (d = "8" || d = "0") && sg[2] - sg[1] >= 8 {
+                top := 0, bot := 0
+                y := 262
+                while y <= 310 {
+                    xx := sg[1], row := false
+                    while xx <= sg[2] && !row
+                        row := G(xx, y), xx += 1
+                    if row
+                        top := top ? top : y, bot := y
+                    y += 1
+                }
+                mid := (top + bot) // 2, l := 0, r := 0
+                loop 3 {
+                    yy := mid - 2 + A_Index
+                    l += G(sg[1], yy) || G(sg[1] + 1, yy)
+                    r += G(sg[2], yy) || G(sg[2] - 1, yy)
+                }
+                d := (l >= 2 && r >= 2) ? "0" : "8"
+            }
+            out .= d
+        }
+        return out
+    }
+    return n
+}
+
 CaptchaNumberUp() {
     try {
         WinGetClientPos &ox, &oy, , , RBX
