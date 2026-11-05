@@ -6264,8 +6264,14 @@ IsSummonMenu() {
 ; Found by its gold "UPG" bar over the dark stats box (0.42+ gold, 0.77+ dark on every menu screenshot;
 ; nothing else has both). The First / Sell buttons aren't needed: a player's maxed Bulma kept being
 ; upgraded (3.2.74), as if the menu wasn't recognised
-NewMenu() => ColorShare(150, 234, 262, 250, (r, g, b) => r >= 55 && r <= 130 && g >= 35 && g <= 95 && b <= 25) >= 0.3
-    && ColorShare(150, 262, 275, 355, (r, g, b) => r <= 45 && g <= 30 && b <= 35) >= 0.6
+; Chris's debug recordings (5 Nov): an Operator's olive "UPG [0]" bar measured 0.29-0.31 gold, so the
+; menu was seen in only some checks (cards were picked under it, "placed without the macro seeing it").
+; Now the dark stats box with either the gold bar (0.2: menus 0.38+, nothing else above 0.09) or the
+; red X on its corner (268-286 x 217-235: 0.67+ on every menu, 0 elsewhere). Checked on 352
+; screenshots and 198 recorded frames: every menu, nothing else
+NewMenu() => ColorShare(150, 262, 275, 355, (r, g, b) => r <= 45 && g <= 30 && b <= 35) >= 0.6
+    && (ColorShare(150, 234, 262, 250, (r, g, b) => r >= 55 && r <= 130 && g >= 35 && g <= 95 && b <= 25) >= 0.2
+        || ColorShare(268, 217, 286, 235, (r, g, b) => r >= 170 && g <= 90 && b <= 90) >= 0.3)
 NewMax() => NewMenu() && MaxHere()             ; both the yellow "Max Upgrade" and the grey Max button:
                                                 ; the grey alone was a dimmed Upgrade (too little yen) and
                                                 ; a unit at UPG 3 was left as "fully upgraded" (Chris 2 Nov)
@@ -7970,7 +7976,7 @@ FoolCardsNow(maxMs) {
 }
 
 FoolCards() {
-    global foolVotes
+    global foolVotes, voteClick
     ; "Enemy Health I" is too long for the box and reads as "Enemy Heat*'"; "Boss Damage" is an
     ; enemy card, checked before "damage" (it counted as your +Attack)
     static words := [["firebreak", "slow"], ["gale", "gale"], ["updraft|draft", "updraft"], ["ground", "grounded"], ["boss", "boss"], ["shield", "shield"], ["regen", "regen"], ["health|enemy\s*hea|\bhp\b", "health"], ["speed", "speed"],
@@ -7998,14 +8004,20 @@ FoolCards() {
         }
     }
     Step("Summer Hunt: picking a card")
-    ; a unit's menu open on the left covers the first card: close it first
-    if UnitMenuOpen() {                         ; (the UPD 21 menu covers the 1st card too)
-        CloseMenuClick()
+    ; a unit's menu open on the left covers the first card: close it first. Its X is in the middle of
+    ; the screen, where clicks are held while the cards are up: that held the close click too, and the
+    ; left card was clicked under the menu 3 times (Chris's debug recording 5 Nov). So it's let through
+    loop 3 {
+        if !UnitMenuOpen()
+            break
+        voteClick := true
+        try CloseMenuClick()
+        voteClick := false
         Wait(400)
         Stale()
-        if (dy := FoolVoteDy()) = ""
-            return false
     }
+    if (dy := FoolVoteDy()) = ""
+        return false
     cards := [], shown := ""
     ; since UPD 21 the cards are at 223 / 401 / 578, the name on 218-233 and "+30% SummerPearls" (yellow)
     ; on 251-264 under it: that number is read off each card, so any card counts, weather ones too
