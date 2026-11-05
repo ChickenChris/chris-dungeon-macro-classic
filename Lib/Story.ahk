@@ -69,11 +69,17 @@ ToNormalArea() {
     return went
 }
 
+; a pad's world window is open: its red Cancel. The picture at 15 % (since UPD 21 it no longer matched
+; exactly: the pad was reached, not seen, and Play was clicked again, Chris's debug recording 5 Nov), or
+; the button's red (0.70 on the pad, 0.37 at most on 352 screenshots without such a window)
+PadCancelUp() => FT(&fx, &fy, 325, 520, 489, 587, 0.15, 0.15, ModeCancel)
+    || ColorShare(355, 512, 447, 540, (r, g, b) => r >= 150 && g <= 70 && b <= 70) >= 0.5
+
 ; Play, then Ryn's walk to the Story pads (ahead and right; the other way round on a second try)
 ; until the pad's Cancel button shows
 PadWalk() {
     loop 3 {
-        if FT(&fx, &fy, 325, 520, 489, 587, 0, 0, ModeCancel)
+        if PadCancelUp()
             return true
         before := SceneSig()
         Clk(85, 295)                            ; Play
@@ -92,7 +98,7 @@ PadWalk() {
         while A_TickCount - t0 < 5000 {
             Wait(250)
             Stale()
-            if FT(&fx, &fy, 325, 520, 489, 587, 0, 0, ModeCancel)
+            if PadCancelUp()
                 break
         }
         SendKeys("{d up}")
@@ -101,7 +107,7 @@ PadWalk() {
         Wait(800)
         Stale()
     }
-    return FT(&fx, &fy, 325, 520, 489, 587, 0, 0, ModeCancel)
+    return PadCancelUp()
 }
 
 ; ---------------------------------------------------------------- the world list
