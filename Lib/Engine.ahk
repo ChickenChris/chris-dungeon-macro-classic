@@ -7493,6 +7493,7 @@ Clk(x, y, btn := "Left") {
     }
     if paused && running                        ; F4 holds here, not only at the next wait
         Chk()
+    try DbgFrame("click " x "," y), DbgNote("click", x "," y (btn != "Left" ? " " btn : ""))   ; Debug recording
     FocusRoblox()
     MouseMove x, y
     Sleep 40                                    ; a moment on the spot: clicks right after the move
@@ -7506,6 +7507,7 @@ Clk(x, y, btn := "Left") {
 Keys(k) {
     if paused && running
         Chk()
+    try DbgNote("key", k)                       ; Debug recording
     FocusRoblox()
     SendKeys(k)
     Stale()
@@ -7887,7 +7889,7 @@ CardPearls(cx) {
 global voteNew := false          ; the vote panel since UPD 21 (Summer Hunt): taller cards, further apart
 
 FoolVoteDy() {
-    global voteNew
+    global voteNew, dbgVote
     static halfAt := 0
     white := (r, g, b) => r > 220 && g > 220 && b > 220
     ; since UPD 21: "Vote ends in" at 340-462 x 457-473 and the title ("Choose a card..." or "The weather
@@ -7900,8 +7902,8 @@ FoolVoteDy() {
     ; something covered one of them: the Unit Overview over the right card (0.54), a unit's menu over the
     ; left one, the round's end panel over the title. Checked on 345 of Chris's screenshots: every vote
     ; found, nothing else (the lobby's "Opened a portal!" has the title's white but neither of the others)
-    t := ColorShare(317, 154, 487, 171, white) >= 0.12
-    e := ColorShare(340, 457, 462, 473, white) >= 0.12
+    ts := ColorShare(317, 154, 487, 171, white), t := ts >= 0.12
+    es := ColorShare(340, 457, 462, 473, white), e := es >= 0.12
     c := 0
     if t + e = 1 {
         for cx in [400, 577, 223]
@@ -7909,6 +7911,7 @@ FoolVoteDy() {
                 break
         c := c >= 2
     }
+    dbgVote := Format("title {:.2f}, vote-ends {:.2f}, cards {} = {}", ts, es, c, t + e + c >= 2 ? "UP" : "no")
     if t + e + c >= 2 {
         voteNew := true
         return 0
