@@ -7749,7 +7749,19 @@ FoolTick() {
     try FoolCards()
     finally foolBusy := false
 }
-VoteOnScreen() => FoolMode() && FoolVoteUp()
+; Held for 1.5 s after the vote was last seen: one missed check no longer lets a unit be picked up and
+; clicked onto the cards (Chris's debug recording: the vote "went away" for a second, a unit was placed
+; on the middle card and voted it)
+VoteOnScreen() {
+    static lastUp := 0
+    if !FoolMode()
+        return false
+    if FoolVoteUp() {
+        lastUp := A_TickCount
+        return true
+    }
+    return A_TickCount - lastUp < 1500
+}
 ; "Wave Completed!" (light green, 300-497 x 452-476): the card vote often slides in a second after it
 ; fades. A unit picked up in that gap was still in hand when the cards came, and the click meant for the
 ; map voted a card (Chris's recording 4 Nov). So no unit is picked up for 4 s after it: the cards first
@@ -7902,15 +7914,17 @@ FoolVoteDy() {
     ; something covered one of them: the Unit Overview over the right card (0.54), a unit's menu over the
     ; left one, the round's end panel over the title. Checked on 345 of Chris's screenshots: every vote
     ; found, nothing else (the lobby's "Opened a portal!" has the title's white but neither of the others)
-    ts := ColorShare(317, 154, 487, 171, white), t := ts >= 0.12
+    ; Chris's debug recording (5 Nov, Planet Greenie): "Choose a card..." measured 0.11 on every frame and
+    ; "Vote ends in" 0.06-0.23 (its number changes), so with 0.12 for both the vote came and went every
+    ; second and units were placed under it. The title counts from 0.06 now (0.08 at most on 349 other
+    ; screenshots), and the cards' sign needs the middle card dark plus one beside it (an upgrade menu
+    ; with the dark right side looked like 2 cards). Checked: every vote frame found, nothing else
+    ts := ColorShare(317, 154, 487, 171, white), t := ts >= 0.06
     es := ColorShare(340, 457, 462, 473, white), e := es >= 0.12
     c := 0
-    if t + e = 1 {
-        for cx in [400, 577, 223]
-            if ColorShare(cx - 50, 330, cx + 50, 410, dark) >= 0.6 && ++c >= 2
-                break
-        c := c >= 2
-    }
+    if t + e = 1
+        c := ColorShare(350, 330, 450, 410, dark) >= 0.6
+            && (ColorShare(173, 330, 273, 410, dark) >= 0.6 || ColorShare(527, 330, 627, 410, dark) >= 0.6)
     dbgVote := Format("title {:.2f}, vote-ends {:.2f}, cards {} = {}", ts, es, c, t + e + c >= 2 ? "UP" : "no")
     if t + e + c >= 2 {
         voteNew := true
