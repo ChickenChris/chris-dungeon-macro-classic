@@ -37,7 +37,7 @@ DbgBegin() {
     catch
         return
     dbgDir := dir, dbgFrames := [], dbgStarted := A_TickCount
-    info := "Version: " (IsSet(APP_VER) ? APP_VER : "?") "`nMode: " (cfg.Has("mode") ? cfg["mode"] : "?")
+    info := "Version: " (IsSet(APP_VER) ? APP_VER : "?") "`nRunning: " A_ScriptName " (built " FileGetTime(A_ScriptFullPath, "M") ")`nMode: " (cfg.Has("mode") ? cfg["mode"] : "?")
         . "`nWindows: " A_OSVersion "`nScreen: " A_ScreenWidth "x" A_ScreenHeight " at " A_ScreenDPI " dpi"
     try {
         WinGetClientPos &ox, &oy, &cw, &ch, RBX
