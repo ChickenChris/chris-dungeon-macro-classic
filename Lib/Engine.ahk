@@ -7888,7 +7888,10 @@ CardEffect(cx) {
     t := ""
     try {
         WinGetClientPos &ox, &oy, , , RBX
-        t := OCR.FromRect(ox + cx - 75, oy + 244, 150, 60, OcrLang(), {scale: 3, grayscale: true}).Text
+        ; down to 339: a level III card has a "+50% Secret Drop Rate" line more, which pushed "+300 Enemy
+        ; Magic Resist" under the old 304. Spellproof III's name read as "+ Enemies IM", its effect was cut,
+        ; and the unknown card (the middle of the list) beat Enemy Speed: Chris's worst card got picked
+        t := OCR.FromRect(ox + cx - 75, oy + 244, 150, 95, OcrLang(), {scale: 3, grayscale: true}).Text
     }
     return Trim(RegExReplace(t, "\s+", " "))
 }
@@ -7989,7 +7992,7 @@ FoolCards() {
     ; "Enemy Health I" is too long for the box and reads as "Enemy Heat*'"; "Boss Damage" is an
     ; enemy card, checked before "damage" (it counted as your +Attack)
     static words := [["firebreak", "slow"], ["gale", "gale"], ["updraft|draft", "updraft"], ["ground", "grounded"], ["boss", "boss"], ["shield", "shield"], ["regen", "regen"], ["health|enemy\s*hea|\bhp\b", "health"], ["speed", "speed"],
-        ["\byen\b|¥", "yen"], ["range", "range"], ["cool|\bcd\b", "cooldown"], ["attack|\batk\b|damage", "attack"],
+        ["\byen\b|¥", "yen"], ["range", "range"], ["cool|c[o0]{1,2}[lt]\s*d[o0]wn|\bcd\b", "cooldown"], ["attack|\batk\b|damage", "attack"],
         ["explo", "explosive"], ["resist", "resistant"], ["spell|proof", "spellproof"], ["plate", "plated"]]
     static votedAt := 0, firstSeen := 0
     if (dy := FoolVoteDy()) = "" {
@@ -8053,9 +8056,9 @@ FoolCards() {
             eff := CardEffect(cx)
         if key = "" && eff != ""
             for w in green ? [["\byen\b|¥|\d{3,}\s*[y¥]", "yen"], ["attack|\batk\b|damage", "attack"], ["range", "range"],
-                ["cool|\bcd\b", "cooldown"], ["flying|flyer", "grounded"], ["enemy\s*speed|slow", "slow"]]
+                ["cool|c[o0]{1,2}[lt]\s*d[o0]wn|\bcd\b", "cooldown"], ["flying|flyer", "grounded"], ["enemy\s*speed|slow", "slow"]]
                 : [["shield", "shield"], ["regen", "regen"], ["health|\bhp\b", "health"], ["speed", "speed"], ["explo", "explosive"],
-                ["magic\s*res", "spellproof"], ["physical\s*res", "plated"], ["resist", "resistant"], ["flying|flyer|soar", "gale"], ["boss", "boss"]]
+                ["physical[\s\S]*magic|magic[\s\S]*physical", "resistant"], ["magic", "spellproof"], ["physical", "plated"], ["resist", "resistant"], ["flying|flyer|soar", "gale"], ["boss", "boss"]]
                 if RegExMatch(eff, "i)" w[1]) {
                     key := w[2]
                     break
