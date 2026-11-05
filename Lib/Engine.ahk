@@ -7941,8 +7941,9 @@ FoolVoteDy() {
     es := ColorShare(340, 457, 462, 473, white), e := es >= 0.12
     c := 0
     if t + e = 1
-        c := ColorShare(350, 330, 450, 410, dark) >= 0.6
+        c := ColorShare(350, 330, 450, 410, dark) >= 0.85   ; (the middle card: 0.90+ on every vote; a boss's
             && (ColorShare(173, 330, 273, 410, dark) >= 0.6 || ColorShare(527, 330, 627, 410, dark) >= 0.6)
+                                                ;  white HP numbers in the title spot on a dark map: 0.48 at most)
     dbgVote := Format("title {:.2f}, vote-ends {:.2f}, cards {} = {}", ts, es, c, t + e + c >= 2 ? "UP" : "no")
     if t + e + c >= 2 {
         voteNew := true
