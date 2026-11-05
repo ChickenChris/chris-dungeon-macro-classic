@@ -5846,11 +5846,15 @@ MaxIsThisUnit(slot) {
     if !NewMenu()
         return true
     nm := MenuUnitName()
+    if nm = ""                                  ; not read: once more (the maxed Bulby above may have
+        Sleep(200), nm := MenuUnitName()        ; been turned away for its name only)
     if RegExMatch(nm, "^abys|\b(eel|eels|jel+y)\b") && !RegExMatch(nm, "elys|lyss")
         return false                            ; a summon's menu, whatever the slot
+    if nm = ""                                  ; still no name: only a summon's "UPG [0] (MAX)" is turned away
+        return !RegExMatch(NewMenuLabel(), "[\[\(]\s*[0oO]\s*[\]\)]")
     if !slotMenuName.Has(slot)
         return true
-    return nm != "" && !OtherSlotName(nm, slot)
+    return !OtherSlotName(nm, slot)
 }
 ; is the open menu another slot's unit? (only when this slot's name is known and the menu's was read)
 ; the menu's name is ANOTHER slot's unit (and not this slot's): only then is it someone else's menu.
@@ -6278,8 +6282,13 @@ NewMax() => NewMenu() && MaxHere()             ; both the yellow "Max Upgrade" a
 ; a maxed unit's bottom button is a grey "Max" (0.60+ grey on every maxed menu, 0.19 at most on others)
 ; "Max Upgrade" on screen, by itself: its big yellow letters (170-272 x 278-326) and the grey Max
 ; button under them. No other check in front of it (Chris: "just detect MAX UPGRADE on the screen")
-MaxHere() => (Stale(), ColorShare(170, 278, 272, 326, (r, g, b) => r >= 200 && g >= 140 && b <= 110 && r - b >= 120) >= 0.05)
-    && MaxButtonGrey()
+; Chris's debug recording 5 Nov: a maxed Bulby ("UPG [6] (MAX)") was opened and closed every 3 s, "waiting
+; for yen". Its "Max Upgrade" letters are smaller: 0.06 yellow, the old line 0.05. So the grey Max button
+; (0.57+ on every maxed menu, 0.14 at most on 104 others, dimmed Upgrade buttons included) with either a
+; trace of the yellow letters (0.03: 0.00 on every menu that isn't maxed) or "MAX" in the bar's text
+MaxHere() => (Stale(), MaxButtonGrey())
+    && (ColorShare(170, 278, 272, 326, (r, g, b) => r >= 200 && g >= 140 && b <= 110 && r - b >= 120) >= 0.03
+        || InStr(NewMenuLabel(), "MAX"))
 MaxButtonGrey() => ColorShare(160, 368, 258, 396, (r, g, b) => r >= 50 && r <= 110 && Abs(r - g) <= 14 && Abs(g - b) <= 14) >= 0.45
 ; the gold bar's text ("UPG [8] (MAX)"), "" when it can't be read. Its letters shrink when (MAX) is
 ; added, so it's read as text rather than matched as pictures
@@ -8007,8 +8016,8 @@ FoolCards() {
     ; a unit's menu open on the left covers the first card: close it first. Its X is in the middle of
     ; the screen, where clicks are held while the cards are up: that held the close click too, and the
     ; left card was clicked under the menu 3 times (Chris's debug recording 5 Nov). So it's let through
-    loop 3 {
-        if !UnitMenuOpen()
+    loop 3 {                                    ; (the UPD 21 menu only: the old menu's checks took the
+        if !NewMenu()                           ;  cards for one and clicked 325,185 three times)
             break
         voteClick := true
         try CloseMenuClick()

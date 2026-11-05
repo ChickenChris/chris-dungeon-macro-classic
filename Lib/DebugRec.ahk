@@ -57,7 +57,8 @@ DbgFrame(why) {
     try {
         name := FormatTime(, "HHmmss") "_" Format("{:03}", A_MSec)
         file := dbgDir "\" name ".jpg"
-        if CaptureGameJpg(file, 50) {
+        live := ""
+        if CaptureGameJpg(file, 50, &live) {
             dbgFrames.Push([A_TickCount, file])
             st := "", mp := ""
             try st := stepNow
@@ -68,7 +69,8 @@ DbgFrame(why) {
                 WinGetClientPos &ox, &oy, , , RBX
                 mx2 := mx - ox, my2 := my - oy
             }
-            FileAppend(name "  [" why "]  step: " st "  |  map: " mp "  |  mouse: " mx2 "," my2 "  |  cards: " dbgVote "`n",
+            FileAppend(name "  [" why "]  step: " st "  |  map: " mp "  |  mouse: " mx2 "," my2 "  |  cards: " dbgVote
+                . "  |  live: " live "`n",
                 dbgDir "\frames.txt", "UTF-8")
         }
         while dbgFrames.Length && A_TickCount - dbgFrames[1][1] > DBG_KEEP_MS {
@@ -101,7 +103,7 @@ DbgPack() {
 }
 
 ; the Roblox game area as a JPG (quality 0-100). Its own screen copy: the macro's checks aren't touched
-CaptureGameJpg(file, quality := 60) {
+CaptureGameJpg(file, quality := 60, &live := "") {
     hbm := 0, pBmp := 0
     try {
         WinGetClientPos &ox, &oy, &cw, &ch, RBX
@@ -114,6 +116,7 @@ CaptureGameJpg(file, quality := 60) {
         obm := DllCall("SelectObject", "Ptr", mdc, "Ptr", hbm, "Ptr")
         DllCall("BitBlt", "Ptr", mdc, "Int", 0, "Int", 0, "Int", w, "Int", h, "Ptr", sdc, "Int", ox, "Int", oy, "UInt", 0x40CC0020)
         DllCall("SelectObject", "Ptr", mdc, "Ptr", obm)
+        live := DbgLive(sdc, hbm, w, h)          ; the checks' numbers on this exact picture (the JPG blurs colours)
         DllCall("DeleteDC", "Ptr", mdc)
         DllCall("ReleaseDC", "Ptr", 0, "Ptr", sdc)
         GdiplusUp()
@@ -137,4 +140,38 @@ CaptureGameJpg(file, quality := 60) {
     try (pBmp && DllCall("gdiplus\GdipDisposeImage", "Ptr", pBmp))
     try (hbm && DllCall("DeleteObject", "Ptr", hbm))
     return false
+}
+
+; The macro's colour checks measured on the captured picture itself, before it's made a JPG (JPG blurs thin
+; coloured text: a gold bar measured 0.47 live and 0.30 on the JPG). Same spots and steps as ColorShare
+DbgLive(dc, hbm, w, h) {
+    bmi := Buffer(40, 0)
+    NumPut("UInt", 40, bmi, 0), NumPut("Int", w, bmi, 4), NumPut("Int", -h, bmi, 8)
+    NumPut("UShort", 1, bmi, 12), NumPut("UShort", 32, bmi, 14)
+    bits := Buffer(w * h * 4, 0)
+    if !DllCall("GetDIBits", "Ptr", dc, "Ptr", hbm, "UInt", 0, "UInt", h, "Ptr", bits, "Ptr", bmi, "UInt", 0)
+        return ""
+    sh(x1, y1, x2, y2, test) {
+        hits := 0, total := 0, px := x1
+        while px <= x2 && px < w {
+            py := y1
+            while py <= y2 && py < h {
+                v := NumGet(bits, (py * w + px) * 4, "UInt")
+                hits += test((v >> 16) & 0xFF, (v >> 8) & 0xFF, v & 0xFF) ? 1 : 0, total++
+                py += 6
+            }
+            px += 8
+        }
+        return total ? Round(hits / total, 2) : 0
+    }
+    white := (r, g, b) => r > 220 && g > 220 && b > 220
+    dark := (r, g, b) => r + g + b < 150
+    return "vote title " sh(317, 154, 487, 171, white) " ends " sh(340, 457, 462, 473, white)
+        . " cards " sh(173, 330, 273, 410, dark) "/" sh(350, 330, 450, 410, dark) "/" sh(527, 330, 627, 410, dark)
+        . "; menu box " sh(150, 262, 275, 355, (r, g, b) => r <= 45 && g <= 30 && b <= 35)
+        . " gold " sh(150, 234, 262, 250, (r, g, b) => r >= 55 && r <= 130 && g >= 35 && g <= 95 && b <= 25)
+        . " X " sh(268, 217, 286, 235, (r, g, b) => r >= 170 && g <= 90 && b <= 90)
+        . "; max yellow " sh(170, 278, 272, 326, (r, g, b) => r >= 200 && g >= 140 && b <= 110 && r - b >= 120)
+        . " grey " sh(160, 368, 258, 396, (r, g, b) => r >= 50 && r <= 110 && Abs(r - g) <= 14 && Abs(g - b) <= 14)
+        . "; wave done " sh(300, 452, 330, 476, (r, g, b) => g >= 200 && r >= 40 && r <= 160 && b <= 120)
 }

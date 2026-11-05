@@ -23,6 +23,7 @@ AddLog(msg) {
     logs.Push(msg)
 }
 g := Gui("-Caption +AlwaysOnTop"), g.BackColor := "3366CC"
+g.Add("Text", "x317 y154 w172 h18 BackgroundFFFFFF")
 g.Show("x0 y0 w820 h640")
 global RBX := "ahk_id " g.Hwnd
 Sleep 300
@@ -34,6 +35,8 @@ Check("its first picture", dbgFrames.Length = 1 && FileExist(dbgFrames[1][2]) &&
 Check("a JPG", FileRead(dbgFrames[1][2], "RAW m2") && NumGet(FileRead(dbgFrames[1][2], "RAW m2"), 0, "UShort") = 0xD8FF)
 Check("info.txt", InStr(FileRead(dir "\info.txt"), "Roblox game area: 820x640"))
 Check("frames.txt names the step and the map", InStr(FileRead(dir "\frames.txt"), "step: placing  |  map: Walled City"))
+Check("and the live numbers, measured on the picture (white where the card title goes, nothing else)",
+    InStr(FileRead(dir "\frames.txt"), "live: vote title 1.00 ends 0.00 cards 0.00/0.00/0.00; menu box 0.00 gold 0.00 X 0.00"))
 DbgFrame("again")
 Check("not two pictures within 0.5 s", dbgFrames.Length = 1)
 Sleep 550
