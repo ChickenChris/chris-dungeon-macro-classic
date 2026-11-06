@@ -632,7 +632,7 @@ IdleTick() {
         ClickAway()
         if secs >= 10 && !hinted {
             hinted := true
-            AddLog("Stuck after a stage? Detect tab: select 'Next button', press Recapture, box the button")
+            AddLog("Stuck after a stage? Turn on Debug recording (Settings), press F4 when it's stuck and send Logs\debug_....zip in Discord")
         }
     }
     if A_TickCount - lastNudge > 30000 {
