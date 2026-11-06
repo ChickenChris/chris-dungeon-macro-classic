@@ -6668,7 +6668,26 @@ StageOver() {
 ; 268-372 x 378-410 on Chris's last_result.png). The pictures of the old end screen didn't always
 ; match, and a lost round took long to be noticed (Chris)
 EndByColour() => ColorShare(280, 384, 360, 404, (r, g, b) => g >= 170 && r <= 120 && b <= 90) >= 0.45
-    && XpPanelUp() && !VoteOnScreen() && TitleColour() != ""
+    && (XpPanelUp() || PeopleListOver()) && !VoteOnScreen() && TitleColour() != ""
+
+; Roblox's player list ("People / Total Damage", Tab) left open over the results' XP Progress panel:
+; the results weren't recognised and the macro sat on VICTORY for good (a player's video, Zen's log:
+; 3 hours). Read only when the green Next shows; closed with its X, so the XP panel shows again
+PeopleListOver() {
+    static last := 0
+    if A_TickCount - last < 2000
+        return false
+    last := A_TickCount
+    if !OcrFindWord(555, 68, 245, 36, "i)^(people|damage)$", &px, &py)
+        return false
+    static told := false
+    if !told
+        told := true, AddLog("The player list (Tab) was open over the results: closed it")
+    Clk(569, 72)                                ; its X
+    Wait(300)
+    Stale()
+    return true
+}
 
 ; =====================================================================
 ;  End of a stage
@@ -6801,7 +6820,7 @@ EndButtonsSeen(now := false) {
     if !now && A_TickCount - last < 1500
         return was
     last := A_TickCount
-    was := FindOpenDungeon(&bx, &by) || (NextByColour(&bx, &by) && XpPanelUp() && !VoteOnScreen())
+    was := FindOpenDungeon(&bx, &by) || (NextByColour(&bx, &by) && (XpPanelUp() || PeopleListOver()) && !VoteOnScreen())
     return was
 }
 
@@ -8034,6 +8053,10 @@ FoolVoteDy() {
         m := hov = 2 ? -1 : ColorShare(350, 330, 450, 410, dark)
         r := hov = 3 ? -1 : ColorShare(527, 330, 627, 410, dark)
         c := hov = 2 ? l >= 0.85 && r >= 0.85 : m >= 0.65 && (l >= 0.6 || r >= 0.6)
+        ; the results' green Next sits where the cards' bottoms are: VICTORY (a player's video: middle
+        ; 0.78, right 0.63 with white in the title spot) is no vote
+        if c && ColorShare(280, 384, 360, 404, (r, g, b) => g >= 170 && r <= 120 && b <= 90) >= 0.45
+            c := false
     }
     dbgVote := Format("title {:.2f}, vote-ends {:.2f}, cards {} = {}", ts, es, c, t + e + c >= 2 ? "UP" : "no")
     if t + e + c >= 2 {
