@@ -7542,11 +7542,27 @@ Clk(x, y, btn := "Left") {
 ; ACTIVE window: when another app had the focus (Chris's test 6 Nov, his chat window), Play's click
 ; went into that app 3 times and nothing teleported
 RbxMove(x, y) {
+    static told := 0
     try {
         WinGetClientPos &ox, &oy, , , RBX
         old := A_CoordModeMouse
         CoordMode "Mouse", "Screen"
         try MouseMove ox + x, oy + y
+        MouseGetPos &mx, &my
+        if Abs(mx - ox - x) > 4 || Abs(my - oy - y) > 4 {
+            ; the mouse didn't go: Windows blocks a program's mouse and keys over a window that runs as
+            ; administrator (Chris 6 Nov: the mouse never moved, Play was never clicked). Once more the
+            ; other way, then say so
+            try SendEvent "{Click " (ox + x) " " (oy + y) " 0}"
+            MouseGetPos &mx, &my
+            if (Abs(mx - ox - x) > 4 || Abs(my - oy - y) > 4) && A_TickCount - told > 120000 {
+                told := A_TickCount
+                fg := ""
+                try fg := WinGetProcessName("A")
+                AddLog("Windows didn't let the macro move the mouse" (fg != "" ? " (" fg " is in front)" : "")
+                    . (A_IsAdmin ? "" : ". If Roblox (or Bloxstrap) was opened as administrator, open it normally, or run the macro as administrator too (right click it, Run as administrator)"))
+            }
+        }
         CoordMode "Mouse", old
         return
     }

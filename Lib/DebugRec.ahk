@@ -63,7 +63,10 @@ DbgFrame(why) {
             st := "", mp := ""
             try st := stepNow
             try mp := curMap
+            old := A_CoordModeMouse              ; the mouse on Roblox's game area (screen minus its corner)
+            CoordMode "Mouse", "Screen"
             MouseGetPos &mx, &my
+            CoordMode "Mouse", old
             mx2 := "", my2 := ""
             try {
                 WinGetClientPos &ox, &oy, , , RBX
