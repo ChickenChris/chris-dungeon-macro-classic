@@ -652,7 +652,8 @@ LegendRows(&read := "") {
 
 ; the mouse wheel over a list: n notches, down (+) or up (-)
 ScrollAt(x, y, n) {
-    MouseMove x, y
+    FocusRoblox()
+    RbxMove(x, y)
     Sleep 100
     loop Abs(n) {
         SendInput n > 0 ? "{WheelDown}" : "{WheelUp}"

@@ -7208,9 +7208,28 @@ EnsureRoblox() {
 
 ; clicks, keys and native pixel reads are relative to the active window, so Roblox must be it
 FocusRoblox() {
-    if WinExist(RBX) && !WinActive(RBX) {
-        try WinActivate RBX
-        Sleep 120
+    static told := 0
+    if !WinExist(RBX) || WinActive(RBX)
+        return
+    try WinActivate RBX
+    Sleep 120
+    if WinActive(RBX)
+        return
+    ; Windows kept another app in front (it does when you were just using it): keys went there.
+    ; A click on Roblox itself brings it to the front: the top middle of the game, where nothing is
+    fg := ""
+    try fg := WinGetProcessName("A")
+    try {
+        WinGetClientPos &ox, &oy, &cw, , RBX
+        old := A_CoordModeMouse
+        CoordMode "Mouse", "Screen"
+        try MouseClick "Left", ox + cw // 2, oy + 110, 1, 0
+        CoordMode "Mouse", old
+        Sleep 150
+    }
+    if A_TickCount - told > 300000 {
+        told := A_TickCount
+        AddLog("Another window" (fg != "" ? " (" fg ")" : "") " had the focus, so the macro's clicks and keys went there. Clicked into Roblox to take it back. Leave the other windows alone while the macro plays")
     }
 }
 
@@ -7510,13 +7529,28 @@ Clk(x, y, btn := "Left") {
         Chk()
     try DbgFrame("click " x "," y), DbgNote("click", x "," y (btn != "Left" ? " " btn : ""))   ; Debug recording
     FocusRoblox()
-    MouseMove x, y
+    RbxMove(x, y)                               ; on Roblox's game area whatever window is active
     Sleep 40                                    ; a moment on the spot: clicks right after the move
     MouseMove 1, 0, , "R"                       ; were sometimes lost or too fast (Chris)
     Sleep 30
     MouseClick btn, -1, 0, , , , "R"
     Sleep 120
     Stale()
+}
+
+; the mouse to x,y of Roblox's game area, in screen coordinates. A plain MouseMove counts from the
+; ACTIVE window: when another app had the focus (Chris's test 6 Nov, his chat window), Play's click
+; went into that app 3 times and nothing teleported
+RbxMove(x, y) {
+    try {
+        WinGetClientPos &ox, &oy, , , RBX
+        old := A_CoordModeMouse
+        CoordMode "Mouse", "Screen"
+        try MouseMove ox + x, oy + y
+        CoordMode "Mouse", old
+        return
+    }
+    MouseMove x, y
 }
 
 Keys(k) {
