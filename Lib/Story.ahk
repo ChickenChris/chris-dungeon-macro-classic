@@ -17,15 +17,23 @@ SigLight(a) {
 
 ; Waits for the area teleport to land: the scene changes from `before`, then holds still
 ; (and isn't a black loading screen). Gives up after a while: already in the right area.
-WaitAreaTeleport(before) {
+; needDark: only the teleport's dark moment counts (Chris's debug recording 6 Nov: Play's click was
+; lost, a big player with effects walked by, the picture changed "enough" and the macro walked off in
+; the lobby. A real Play teleport went black 4.5 s after the click, brightness 1 of 255)
+WaitAreaTeleport(before, needDark := false) {
     Wait(700)                                   ; the Areas list closing
-    t0 := A_TickCount, moved := false
-    while A_TickCount - t0 < 6000 {
-        if SigDiff(SceneSig(), before) > 35 {
+    t0 := A_TickCount, moved := false, dark := false
+    while A_TickCount - t0 < (needDark ? 7000 : 6000) {
+        s := SceneSig()
+        if SigLight(s) <= 25 {
+            moved := true, dark := true
+            break
+        }
+        if !needDark && SigDiff(s, before) > 35 {
             moved := true
             break
         }
-        Wait(400)
+        Wait(needDark ? 250 : 400)
     }
     ; landed: a loading screen is dark, so wait for light (units' effects keep moving, so
     ; waiting for a still picture took 10 s or more), then a moment to stand up
@@ -35,7 +43,7 @@ WaitAreaTeleport(before) {
     Wait(900)
     ; a real teleport leaves a different place behind. A popup or a flash that comes and goes isn't
     ; one: the character then walked off in the lobby into an NPC (a player's recording)
-    if moved && SigDiff(SceneSig(), before) <= 20
+    if moved && !dark && SigDiff(SceneSig(), before) <= 20
         moved := false
     return moved
 }

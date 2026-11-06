@@ -8322,7 +8322,7 @@ FoolToPad() {
             before := SceneSig()
             Clk(85, 295)                        ; Play
             Step("lobby: waiting for the teleport")
-            if WaitAreaTeleport(before) || FoolJoinUp() {
+            if WaitAreaTeleport(before, A_Index < 3) || FoolJoinUp() {   ; (the last try: any big change)
                 moved := true
                 break
             }
