@@ -81,6 +81,7 @@ SlotRoom(n, need) {
     return Max(0, need)
 }
 global postStage := 0         ; when the last stage ended (reward popups follow)
+global foolReplayAt := 0      ; when Replay was pressed (Summer Hunt)
 global lastGain := 0          ; levels gained in the last upgrade pass
 global stat := {runs: 0, wins: 0, losses: 0, rooms: 0, chests: 0, dungeons: 0, startTick: 0, streak: 0}
 
@@ -466,6 +467,14 @@ Tick() {
         return
     }
     if IsLoaded() {
+        ; Summer Hunt: the round just ended (Next pressed) and Replay wasn't pressed yet: the old round's
+        ; screen under a reward popup ("Sky Portal [T7] Mythic (Click anywhere to continue)") isn't a new
+        ; round. RNG's recording: it pressed Tab, teleported and walked to the spot there. The popups get
+        ; clicked away instead (IdleTick), until Replay / the lobby shows
+        if FoolMode() && !stageActive && postStage && A_TickCount - postStage < 90000 && foolReplayAt < postStage {
+            IdleTick()
+            return
+        }
         idleSince := 0
         PlayStage()
         return
@@ -7933,6 +7942,7 @@ SummerReplay() {
     AddLog("Summer Hunt: " (lastResult = "win" ? "won" : lastResult = "loss" ? "lost" : "round over") ", replaying")
     Step("replaying Summer Hunt")
     ClickOpenDungeon()                          ; the yellow Replay
+    global foolReplayAt := A_TickCount
     Wait(800)
     t0 := A_TickCount
     while A_TickCount - t0 < 10000 {
@@ -7941,7 +7951,19 @@ SummerReplay() {
             break
         Wait(250)
     }
-    if !Det("EndScreen")
+    if Det("EndScreen")
+        return
+    ; the next round loads only when every player pressed Replay: until its loading screen (no settings
+    ; gear) came, the old round was still showing and its map was read (RNG's recordings)
+    Step("waiting for the next round to load")
+    t0 := A_TickCount
+    while A_TickCount - t0 < 45000 {
+        Stale()
+        if !FoolGear() || Det("Lobby") || Det("EndScreen")
+            break
+        Wait(250)
+    }
+    if !Det("Lobby") && !Det("EndScreen")
         LoadStage()
 }
 
@@ -8002,10 +8024,17 @@ FoolVoteDy() {
     ts := ColorShare(317, 154, 487, 171, white), t := ts >= 0.06
     es := ColorShare(340, 457, 462, 473, white), e := es >= 0.12
     c := 0
-    if t + e = 1
-        c := ColorShare(350, 330, 450, 410, dark) >= 0.85   ; (the middle card: 0.90+ on every vote; a boss's
-            && (ColorShare(173, 330, 273, 410, dark) >= 0.6 || ColorShare(527, 330, 627, 410, dark) >= 0.6)
-                                                ;  white HP numbers in the title spot on a dark map: 0.48 at most)
+    ; (the middle card: 0.65+ on every vote, the sand weather cards' 0.77 and Zen's 0.83 included; a boss's
+    ; white HP numbers in the title spot on a dark map with no vote: 0.48 at most.) A card under the mouse lights up: RNG's recording, the mouse left on the middle card
+    ; by an upgrade click, the middle measured 0.39 and the vote was taken as over before Vote was
+    ; pressed. So the card under the mouse doesn't count: the other two have to be dark instead
+    if t + e = 1 {
+        hov := CardUnderMouse()
+        l := hov = 1 ? -1 : ColorShare(173, 330, 273, 410, dark)
+        m := hov = 2 ? -1 : ColorShare(350, 330, 450, 410, dark)
+        r := hov = 3 ? -1 : ColorShare(527, 330, 627, 410, dark)
+        c := hov = 2 ? l >= 0.85 && r >= 0.85 : m >= 0.65 && (l >= 0.6 || r >= 0.6)
+    }
     dbgVote := Format("title {:.2f}, vote-ends {:.2f}, cards {} = {}", ts, es, c, t + e + c >= 2 ? "UP" : "no")
     if t + e + c >= 2 {
         voteNew := true
@@ -8020,6 +8049,22 @@ FoolVoteDy() {
     voteNew := false
     return ""                                   ; (the April Fool's Hunt layout is gone: its looser check
 }                                               ;  passed on the boss bar and held every click)
+; which card the mouse is over (1 left, 2 middle, 3 right; 0 none). Cards: 143-303, 320-480, 498-658 x 195-430
+CardUnderMouse() {
+    try {
+        WinGetClientPos &ox, &oy, , , RBX
+        old := A_CoordModeMouse
+        CoordMode "Mouse", "Screen"
+        MouseGetPos &mx, &my
+        CoordMode "Mouse", old
+        mx -= ox, my -= oy
+        if my < 195 || my > 430
+            return 0
+        return mx >= 143 && mx <= 303 ? 1 : mx >= 320 && mx <= 480 ? 2 : mx >= 498 && mx <= 658 ? 3 : 0
+    }
+    return 0
+}
+
 FoolVoteDyOld() {
     white := (r, g, b) => r > 220 && g > 220 && b > 220
     best := 0, bestDy := 0
@@ -8202,8 +8247,11 @@ FoolVoteClicks(x, dy) {
         t0 := A_TickCount, cardClicks := 0, votes := 0, lastCard := 0
         while A_TickCount - t0 < 9000 {
             Stale()
-            if FoolVoteDy() = ""
-                return votes > 0                ; the vote is over
+            if FoolVoteDy() = "" {              ; the vote is over: seen gone twice (one missed look ended
+                Wait(400), Stale()              ; it before Vote was pressed, RNG's recording)
+                if FoolVoteDy() = ""
+                    return votes > 0
+            }
             ; the green Vote only shows while a card is picked. The white frame of a picked card isn't
             ; seen on the weather / Inferno cards (coloured frames): it clicked them again, which unpicks,
             ; and sat looking at the cards (Chris). So: Vote up = picked, unless ANOTHER card is
@@ -8228,6 +8276,7 @@ FoolVoteClicks(x, dy) {
                 SaveDebugShot("vote_miss")      ; the card clicked, no Vote seen: what's on screen (once)
             if cardClicks < 3 && A_TickCount - lastCard > 2500 {   ; (a 2nd click unpicks: give Vote time)
                 Clk(x, 300), cardClicks++, lastCard := A_TickCount
+                RbxMove(785, 330)               ; off the card (right edge): a card under the mouse lights up
                 Wait(500)
                 continue
             }
