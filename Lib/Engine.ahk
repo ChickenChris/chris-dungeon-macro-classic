@@ -7555,11 +7555,23 @@ RbxMove(x, y) {
             ; other way, then say so
             try SendEvent "{Click " (ox + x) " " (oy + y) " 0}"
             MouseGetPos &mx, &my
+            how := "SendEvent"
+            if Abs(mx - ox - x) > 4 || Abs(my - oy - y) > 4 {
+                DllCall("SetCursorPos", "Int", ox + x, "Int", oy + y)   ; not "input": a program that
+                Sleep 30                                                 ; drops the macro's input can't stop it
+                MouseGetPos &mx, &my
+                how := "SetCursorPos"
+            }
+            static toldHow := ""
+            if Abs(mx - ox - x) <= 4 && Abs(my - oy - y) <= 4 && toldHow != how {
+                toldHow := how
+                AddLog("The mouse only moved with " how " (the normal way was blocked)")
+            }
             if (Abs(mx - ox - x) > 4 || Abs(my - oy - y) > 4) && A_TickCount - told > 120000 {
                 told := A_TickCount
                 fg := ""
                 try fg := WinGetProcessName("A")
-                AddLog("Windows didn't let the macro move the mouse" (fg != "" ? " (" fg " is in front)" : "")
+                AddLog("Windows didn't let the macro move the mouse (stuck at " mx "," my ")" (fg != "" ? " (" fg " is in front)" : "")
                     . (A_IsAdmin ? "" : ". If Roblox (or Bloxstrap) was opened as administrator, open it normally, or run the macro as administrator too (right click it, Run as administrator)"))
             }
         }
