@@ -325,18 +325,20 @@ Tick() {
         return
     Snap()                                   ; one screenshot for this whole pass
 
+    ; "Leave Dungeon?" first: the results' Return to lobby / Open Dungeon and the chest screen both stay
+    ; behind it. Pressing Open Dungeon there stacked more popups, and the chests behind it were "opened"
+    ; over and over while the popup blocked every click (Chris 7 Nov). Its handler cancels it when the
+    ; saved chests aren't opened yet, and presses Finish (then Return to lobby) when they are
+    if LeavePopupUp() && HandleDungeonPopups() {
+        idleSince := 0
+        return
+    }
     ; the chest screen ("Dungeon Run / Open Chests") opens over the results' Return to lobby / Open
     ; Dungeon buttons: seen as the results again, the macro finished the run once more, teleported to
     ; spawn and pressed Open Dungeon again, round and round (a player's video, Haunted Mansion)
     if ChestUp() {
         idleSince := 0
         HandleChests()
-        return
-    }
-    ; "Leave Dungeon?" before the results: their Return to lobby / Open Dungeon show behind it, and
-    ; pressing Open Dungeon there only stacked another popup (players stuck at the last room, 7 Nov)
-    if LeavePopupUp() && HandleDungeonPopups() {
-        idleSince := 0
         return
     }
     if Det("EndScreen") {
@@ -2135,12 +2137,13 @@ LeavePopupUp() => Det("FinishDungeon") || Det("FinishText") || Det("FinishButton
 ; them. The game's new popup (7 Nov) no longer matched the Finish pictures: the macro kept pressing
 ; Open Dungeon behind it, which stacked another popup each time, and players stayed stuck there
 LeaveByLook() {
-    static last := 0, was := false
-    if A_TickCount - last < 400
-        return was
-    last := A_TickCount
+    static lastShot := -1, was := false
+    Fresh()
+    if snapTick = lastShot                      ; this screenshot was looked at already (a new one after
+        return was                              ; every click: right after Cancel it's looked at again)
     was := FindLeaveButtons(&fx, &fy, &cx, &cy)
         && OcrFindWord(Max(0, fx - 100), Max(0, fy - 115), cx - fx + 200, 60, "i)^l[e3]av", &lx, &ly)
+    lastShot := snapTick
     return was
 }
 
@@ -2163,7 +2166,7 @@ FindLeaveButtons(&fx, &fy, &cx, &cy) {
                 }
                 if kind !== was {
                     if was != "" {
-                        if runs.Length && runs[runs.Length][1] == was && runFrom - runs[runs.Length][3] <= 14
+                        if runs.Length && runs[runs.Length][1] == was && runFrom - runs[runs.Length][3] <= 24   ; (a letter between)
                             runs[runs.Length][3] := px - 2
                         else
                             runs.Push([was, runFrom, px - 2])
@@ -2195,7 +2198,7 @@ FindLeaveButtons(&fx, &fy, &cx, &cy) {
             if y - ys[1] <= 40
                 keepG.Push(gX[i]), keepC.Push(cX[i]), keepY.Push(y)
         gX := keepG, cX := keepC, ys := keepY
-        if ys.Length < 3
+        if ys.Length < 2                        ; (the popup over the chest screen: only 2 rows whole, Chris 7 Nov)
             return false
         fx := MiddleOf(gX), cx := MiddleOf(cX), fy := MiddleOf(ys), cy := fy
         ; the button's real middle: its green edge left of the text, up and down (the text and its
