@@ -1,4 +1,4 @@
-﻿#Requires AutoHotkey v2.0
+#Requires AutoHotkey v2.0
 
 ; =====================================================================
 ;  Engine.ahk  -  the dungeon auto-farm                            v2.2
@@ -331,6 +331,12 @@ Tick() {
     if ChestUp() {
         idleSince := 0
         HandleChests()
+        return
+    }
+    ; "Leave Dungeon?" before the results: their Return to lobby / Open Dungeon show behind it, and
+    ; pressing Open Dungeon there only stacked another popup (players stuck at the last room, 7 Nov)
+    if LeavePopupUp() && HandleDungeonPopups() {
+        idleSince := 0
         return
     }
     if Det("EndScreen") {
@@ -2123,7 +2129,20 @@ ClickDungeonContinue() {
 
 ; "Leave Dungeon? You are at the last Room of the Dungeon! Make sure you open all your
 ; Chests before leaving."  with a green Finish and an orange Cancel button
-LeavePopupUp() => Det("FinishDungeon") || Det("FinishText") || Det("FinishButton")
+LeavePopupUp() => Det("FinishDungeon") || Det("FinishText") || Det("FinishButton") || LeaveByLook()
+
+; the popup by how it looks: a green Finish and a red Cancel side by side with "Leave" written above
+; them. The game's new popup (7 Nov) no longer matched the Finish pictures: the macro kept pressing
+; Open Dungeon behind it, which stacked another popup each time, and players stayed stuck there
+LeaveByLook() {
+    static last := 0, was := false
+    if A_TickCount - last < 400
+        return was
+    last := A_TickCount
+    was := FindLeaveButtons(&fx, &fy, &cx, &cy)
+        && OcrFindWord(Max(0, fx - 100), Max(0, fy - 115), cx - fx + 200, 60, "i)^l[e3]av", &lx, &ly)
+    return was
+}
 
 ; finds the green Finish and the orange Cancel button side by side
 FindLeaveButtons(&fx, &fy, &cx, &cy) {
@@ -2170,9 +2189,26 @@ FindLeaveButtons(&fx, &fy, &cx, &cy) {
             }
             py += 3
         }
+        ; two popups stacked (the new one is a list): the top one's buttons only
+        keepG := [], keepC := [], keepY := []
+        for i, y in ys
+            if y - ys[1] <= 40
+                keepG.Push(gX[i]), keepC.Push(cX[i]), keepY.Push(y)
+        gX := keepG, cX := keepC, ys := keepY
         if ys.Length < 3
             return false
         fx := MiddleOf(gX), cx := MiddleOf(cX), fy := MiddleOf(ys), cy := fy
+        ; the button's real middle: its green edge left of the text, up and down (the text and its
+        ; darker lower half hid it, and the click landed on its top edge)
+        greenAt(y) => (col := scr.GetColor(ox + fx - 50, oy + y, 0) & 0xFFFFFF,
+            g := (col >> 8) & 0xFF, g > 90 && g > ((col >> 16) & 0xFF) + 30 && g > (col & 0xFF) + 30)
+        top := fy, bot := fy
+        while top > fy - 30 && greenAt(top - 1)
+            top--
+        while bot < fy + 40 && greenAt(bot + 1)
+            bot++
+        if bot - top >= 12
+            fy := (top + bot) // 2, cy := fy
         return true
     }
     return false
