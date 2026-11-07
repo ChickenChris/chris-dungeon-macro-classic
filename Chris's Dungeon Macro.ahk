@@ -1,4 +1,4 @@
-﻿#Requires AutoHotkey v2.0
+#Requires AutoHotkey v2.0
 #SingleInstance Force
 SetWorkingDir A_ScriptDir
 SendMode "Event"
@@ -478,7 +478,8 @@ SetBuild(steps) {
         kind := st.Get("kind", ""), slot := st.Get("slot", 0), count := st.Get("count", 1), up := st.Get("up", 0), units := st.Get("units", 0)
         if (kind = "place" || kind = "upgrade") && IsInteger(slot) && IsInteger(count) && IsInteger(up) && !(kind = "upgrade" && up = 0)
             list.Push({kind: kind, slot: ClampInt(slot, 1, 6, 1), count: ClampInt(count, 1, MaxCount(), 1), up: ClampInt(up, -1, 10, 0),
-                units: kind = "upgrade" && IsInteger(units) ? ClampInt(units, 0, 20, 0) : 0})
+                units: kind = "upgrade" && IsInteger(units) ? ClampInt(units, 0, 20, 0) : 0,
+                hill: kind = "place" && st.Get("hill", 0) ? 1 : 0})
     }
     cfg["build"] := list
     SaveSoon()
@@ -1424,7 +1425,8 @@ ReadBuild(sec, most) {
         if f.Length >= 4 && (f[1] = "place" || f[1] = "upgrade") && IsInteger(f[2]) && IsInteger(f[3]) && IsInteger(f[4])
             && !(f[1] = "upgrade" && f[4] = 0)
             list.Push({kind: f[1], slot: ClampInt(f[2], 1, 6, 1), count: ClampInt(f[3], 1, most, 1), up: ClampInt(f[4], -1, 10, 0),
-                units: f[1] = "upgrade" && f.Length >= 5 ? ClampInt(f[5], 0, 20, 0) : 0})
+                units: f[1] = "upgrade" && f.Length >= 5 ? ClampInt(f[5], 0, 20, 0) : 0,
+                hill: f[1] = "place" && f.Length >= 6 && f[6] = "1" ? 1 : 0})      ; a 6th field: a place step on the hills
     }
     return list
 }
@@ -1441,7 +1443,8 @@ WriteBuild(ini, sec, list) {
     ini.Drop(sec)
     ini.Set(sec, "Count", list.Length)
     for i, st in list
-        ini.Set(sec, "S" i, st.kind "," st.slot "," st.count "," st.up (st.HasOwnProp("units") && st.units ? "," st.units : ""))
+        ini.Set(sec, "S" i, st.kind "," st.slot "," st.count "," st.up (st.HasOwnProp("hill") && st.hill ? "," (st.HasOwnProp("units") ? st.units : 0) ",1"
+            : st.HasOwnProp("units") && st.units ? "," st.units : ""))
 }
 
 ; The settings file, edited in memory and written to disk in one go. Saving used to be one

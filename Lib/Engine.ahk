@@ -3927,8 +3927,8 @@ PlaceAll(ctx := "") {
 ; a spot that fails twice is skipped. Sets ctx.over if the stage ends.
 ; a hill unit (its switch on the Units page) is placed on the hills the game shows in green while it's
 ; held, not on the usual spots; the usual spots when no hill is seen
-PlaceSlot(ctx, n, need) {
-    if !HillSlot(n)
+PlaceSlot(ctx, n, need, hill := false) {
+    if !hill && !HillSlot(n)
         return PlaceSlotAt(ctx, n, need)
     hp := HillPoints(n)
     if !hp.Length
@@ -4501,7 +4501,7 @@ RunBuildOrder(ctx) {
         }
         AddLog("Step " i ": " StepText(st))
         if st.kind = "place" {
-            newOnes := PlaceSlot(ctx, st.slot, st.count)
+            newOnes := PlaceSlot(ctx, st.slot, st.count, st.HasOwnProp("hill") && st.hill)   ; ("on a hill": the step's own choice)
             if ctx.over
                 return
             if newOnes.Length < st.count
@@ -4537,7 +4537,7 @@ RunBuildOrder(ctx) {
 StepText(st) {
     up := st.up < 0 ? "to max" : st.up " time" (st.up = 1 ? "" : "s")
     if st.kind = "place"
-        return "Place slot " st.slot " x" st.count (st.up = 0 ? "" : ", upgrade each " up)
+        return "Place slot " st.slot " x" st.count (st.HasOwnProp("hill") && st.hill ? " on a hill" : "") (st.up = 0 ? "" : ", upgrade each " up)
     n := st.HasOwnProp("units") ? st.units : 0
     return n ? "Upgrade " n " unit" (n = 1 ? "" : "s") " of slot " st.slot " " up : "Upgrade slot " st.slot " " up
 }

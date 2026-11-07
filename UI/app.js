@@ -327,7 +327,7 @@ function stepText(st) {
     return `Wave ${st.wave}: slot ${st.slot}'s ability, ${+st.units ? st.units + (st.units == 1 ? " unit" : " units") : "all units"}`
       + (+st.every < 0 ? ", switched to Auto from then" : +st.every ? `, again every ${st.every} wave${st.every == 1 ? "" : "s"}` : ", once");
   const up = st.up < 0 ? "to max" : st.up + (st.up == 1 ? " time" : " times");
-  if (st.kind === "place") return `Place slot ${st.slot} ×${st.count}` + (st.up == 0 ? "" : `, upgrade each ${up}`);
+  if (st.kind === "place") return `Place slot ${st.slot} ×${st.count}` + (+st.hill ? " on a hill" : "") + (st.up == 0 ? "" : `, upgrade each ${up}`);
   const n = +st.units || 0;
   return n ? `Upgrade ${n} unit${n == 1 ? "" : "s"} of slot ${st.slot} ${up}` : `Upgrade slot ${st.slot} ${up}`;
 }
@@ -364,6 +364,7 @@ function initBuilder() {
   $("#bSlot").innerHTML = options([1, 2, 3, 4, 5, 6].map((n) => "Slot " + n), 0);
   $("#bCount").innerHTML = options(Array.from({ length: S.maxCount || 6 }, (_, i) => String(i + 1)), 0);
   builderState();
+  $("#bHill").onclick = () => $("#bHill").classList.toggle("on");     // Place on the hills (a hill unit)
   const add = (st) => {
     S.cfg.build.push(st);
     send("build", { steps: S.cfg.build }); renderBuild();
@@ -392,7 +393,7 @@ function initBuilder() {
     if (bKind === 1 && up === 0) return toast("Pick how many times to upgrade", "bad");
     // Upgrade: how many of the slot's units ("all units" = 0), e.g. only 1 of 2 Elyssias
     const st = bKind ? { kind: "upgrade", slot: +$("#bSlot").value + 1, count: 1, up, units: +$("#bCount").value }
-      : { kind: "place", slot: +$("#bSlot").value + 1, count: +$("#bCount").value + 1, up, units: 0 };
+      : { kind: "place", slot: +$("#bSlot").value + 1, count: +$("#bCount").value + 1, up, units: 0, hill: $("#bHill").classList.contains("on") ? 1 : 0 };
     // Place always puts down NEW units. Players used "Place slot 2 ×3, upgrade to max" to upgrade the
     // slot 2 units they had already placed, and got 3 more of them. Ask when that's likely.
     const before = S.cfg.build.findIndex((o) => o.kind === "place" && o.slot === st.slot);
@@ -410,6 +411,7 @@ function initBuilder() {
 function builderState() {
   // Place: how many to place (×N). Upgrade: how many of that slot's units (all, or the first N placed)
   $("#bX").style.display = bKind ? "none" : "";
+  $$(".place-only").forEach((e) => e.style.display = bKind === 0 ? "" : "none");
   $$(".abil-only").forEach((e) => e.style.display = bKind === 2 ? "" : "none");
   $$(".yen-only").forEach((e) => e.style.display = bKind === 5 ? "" : "none");
   $$(".pair-only").forEach((e) => e.style.display = bKind === 3 || bKind === 4 ? "" : "none");   // Erwin / Wenda: their timings
@@ -747,12 +749,12 @@ function buildCode(list) {
   return "AA build: " + list.map((st) => st.kind === "yen" ? `Y${st.amount}` : st.kind === "buff" ? `B${st.slot}s${st.secs}` + (+st.pairs ? "p" : "") : isPair(st) ? `${st.kind === "wenda" ? "W" : "E"}${st.slot}` + (st.up ? "u" + (st.up < 0 ? "max" : st.up) : "") + (pairSecs(st) !== 30 ? "s" + pairSecs(st) : "") + (pairGap(st) !== 4 ? "g" + pairGap(st) : "") : st.kind === "ability"
     ? `A${st.slot}w${st.wave}` + (+st.units ? "n" + st.units : "") + (+st.every < 0 ? "a" : +st.every ? "e" + st.every : "")
     : st.kind === "place"
-    ? `P${st.slot}x${st.count}` + (st.up ? "u" + up(st.up) : "")
+    ? `P${st.slot}x${st.count}` + (st.up ? "u" + up(st.up) : "") + (+st.hill ? "h" : "")
     : `U${st.slot}` + (+st.units ? "n" + st.units : "") + `u${up(st.up)}`).join(" ");
 }
 function parseBuildCode(text) {
   const out = [];
-  const mv = /^([PU])([1-6])(?:x(\d{1,2}))?(?:n(\d{1,2}))?(?:u(max|\d{1,2}))?$/i, ab = /^A([1-6])w(\d{1,3})(?:n(\d{1,2}))?(?:e(\d{1,2})|(a))?$/i;
+  const mv = /^([PU])([1-6])(?:x(\d{1,2}))?(?:n(\d{1,2}))?(?:u(max|\d{1,2}))?(h?)$/i, ab = /^A([1-6])w(\d{1,3})(?:n(\d{1,2}))?(?:e(\d{1,2})|(a))?$/i;
   for (const tok of String(text).split(/[\s,]+/)) {
     let m;
     if ((m = /^([EW])([1-6])(?:u(max|\d{1,2}))?(?:s(\d{2,3}))?(?:g(\d{1,2}))?$/i.exec(tok))) { out.push({ kind: m[1].toUpperCase() === "W" ? "wenda" : "erwin", slot: +m[2], count: 4, up: m[3] ? (m[3].toLowerCase() === "max" ? -1 : Math.min(10, +m[3])) : 0, secs: m[4] ? Math.max(10, Math.min(120, +m[4])) : 30, gap: m[5] ? Math.max(1, Math.min(30, +m[5])) : 4 }); continue; }
@@ -763,7 +765,7 @@ function parseBuildCode(text) {
     const kind = m[1].toUpperCase() === "P" ? "place" : "upgrade";
     const up = m[5] ? (m[5].toLowerCase() === "max" ? -1 : Math.min(10, +m[5])) : 0;
     if (kind === "upgrade" && !up) continue;
-    out.push({ kind, slot: +m[2], count: kind === "place" ? Math.min(S.maxCount || 6, +m[3] || 1) : 1, up, units: kind === "upgrade" ? Math.min(20, +m[4] || 0) : 0 });
+    out.push({ kind, slot: +m[2], count: kind === "place" ? Math.min(S.maxCount || 6, +m[3] || 1) : 1, up, units: kind === "upgrade" ? Math.min(20, +m[4] || 0) : 0, hill: kind === "place" && m[6] ? 1 : 0 });
   }
   return out.slice(0, 100);
 }

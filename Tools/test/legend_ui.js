@@ -95,6 +95,16 @@ const legendBtn = (p) => p.evaluateHandle(() => [...document.querySelectorAll("#
     await p.evaluate(() => { window.__sent = []; });
     const kinds = await p.evaluate(() => $$("#bKind button").map((b) => b.textContent.trim()));
     check(tag + ": the build order's step kinds: Place, Upgrade, Ability, Erwin buff, Wenda buff, Wait for yen", JSON.stringify(kinds) === JSON.stringify(["Place", "Upgrade", "Ability", "Erwin buff", "Wenda buff", "Wait for yen"]), JSON.stringify(kinds));
+    // a Place step on the hills (Chris 7 Nov: "should be in the build order too")
+    await p.evaluate(() => { window.__sent = []; $$("#bKind button")[0].click(); }); await p.waitForTimeout(50);
+    check(tag + ": Place shows the Hill chip", await p.evaluate(() => getComputedStyle($("#bHill")).display !== "none"));
+    await p.evaluate(() => { $("#bHill").click(); $("#bSlot").value = "5"; $("#bCount").value = "0"; $("#bAdd").click(); }); await p.waitForTimeout(100);
+    const hs = await p.evaluate(() => { const m = window.__sent.filter((m) => m.cmd === "build").pop(); return m && m.steps[m.steps.length - 1]; });
+    check(tag + ": added as {kind: place, slot 6, hill: 1}", !!hs && hs.kind === "place" && hs.slot === 6 && hs.hill === 1, JSON.stringify(hs));
+    check(tag + ": it reads 'Place slot 6 ×1 on a hill'", await p.evaluate(() => $$("#steps .item").some((it) => /^Place slot 6 ×1 on a hill/.test($(".txt", it).textContent))));
+    check(tag + ": in the share code with h, and read back", await p.evaluate(() => /P6x1(u\w+)?h/.test(buildCode(S.cfg.build)) && parseBuildCode("P3x2umaxh")[0].hill === 1 && parseBuildCode("P3x2")[0].hill === 0));
+    await p.evaluate(() => { $("#bHill").click(); $$("#bKind button")[1].click(); }); await p.waitForTimeout(50);
+    check(tag + ": Upgrade hides the Hill chip", await p.evaluate(() => getComputedStyle($("#bHill")).display === "none"));
     await p.evaluate(() => $$("#bKind button")[3].click()); await p.waitForTimeout(100);
     if (edition) check("classic: Erwin buff steps are locked", await p.evaluate(() => $$("#bKind button")[3].classList.contains("on") === false));
     else {
