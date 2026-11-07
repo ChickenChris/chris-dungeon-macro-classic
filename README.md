@@ -15,4 +15,4 @@ AutoHotkey v2 macro that farms dungeons in Anime Adventures (Roblox).
 ## Updating
 Close the macro and double-click **Update.bat**. Your Settings and Logs are kept.
 
-Support and Premium: the Chris Macros Discord server.
+Support: the Chris Macros Discord server. Premium: https://chrismacros.pages.dev
