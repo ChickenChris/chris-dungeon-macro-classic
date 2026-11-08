@@ -44,12 +44,17 @@ Check("after an import: Chris's walk wins again", cfg["walks"]["Navy Bay"] == In
 ; Chris 8 Nov: his new Snowy Kingdom walk (no jump) for dungeons and Summer Hunt alike; players on
 ; an old shipped one get it, a walk they recorded themselves stays
 snowNew := "w+0,d+0,d-625,d+2172,w-4047,w+4188,w-4391,w+4547,d-4672,w-4688"
-Check("Snowy Kingdom: the new walk shipped for dungeons and Summer Hunt",
-    IniRead(f, "Walks", "Snowy Kingdom") == snowNew && IniRead(f, "Walks", "Snowy Kingdom (Fool's Hunt)") == snowNew)
+Check("Snowy Kingdom: the 4.7 s walk shipped for Summer Hunt", IniRead(f, "Walks", "Snowy Kingdom (Fool's Hunt)") == snowNew)
+; and his dungeon walk (Chris 8 Nov, recorded in Dungeon mode: 2 keys, 1.3 s); 3.2.108's shipped one upgraded too
+snowDun := "d+0,w+16,d-672,w-1266"
+Check("Snowy Kingdom: the dungeon walk shipped", IniRead(f, "Walks", "Snowy Kingdom") == snowDun)
 cfg["walks"]["Snowy Kingdom"] := "d+0,Space+344,Space-688,w+1578,d-1813,d+2157,w-2375,w+2735,d-2938,d+3172,w-3375,w+3469,d-3547,a+3672,w-3735,a-3750"
 cfg["walks"]["Snowy Kingdom (Fool's Hunt)"] := "w+0,d+203,d-734,d+1015,d-1125,d+2031,d-2343,d+2421,d-3234,d+3296,w-3593,w+4156,d-4328,w-4484,w+4609,w-4718,w+4890,w-4984,w+5468,w-5515"
 LoadShippedWalks()
-Check("a player on the old jump walk gets the new one", cfg["walks"]["Snowy Kingdom"] == snowNew, cfg["walks"]["Snowy Kingdom"])
+Check("a player on the old jump walk gets the new dungeon walk", cfg["walks"]["Snowy Kingdom"] == snowDun, cfg["walks"]["Snowy Kingdom"])
+cfg["walks"]["Snowy Kingdom"] := snowNew
+LoadShippedWalks()
+Check("a player on 3.2.108's dungeon walk gets the new one", cfg["walks"]["Snowy Kingdom"] == snowDun, cfg["walks"]["Snowy Kingdom"])
 Check("a player on the old Summer Hunt walk gets the new one", cfg["walks"]["Snowy Kingdom (Fool's Hunt)"] == snowNew, cfg["walks"]["Snowy Kingdom (Fool's Hunt)"])
 cfg["walks"]["Snowy Kingdom"] := "w+0,w-900"
 LoadShippedWalks()
