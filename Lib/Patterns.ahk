@@ -1,4 +1,4 @@
-#Requires AutoHotkey v2.0
+﻿#Requires AutoHotkey v2.0
 
 ;GUI
 global Discord := "Images\discord_logo.png"
@@ -434,3 +434,6 @@ FutureRareChest2 := "|<>*54$14.zzy0TEPUDtny03zzzzz0/oGy4jzzzzs"
 FutureRareChest3:= "|<>*25$17.0Y8zznzzqV3g27M06zzwzzk00Y" ;test
 
 global speedIndex := ""
+; the game's red "Unique units may not be placed with others of its kind..." just above the yen
+; ("Unique unit", cut from Chris's screenshot 8 Nov; its red, give or take)
+global UniquePopup := "|<Unique>F5464B-371E23$103.0001U000000000k00M600k000000000sk0C3U0M000000000AQ071k000000000000C03Uti63MkkQ0MNa3DltkRzXbyMMzUQAznbtysCztnzAAxkCCTtnwkQ7QQvXa6QQ77CAssQC3iCRln3Dw3Xb7QQDrXb7Cstnb00lnXiC0tznXbDwznn0Ttlr7XCTlknbyDszUDwsvVvy3UMNUr3g7U1aMMkQS000003U0000000000000001k0000000000000000s0000000000000000M00000000001"

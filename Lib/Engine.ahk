@@ -5710,6 +5710,12 @@ PlaceRefused(slot) {
 ; the game's red refusal in the middle of the screen: "unique" for "Unique units may not be
 ; placed with others of its kind", "limit" for "Cannot place more than N of this unit!", else ""
 LimitMessage(&txt := "") {
+    ; "Unique units may not be placed..." by its shape: the text reader can miss it over a busy map,
+    ; and it kept placing a unique unit (Chris 8 Nov, Summer Hunt)
+    if FT(&ux, &uy, 60, 400, 600, 570, 0.15, 0.10, UniquePopup) {
+        txt := "Unique units may not be placed with others of its kind"
+        return "unique"
+    }
     red := 0
     try {
         WinGetClientPos &ox, &oy, , , RBX
