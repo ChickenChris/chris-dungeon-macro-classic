@@ -1,4 +1,4 @@
-#Requires AutoHotkey v2.0
+﻿#Requires AutoHotkey v2.0
 
 ; =====================================================================
 ;  Engine.ahk  -  the dungeon auto-farm                            v2.2
@@ -3092,6 +3092,9 @@ MatchMapLoose(txt) {
             names.Push(name)
     }
     t := RegExReplace(txt, "\s+", " ")
+    ; the panel's own title "DUNGEON DEPTH: 2/20" isn't a map: with the map line unread, its "Dungeon"
+    ; made a Future City room Dungeon Throne (Chris 8 Nov, wrong spots and walk)
+    t := RegExReplace(t, "i)dungeon\W*d\s*e\s*p\s*t\s*h\b\W*(\d+\s*/\s*\d+)?", " ")
     segs := [], pos := 1
     while pos := RegExMatch(t, "i)dungeon\W{0,2}r\S{0,5}\s+(.{2,40}?)\s*(?=\bd\s*e\s*p|\bde\b|\(|\bdiff|$)", &m, pos)
         segs.Push({s: m[1], need: 0.6}), pos := m.Pos[0] + Max(1, m.Len[0])
