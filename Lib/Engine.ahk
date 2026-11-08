@@ -6341,7 +6341,30 @@ IsSummonMenu() {
 ; screenshots and 198 recorded frames: every menu, nothing else
 NewMenu() => ColorShare(150, 262, 275, 355, (r, g, b) => r <= 45 && g <= 30 && b <= 35) >= 0.6
     && (ColorShare(150, 234, 262, 250, (r, g, b) => r >= 55 && r <= 130 && g >= 35 && g <= 95 && b <= 25) >= 0.2
-        || ColorShare(268, 217, 286, 235, (r, g, b) => r >= 170 && g <= 90 && b <= 90) >= 0.3)
+        || ColorShare(268, 217, 286, 235, (r, g, b) => r >= 170 && g <= 90 && b <= 90) >= 0.3 && MenuXWhite() >= 0.15)
+; the close X's white cross, every 2 px (0.22+ on every menu in the recordings, 0.09 at most elsewhere).
+; The red alone was Otherwordly Plane's dark red map (Alex 8 Nov): "Placed slot 3" with nothing placed,
+; then 50 s of upgrading a unit that wasn't there
+MenuXWhite() {
+    hits := 0, total := 0
+    try {
+        WinGetClientPos &ox, &oy, , , RBX
+        Fresh()
+        scr := FindText()
+        y := 219
+        while y <= 233 {
+            x := 270
+            while x <= 284 {
+                col := scr.GetColor(ox + x, oy + y, 0) & 0xFFFFFF
+                hits += ((col >> 16) & 0xFF) >= 200 && ((col >> 8) & 0xFF) >= 200 && (col & 0xFF) >= 200
+                total++
+                x += 2
+            }
+            y += 2
+        }
+    }
+    return total ? hits / total : 0
+}
 NewMax() => NewMenu() && MaxHere()             ; both the yellow "Max Upgrade" and the grey Max button:
                                                 ; the grey alone was a dimmed Upgrade (too little yen) and
                                                 ; a unit at UPG 3 was left as "fully upgraded" (Chris 2 Nov)
