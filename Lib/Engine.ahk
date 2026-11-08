@@ -6742,6 +6742,10 @@ PeopleListOver() {
 ; =====================================================================
 ReadResult() {
     global lastResult
+    ; once the round is over and its result read, later reads don't change it: the results went away
+    ; and something gold was read as VICTORY ("Defeat on Ruined City", then "Summer Hunt: won", Chris 8 Nov)
+    if !stageActive && lastResult != ""
+        return
     if Det("Victory")
         lastResult := "win"
     else if Det("Defeat")
