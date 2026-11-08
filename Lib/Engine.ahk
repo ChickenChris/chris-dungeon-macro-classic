@@ -3946,21 +3946,30 @@ HillSlot(n) => n >= 1 && n <= cfg["slots"].Length && cfg["slots"][n].HasOwnProp(
 ; Hill units: while one is held the game paints the hills solid pure green (about 0,200,0) and the path
 ; red (Chris's screenshots 4 Nov, Ruined City). Read while it's held: spots in the green, the biggest
 ; hill first and each hill's middle first. ("Wave 2" and other green text is lighter: 95,255,71)
-HillGreen(c) => c[2] >= 150 && c[1] <= 40 && c[3] <= 40
+; Snowy Kingdom's blue light makes them (20-60, 240, 110-160) (a player's recording 8 Nov): blue may be
+; up to 60 under the green, red stays low (the text's 95 is out)
+HillGreen(c) => c[2] >= 150 && c[1] <= 90 && c[1] <= c[2] - 110 && c[3] <= c[2] - 60
 HillPoints(slot) {
     static told := Map()
     step := 12
     CardsPause()
     ClearVote()                                 ; a card vote over the map hides the hills
     Keys(String(slot))
-    Sleep 450
-    Stale()
-    b := HillGrid(step)
+    ; the hills light up a moment after the unit is picked up: one look at 0.45 s saw none on a player's
+    ; Snowy Kingdom (8 Nov) and 15 ground spots were tried. Looked at again for up to 3 s
+    t0 := A_TickCount
+    loop {
+        Sleep 450
+        Stale()
+        b := HillGrid(step)
+        on := Map()
+        for k, cb in b
+            if HillGreen(cb)
+                on[k] := 1
+        if on.Count >= 3 || A_TickCount - t0 >= 3000
+            break
+    }
     Keys("q")
-    on := Map()
-    for k, cb in b
-        if HillGreen(cb)
-            on[k] := 1
     ; hills: cells side by side
     comps := [], seen := Map()
     for k in on {
