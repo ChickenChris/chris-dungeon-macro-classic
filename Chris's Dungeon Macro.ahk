@@ -864,9 +864,12 @@ SendSpots(name) {
     if cfg["walks"].Has(key) && RegExMatch(cfg["walks"][key], "^click:(\d+),(\d+)", &cm) {
         kind := "recorded", text := "Walks by clicking (Click to Move) to x " cm[1] ", y " cm[2] ". Roblox finds the way"
     } else if cfg["walks"].Has(key) {
-        parts := StrSplit(cfg["walks"][key], ",")
+        parts := StrSplit(cfg["walks"][key], ","), presses := 0
+        for pt in parts
+            presses += RegExMatch(pt, "^\w+\+\d+$") ? 1 : 0
         secs := RegExMatch(parts[parts.Length], "(\d+)$", &m) ? m[1] / 1000 : 0
-        kind := "recorded", text := "Your recorded walk: " parts.Length // 2 " key presses, " Round(secs, 1) " seconds"
+        f := RouteFace(cfg["walks"][key])
+        kind := "recorded", text := "Your recorded walk: " presses " key presses, " Round(secs, 1) " seconds" (f >= 0 ? ", camera facing " FaceName(f) : "")
     } else if HasBuiltInWalk(name) {
         kind := "builtin", text := "Using the built-in walk for " name ". Record your own to replace it."
     } else
@@ -945,6 +948,7 @@ RecordWalk(name) {
         AddLog("Recording a walk for " name)
         FocusRoblox()
         GoToSpot(name, false, true)
+        face := MiniFacing()                    ; the camera's direction goes with the walk (it's turned to match)
         ToolTip("RECORDING  -  walk to the spot with " (az ? "Z Q S D" : "W A S D") "`nPress F6 when you're there   (F3 cancels)", 10, 10)
         events := [], down := Map(), t0 := A_TickCount, result := ""
         for k in keysWatched
@@ -979,9 +983,9 @@ RecordWalk(name) {
             first := events[1].t, route := ""
             for ev in events
                 route .= (route = "" ? "" : ",") ev.k (ev.d ? "+" : "-") (ev.t - first)
-            cfg["walks"][PlaceKey(name)] := route
+            cfg["walks"][PlaceKey(name)] := (face >= 0 ? "face:" face "," : "") route
             SaveConfig()
-            AddLog("Saved a walk for " PlaceKey(name))
+            AddLog("Saved a walk for " PlaceKey(name) (face >= 0 ? " (camera facing " FaceName(face) " on the minimap)" : ""))
             Notify("Walk saved for " PlaceKey(name))
         }
     } catch as err {

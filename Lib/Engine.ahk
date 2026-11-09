@@ -3626,10 +3626,110 @@ WalkRoute(mapName) {
     Step("walking to the spot")
     if RegExMatch(route, "^click:(\d+),(\d+)", &cm)
         ClickWalk(Integer(cm[1]), Integer(cm[2]))
-    else
+    else {
+        face := MiniFacing(), want := RouteFace(route)
+        if want >= 0 && face >= 0 && face != want {
+            AddLog("The camera faces " FaceName(face) ", the walk was made facing " FaceName(want) ": its keys turned to match")
+            route := TurnRoute(route, Mod(face - want + 360, 360))
+        }
         PlayRoute(route)
+    }
     global walkedHere := true                   ; PlaceSlot goes back to spawn if nothing fits there
     AddLog("Walked to the " key " spot")
+}
+
+; ---------- which way the camera faces ----------
+; Walks are W A S D, and those go where the camera faces: the same walk sent Chris's alt the opposite
+; way from his main on Dungeon Throne (9 Nov: the main's arrow on the minimap pointed down, the alt's
+; up, the whole time from the map loading). A walk keeps the direction it was made with ("face:180,"
+; in front) and is played with its keys turned to match the camera. As on the minimap: 0 up, 90 right,
+; 180 down, 270 left
+
+; your arrow on the minimap (white, hollow, ~6 x 4 px; the base's white heart is solid). -1: not seen
+MiniFacing() {
+    white := Map()
+    try {
+        WinGetClientPos &ox, &oy, , , RBX
+        Fresh()
+        scr := FindText()
+        y := 448
+        while y < 592 {
+            x := 650
+            while x < 790 {
+                c := scr.GetColor(ox + x, oy + y, 0)
+                if Min((c >> 16) & 0xFF, (c >> 8) & 0xFF, c & 0xFF) >= 190
+                    white[x * 1000 + y] := 1
+                x++
+            }
+            y++
+        }
+    } catch
+        return -1
+    return FacingOf(white)
+}
+
+; white: a Map of x * 1000 + y. The one arrow-sized hollow white mark and which way it points (its open
+; end is where its pixels spread wider). -1 when there's none, or more than one
+FacingOf(white) {
+    seen := Map(), found := -1, n := 0
+    for k in white {
+        if seen.Has(k)
+            continue
+        comp := [], stack := [k], seen[k] := 1
+        while stack.Length {
+            p := stack.Pop(), comp.Push(p)
+            px := p // 1000, py := Mod(p, 1000)
+            for dx in [-1, 0, 1]
+                for dy in [-1, 0, 1] {
+                    q := (px + dx) * 1000 + py + dy
+                    if white.Has(q) && !seen.Has(q)
+                        seen[q] := 1, stack.Push(q)
+                }
+        }
+        if comp.Length < 6 || comp.Length > 30
+            continue
+        x0 := 99999, x1 := 0, y0 := 99999, y1 := 0, sx := 0, sy := 0
+        for p in comp {
+            px := p // 1000, py := Mod(p, 1000)
+            x0 := Min(x0, px), x1 := Max(x1, px), y0 := Min(y0, py), y1 := Max(y1, py), sx += px, sy += py
+        }
+        if comp.Length / ((x1 - x0 + 1) * (y1 - y0 + 1)) >= 0.65   ; solid: the heart
+            continue
+        cx := sx / comp.Length, cy := sy / comp.Length
+        above := [0, 0], below := [0, 0], lft := [0, 0], rgt := [0, 0]     ; [sum, count]
+        for p in comp {
+            px := p // 1000, py := Mod(p, 1000)
+            if py < cy
+                above[1] += Abs(px - cx), above[2]++
+            else if py > cy
+                below[1] += Abs(px - cx), below[2]++
+            if px < cx
+                lft[1] += Abs(py - cy), lft[2]++
+            else if px > cx
+                rgt[1] += Abs(py - cy), rgt[2]++
+        }
+        up := (below[2] ? below[1] / below[2] : 0) - (above[2] ? above[1] / above[2] : 0)   ; wider below: points up
+        left := (rgt[2] ? rgt[1] / rgt[2] : 0) - (lft[2] ? lft[1] / lft[2] : 0)            ; wider right: points left
+        if Max(Abs(up), Abs(left)) < 0.2
+            continue
+        found := Abs(up) >= Abs(left) ? (up > 0 ? 0 : 180) : (left > 0 ? 270 : 90), n++
+    }
+    return n = 1 ? found : -1
+}
+
+RouteFace(route) => RegExMatch(route, "(?:^|,)face:(\d+)", &m) ? Integer(m[1]) : -1
+FaceName(d) => d = 0 ? "up" : d = 90 ? "right" : d = 180 ? "down" : d = 270 ? "left" : "?"
+
+; the walk's W A S D turned for a camera that turned `turn` degrees clockwise since the walk was made
+TurnRoute(route, turn) {
+    static off := Map("w", 0, "d", 90, "s", 180, "a", 270), keyAt := Map(0, "w", 90, "d", 180, "s", 270, "a")
+    out := ""
+    for ev in StrSplit(route, ",") {
+        if RegExMatch(ev, "^([wasd])([+-]\d+)$", &m)
+            ev := keyAt[Mod(off[m[1]] - turn + 720, 360)] m[2]
+        out .= (out = "" ? "" : ",") ev
+    }
+    return out
 }
 
 ; ---------- Click to Move walks ----------
