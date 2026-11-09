@@ -56,6 +56,27 @@ checks = [
     ("Golden e ranch Golden e ranch", "", "Golden Branch"),
     ("Golden Fishhook Luck Golden Fi", "", "Golden Fishhook"),
     ("Elf Pou gange Elf Pou Range", "", "Elf Bow"),
+    # Chris 9 Nov ("dungeon items not bought"): his shops were mostly "?" while the read gave the item away
+    ("Attach Attach", "", "Dagger"),                        # "Attack" with h for k
+    ("Aftack Aftack", "", "Dagger"),                        # f for t
+    ("5% Attacw O agoge 5% Attacw O ", "", "Dagger"),       # +15% attack, the 1 and the k lost
+    ("cri* Charz• cri* Charz•", "", "Axe"),                 # crit chance, with no % read
+    ("Oaog•r —20% Enor•u Oaog•r —20%", "", "Ice Dagger"),   # -20% enemy speed
+    ("—20% Ener•u —20% Ener•u", "", "Ice Dagger"),
+    ("G I.ac:i.al. E.m•nu G I.ac:i.a", "", "Glacial Axe"),
+    ("Golden Fi%hhook Luck Golden Fi", "", "Golden Fishhook"),
+    ("Go I.dan F Luck Go I.dan F Luc", "", "Golden Fishhook"),
+    ("Golden Nu%h Golden Nu%h", "", "Golden Mushroom"),
+    ("Luck Luck", "", "Fish Hook"),                         # every luck item wanted: the lowest on the list
+    ("Luck Luck", "Fish Hook", ""),
+    ("Toma Toma", "", "Magic Tome"),
+    ("Haoie 4100% Damag• Haoie 4100%", "", "Magic Tome"),   # +100% magic damage, the + read as 4
+    ("Davao r Davao r", "", "Dagger"),
+    ("Coa f Dam Coa f Dam", "", "Mage Coat"),
+    ("Coaf Coaf", "", "Mage Coat"),
+    ("Qo.apar 475% Damag• Qoapar 475", "", "Reaper Scythe"),
+    ("flange garoe", "", "Bow"),                            # "Range" with an l
+    ("Dam Dam", "", ""),                                    # too little to tell
     ("Golden Golden", "", ""),                              # Mushroom, Branch or Fishhook: not guessed
     ("", "", ""),
 ]

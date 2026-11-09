@@ -1591,12 +1591,27 @@ ShopRowName(raw) {
                 break
             }
     }
+    ; misread names with their dots and marks squeezed out (Chris 9 Nov: "Go I.dan F Luck", "Golden Nu%h",
+    ; "G I.ac:i.al", "Davao r", "Toma", "Coa f Dam", "Qo.apar 475% Damage" all stayed "?" and unbought)
+    if name = "" {
+        sq := RegExReplace(low, "[^a-z0-9%]")
+        for re, full in Map("g[o0][il1]?d[ae]nf", "Golden Fishhook", "g[o0][il1]?d[ae]n[mn]u", "Golden Mushroom",
+            "g[il1]ac[il1]", "Glacial Axe", "da[gvq][gvoa][eo]r", "Dagger", "[rq][eo]{0,2}a?p[ae]r", "Reaper Scythe")
+            if RegExMatch(sq, re) && IndexOf(cfg["shopRank"], full) {
+                name := full
+                break
+            }
+        if name = "" && RegExMatch(low, "\bto[mn][ae]\b") && IndexOf(cfg["shopRank"], "Magic Tome")
+            name := "Magic Tome"
+        else if name = "" && RegExMatch(low, "\bc[o0]a\s?[ft+](?![a-z])") && IndexOf(cfg["shopRank"], "Mage Coat")
+            name := "Mage Coat"
+    }
     if name = "" {
         if RegExMatch(low, "\belf\b")
             name := "Elf Bow"
         else if RegExMatch(low, "\b[hm]a[gq][eo]\s*[ce][o0]")    ; "Hage Coe", "Hago Coa" = Mage Coat
             name := "Mage Coat"
-        else if RegExMatch(low, "[rg]an[gq]e")                     ; "+N% Range" and no other clue: a bow
+        else if RegExMatch(low, "[rgl]an[gq]e")                    ; "+N% Range" ("flange") and no other clue: a bow
             name := RegExMatch(low, "5\s*0\s*%") ? "Elf Bow" : "Bow"
         if name != "" && !IndexOf(cfg["shopRank"], name)
             name := ""
@@ -1638,11 +1653,15 @@ ShopByEffect(low) {
     ; the %: "SO%" is 50% (S and O misread for 5 and 0)
     pct := RegExMatch(low, "([\dso]{1,3})\s*%", &m) && RegExMatch(m[1], "\d|^so$|^s[o0]{2}$")
         ? Integer(StrReplace(StrReplace(m[1], "s", "5"), "o", "0")) : 0
+    ; (Chris 9 Nov: "Attach", "Aftack", "Attacw", "cri* Charz", "Haoie 4100% Damage", "flange" were missed;
+    ; luck items with no % have keys below 0 so they count only for the lowest-on-your-list rule)
     for g in [["c[o0]{2}[l1i]\s*d[o0]", Map(7, "Nimble Cloak", 12, "Ninja Belt", 20, "Speedy Boots", 50, "Stormbringer")],
-        ["(cr[il1]|er[il1])[t+]?\s*chan", Map(50, "Axe", 100, "Solar Cleaver")],
-        ["[mh]a[gq][il1]?[ce]?\b.{0,12}da[tr]|magic", Map(50, "Mage Coat", 100, "Magic Tome", 250, "Archmage's Hat")],
-        ["a[t+]{2}ac?k", Map(15, "Dagger", 30, "Sword", 75, "Scimitar")],
-        ["[rg]an[gq]e", Map(20, "Bow", 30, "Longbow", 50, "Elf Bow")]] {
+        ["(cr[il1]|er[il1])[t+*]?\W{0,2}\s*c?ha[nr]", Map(50, "Axe", 100, "Solar Cleaver")],
+        ["(?:[mh]a[gq][il1]?[ce]?|ha[o0][il1][ce])\b.{0,12}da[trm]|magic", Map(50, "Mage Coat", 100, "Magic Tome", 250, "Archmage's Hat")],
+        ["en[eo]r[•mnu]", Map(20, "Ice Dagger", 30, "Glacial Axe")],
+        ["a[tf+]{2}ac?[khw]", Map(15, "Dagger", 30, "Sword", 75, "Scimitar")],
+        ["\bl[uv]ck\b", Map(40, "Golden Fishhook", -1, "Fish Hook", -2, "Genie Lamp")],
+        ["[rgl]an[gq]e", Map(20, "Bow", 30, "Longbow", 50, "Elf Bow")]] {
         if !RegExMatch(low, g[1])
             continue
         if g[2].Has(pct)
