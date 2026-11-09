@@ -121,6 +121,21 @@ yen := 100, rate := 0, cost := 600, yenRead := "", now := 0, tries := 0, placedU
 ctx := NewCtx()
 PlaceSlot(ctx, 1, 1)
 Check("greyed out and 100 of 600 yen read: no tries, it waits", tries = 0, tries)
+; RNG 9 Nov (3.2.119): "waiting for yen to place slot 3 (18369 / 730)" for a whole minute, the card read as
+; greyed out with both numbers read and plenty of yen: tried after a few waits, all 4 placed (its limit is 4)
+yen := 18369, rate := 0, cost := 730, yenRead := "", cardGrey := true, now := 0, tries := 0, placedUnits := [], logs := []
+slotCap[CapKey(3)] := 4
+ctx := NewCtx()
+got := PlaceSlot(ctx, 3, 4)
+Check("card greyed out, 18369 of 730 yen read: tries anyway and places all 4", got.Length = 4, got.Length)
+Check("  within 30 s", now <= 30000, now)
+Check("  and says so once", logs.Length >= 1 && InStr(logs[1], "Slot 3: its card looks greyed out, but the yen is plenty (18369 for 730)"), logs.Length ? logs[1] : "")
+; its limit reached (4 of 4): the greyed card is the limit, it moves on
+placedUnits := [{x: 1, y: 1}, {x: 2, y: 2}, {x: 3, y: 3}, {x: 4, y: 4}], now := 0, tries := 0, logs := []
+ctx := NewCtx()
+PlaceSlot(ctx, 3, 1)
+Check("greyed with plenty of yen at its limit (4 of 4): no tries", tries = 0, tries)
+slotCap := Map()
 cardGrey := false
 FileAppend(fails ? "FAILED " fails "`n" : "ALL PASSED`n", "*", "UTF-8")
 ExitApp fails ? 1 : 0

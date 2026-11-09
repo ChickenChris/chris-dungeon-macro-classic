@@ -88,9 +88,9 @@ import re, sys
 s = open(sys.argv[1] + "/Lib/Engine.ahk", encoding="utf-8-sig").read()
 g = re.search(r"^GoToSpot\(.*?^\}", s, re.S | re.M); z = re.search(r"^ZoomCameraNow\(.*?^\}", s, re.S | re.M)
 ok1 = bool(g) and "WalkFace(mapName)" in g.group(0) and "ZoomCamera(want)" in g.group(0)
-ok2 = bool(z) and re.search(r"Click\s*\n\s*if want >= 0\s*\n\s*TurnCamera\(want\)", z.group(0)) is not None
+ok2 = bool(z) and re.search(r"Click\s*\n\s*if want >= 0 \|\| want = -2\b[^\n]*\n\s*TurnCamera\(want\)", z.group(0)) is not None
 print(("PASS" if ok1 else "FAIL") + " GoToSpot: the walk's direction to the camera line-up")
-print(("PASS" if ok2 else "FAIL") + " the line-up turns the camera while zoomed in (before tilting down)")
+print(("PASS" if ok2 else "FAIL") + " the line-up turns the camera while zoomed in (before tilting down), walks without a mark too")
 P
 )
 echo "$R"

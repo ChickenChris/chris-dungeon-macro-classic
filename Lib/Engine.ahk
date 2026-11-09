@@ -495,8 +495,8 @@ Tick() {
         ; Summer Hunt: the round just ended (Next pressed) and Replay wasn't pressed yet: the old round's
         ; screen under a reward popup ("Sky Portal [T7] Mythic (Click anywhere to continue)") isn't a new
         ; round. RNG's recording: it pressed Tab, teleported and walked to the spot there. The popups get
-        ; clicked away instead (IdleTick), until Replay / the lobby shows
-        if FoolMode() && !stageActive && postStage && A_TickCount - postStage < 90000 && foolReplayAt < postStage {
+        ; clicked away instead (IdleTick), until Replay / the lobby shows. A dungeon the same (OldRoundScreen)
+        if OldRoundScreen() {
             IdleTick()
             return
         }
@@ -2408,13 +2408,18 @@ LoadStage(knownMap := "", knownDepth := "", lenient := false, fromRoom := false)
         ; dungeon: the room's Enter button still showing means not in yet, whatever else looks like a stage
         ; (a log: Enter didn't take, the panel stayed open, and nothing happened for 1.5 min)
         enterUp := fromRoom && Det("Enter")
-        if (IsLoaded() && !enterUp) || (lenient && InStageWorld())
+        ; the room picker still up over the floor it came from (whose yen and unit bar count as loaded): the
+        ; game said "Unable to teleport right now" (RNG 9 Nov: the cleared floor was played again)
+        roomsUp := fromRoom && !enterUp && IsLoaded() && ScanRooms().Length
+        if (IsLoaded() && !enterUp && !roomsUp) || (lenient && InStageWorld())
             break
         ; the room picker stays up for a moment after pressing Enter, so only treat it
         ; as "we didn't actually enter" once a few seconds have passed
-        if A_TickCount - t0 > 6000 && (enterUp || SpecialScreen() || ScanRooms().Length || Det("FinishDungeon")) {
+        if A_TickCount - t0 > 6000 && (enterUp || roomsUp || SpecialScreen() || ScanRooms().Length || Det("FinishDungeon")) {
             if enterUp
                 AddLog("The room's Enter button is still there (it didn't go in): picking the room again")
+            else if roomsUp
+                AddLog("The room didn't load (the game couldn't teleport you yet): picking the room again")
             return
         }
         if A_TickCount - t0 > 30000 && !waitShot {
@@ -3449,7 +3454,7 @@ ZoomCameraNow(want := -1) {
     }
     Wait(150)
     Click
-    if want >= 0
+    if want >= 0 || want = -2          ; (-2: a walk with no mark, turned up when the game flipped it)
         TurnCamera(want)               ; turned the way the walk was made (zoomed in, a sideways move turns it)
     MouseMove 400, 400                 ; tilt down
     Wait(100)
@@ -3458,7 +3463,9 @@ ZoomCameraNow(want := -1) {
         Sleep 30
     }
     MouseMove 400, 300
-    Stale()
+    Stale()                            ; its click landed on a unit and opened its menu (RNG 9 Nov): closed
+    if NewMenu()
+        Clk(277, 226)
 }
 
 TeleportToSpawn() {
@@ -4241,7 +4248,7 @@ PlaceSlotAt(ctx, n, need) {
     need := SlotRoom(n, need)
     lv := ctx.lv, pts := ctx.pts
     newUnits := []
-    got := 0, stuck := 0, greySince := 0, poorRounds := 0, blind := 0, toldBlind := false
+    got := 0, stuck := 0, greySince := 0, poorRounds := 0, blind := 0, toldBlind := false, rich := 0, toldRich := false
     while got < need {
         if StageOver() {
             ctx.over := true
@@ -4257,7 +4264,8 @@ PlaceSlotAt(ctx, n, need) {
             ready := false, poorRounds++
         if !ready {
             yen := ReadYen(), cost := SlotCost(n)
-            if yen >= 0 && cost > 0 && yen >= cost && !greySince && CountPlaced(n) >= 1 && ReadYen() >= cost {
+            room := slotCap.Has(CapKey(n)) && CountPlaced(n) < slotCap[CapKey(n)]     ; its limit known, not reached
+            if yen >= 0 && cost > 0 && yen >= cost && !greySince && CountPlaced(n) >= 1 && !room && ReadYen() >= cost {
                 ; enough yen but still greyed out: that's the game's limit for this unit
                 AddLog("Slot " n ": the game won't allow more (" CountPlaced(n) " placed), moving on")
                 break
@@ -4268,10 +4276,16 @@ PlaceSlotAt(ctx, n, need) {
             ; yen: tried anyway every 20 waits (Jae 9 Nov: "waiting for yen to place slot 6" with no numbers
             ; for 3+ min, 16,858 yen on screen, Mochi at 660: he placed it by hand, the round was lost)
             blind := (yen < 0 || cost <= 0) ? blind + 1 : 0
-            if blind >= 20 {
-                blind := 0
-                if !toldBlind
+            ; the card looks greyed out, but the yen read is plenty and the unit isn't at its limit: its colour
+            ; was misjudged. Tried after 3 waits (RNG 9 Nov: "waiting for yen to place slot 3 (18369 / 730)"
+            ; for a minute and more, his Zombie card plainly ready)
+            rich := yen >= 0 && cost > 0 && yen >= cost && (!CountPlaced(n) || room) && ReadYen() >= cost ? rich + 1 : 0
+            if blind >= 20 || rich >= 3 {
+                if rich >= 3 && !toldRich
+                    AddLog("Slot " n ": its card looks greyed out, but the yen is plenty (" yen " for " cost "). Trying to place it anyway"), toldRich := true
+                else if blind >= 20 && !toldBlind
                     AddLog("Slot " n ": its card looks greyed out, but the yen or its price can't be read. Trying to place it anyway"), toldBlind := true
+                blind := 0, rich := 0
             } else if ctx.build && A_TickCount - greySince < 360000 {
                 Step("build order: waiting for yen to place slot " n (yen >= 0 && cost > 0 ? "  (" yen " / " cost ")" : ""))
                 Wait(1000)
@@ -7009,6 +7023,18 @@ IcReadUnlocked() {
         if n
             icUnlocked := n, icUnlockedTop := top
     }
+}
+
+; Just after a round: its screen under the reward popups isn't a new round. Summer Hunt until Replay is
+; pressed; a dungeon until the next room is entered (that starts its round itself). RNG 9 Nov: "Money
+; (Dungeon) x54" over a won floor was played as a new round: Tab, teleport, the camera line-up (its click
+; opened a unit's upgrade menu), then "Run finished in 0m 12s"
+OldRoundScreen() {
+    if stageActive || !postStage || A_TickCount - postStage >= 90000
+        return false
+    if FoolMode()
+        return foolReplayAt < postStage
+    return cfg.Get("mode", "Dungeon") = "Dungeon"
 }
 
 ; counts the stage once (win / loss / time), whichever end screen shows first
