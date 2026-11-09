@@ -139,9 +139,10 @@ ok3 = bool(re.search(r"^Dungeon Throne=w\+0,d\+0,w-703,", old, re.M)) if "Dungeo
 print(("PASS" if ok1 else "FAIL") + " recording a walk keeps which way the camera faced")
 print(("PASS" if ok2 else "FAIL") + " Chris's Dungeon Throne walk marked: made facing down")
 print(("PASS" if ok3 else "FAIL") + " the unmarked one in [OldWalks] (players who have it get the marked one)")
-fc = re.search(r"^Future City=(.*)$", walks, re.M)
-ok4 = bool(fc) and fc.group(1).startswith("face:180,d+0,w+2032,") and bool(re.search(r"^Future City=d\+0,w\+2032,", old, re.M))
-print(("PASS" if ok4 else "FAIL") + " Future City marked facing down (Chris: the arrow points down there in normal weather; Inferno turns it round)")
+fc = re.search(r"^Future City \(Fool's Hunt\)=(.*)$", walks, re.M)
+dc = re.search(r"^Future City=(.*)$", walks, re.M)
+ok4 = bool(fc) and fc.group(1).startswith("face:180,a+0,s+1688,") and bool(dc) and not dc.group(1).startswith("face:")
+print(("PASS" if ok4 else "FAIL") + " Chris's Summer Hunt walk for Future City shipped, made facing down (Inferno turns it round); the dungeon's unmarked")
 P
 )
 echo "$R"
