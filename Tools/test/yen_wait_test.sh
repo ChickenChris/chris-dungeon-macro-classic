@@ -24,6 +24,7 @@ body = r'''#Requires AutoHotkey v2.0
 OnError((e, m) => (FileAppend("ERROR " e.Message " (line " e.Line ")`n", "*"), ExitApp(3)))
 global fails := 0, yen := 0, now := 0, tries := 0, placedUnits := [], goodSpots := Map(), slotStops := Map()
 global slotCap := Map(), walkedHere := false, curMap := "Test", barShown := false, cost := 600, rate := 100
+global cardGrey := false, yenRead := "", logs := []
 HillSlot(n) => false                   ; no hill units here (hill_test.sh)
 HillPoints(n) => []
 Check(name, ok, got := "") {
@@ -33,15 +34,16 @@ Check(name, ok, got := "") {
 }
 SlotRoom(n, need) => need
 ; the unit bar not seen (the case that tried without the yen): ready by the yen against the price
-SlotReady(n) => barShown ? true : EnoughYen(n)   ; barShown: the card looks ready whatever the yen (the case Soru hit)
+SlotReady(n) => cardGrey ? false : barShown ? true : EnoughYen(n)   ; barShown: the card looks ready whatever the yen (the case Soru hit)
 SlotCost(n) => cost
-ReadYen() => yen
+ReadYen() => yenRead != "" ? yenRead : yen
 CountPlaced(n) => placedUnits.Length
 CapKey(n) => n
-NextToUnit(x, y) => false
+NextToUnit(x, y, r := 22) => false
+global placeRedSkip := false
 StageOver() => now > 600000
 Step(t) => 0
-AddLog(t) => 0
+AddLog(t) => logs.Push(t)
 LearnSpot(n, p) => 0
 TakeUnseen(n) => []
 UpgradePass(p*) => 0
@@ -103,6 +105,24 @@ cost := 600, yen := 100
 Check("bar not seen, 100 of 600 yen: not ready", !SlotReady(1))
 yen := 700
 Check("bar not seen, 700 of 600 yen: ready", SlotReady(1))
+; Jae 9 Nov: the card looked greyed out and neither the yen nor the price could be read ("waiting for yen
+; to place slot 6" with no numbers), 16,858 yen on screen, Mochi at 660: waited until the round was lost
+yen := 16858, rate := 0, cost := 660, yenRead := -1, cardGrey := true, now := 0, tries := 0, placedUnits := [], logs := []
+ctx := NewCtx()
+got := PlaceSlot(ctx, 6, 2)
+Check("card greyed out, yen unreadable: tries anyway and places both", got.Length = 2, got.Length)
+Check("  within a minute", now <= 60000, now)
+Check("  and says so once", logs.Length >= 1 && InStr(logs[1], "Slot 6: its card looks greyed out, but the yen or its price can't be read"), logs.Length ? logs[1] : "")
+; the same with the price unreadable
+yenRead := "", cost := -1, now := 0, tries := 0, placedUnits := [], logs := []
+ctx := NewCtx()
+Check("card greyed out, price unreadable: tries anyway", PlaceSlot(ctx, 6, 1).Length = 1 && now <= 60000, now)
+; but greyed out with the yen read and not enough: waits as before (no tries)
+yen := 100, rate := 0, cost := 600, yenRead := "", now := 0, tries := 0, placedUnits := [], logs := []
+ctx := NewCtx()
+PlaceSlot(ctx, 1, 1)
+Check("greyed out and 100 of 600 yen read: no tries, it waits", tries = 0, tries)
+cardGrey := false
 FileAppend(fails ? "FAILED " fails "`n" : "ALL PASSED`n", "*", "UTF-8")
 ExitApp fails ? 1 : 0
 '''

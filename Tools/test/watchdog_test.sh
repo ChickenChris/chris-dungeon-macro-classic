@@ -48,7 +48,13 @@ ResumeFront() => 0
 Stale() => 0
 FoolWaitHook() => 0
 Det(k) => false
-BackToLobby() => (calls.Push("lobby"), true)
+global lobbyErr := false
+BackToLobby() {
+    calls.Push("lobby")
+    if lobbyErr                                 ; (Roblox closed under it, say)
+        throw Error("no Roblox window")
+    return true
+}
 RejoinToLobby() => calls.Push("rejoin")
 SendWebhook(t, d, c := 0, p*) => calls.Push("webhook")
 DbgSaveSoon(r) => saves.Push(r)
@@ -89,8 +95,9 @@ Check("still no round: rejoin again; a round in between: back to the lobby first
 Check("the macro stopped normally at the end", !running)
 
 ; not while paused, in a manual task, while the Find Match number waits for the player, or while recovering
-running := true, wdRoundAt := fakeNow - 600000, wdLastAt := 0
+running := true, wdLastAt := 0
 for what in ["paused", "manual", "typing", "busy"] {
+    wdRoundAt := fakeNow - 600000
     paused := what = "paused", manualRun := what = "manual", wdBusy := what = "busy"
     stepNow := what = "typing" ? "Summer Hunt: Find Match, waiting for you to type the number" : "lobby: going to Summer Hunt"
     fakeNow += 2000, thrown := false
@@ -98,10 +105,24 @@ for what in ["paused", "manual", "typing", "busy"] {
     catch MacroStop
         thrown := true
     Check("no watchdog while " what, !thrown)
-    if what = "typing"
-        wdRoundAt := fakeNow - 600000
 }
 paused := false, manualRun := false, wdBusy := false
+
+; a 10-minute pause in the lobby: carrying on afterwards isn't "nothing happened for 4 minutes"
+stepNow := "lobby: going to Summer Hunt", wdRoundAt := fakeNow, paused := true
+fakeNow += 600000
+try WatchdogCheck()
+paused := false, fakeNow += 2000, thrown := false
+try WatchdogCheck()
+catch MacroStop
+    thrown := true
+Check("after a 10-minute pause: no watchdog right away", !thrown)
+
+; the way back to the lobby fails with an error: the macro carries on (not a crash)
+ticks := 0, running := true, calls := [], logs := [], wdRoundAt := 0, wdFires := 0, wdLastAt := 0, lobbyErr := true
+EngineRun()
+Check("going back to the lobby failed: logged and the main loop went on", ticks > 6 && LogHas("no Roblox window"), ticks)
+lobbyErr := false, running := true
 
 ; B: a placement wait of 3 minutes in a round: explained once, with a recording; the round goes on
 logs := [], saves := [], stageActive := true, wdInStage := false

@@ -307,6 +307,9 @@ EngineRun() {
             catch MacroStop {
                 ReleaseKeys()
                 return
+            } catch as e {                      ; (Roblox closed under it, say): the loop carries on
+                ReleaseKeys()
+                AddLog("Hiccup: " e.Message " (line " e.Line ")")
             }
         } catch MacroStop {
             ReleaseKeys()
@@ -4061,7 +4064,7 @@ PlaceSlotAt(ctx, n, need) {
     need := SlotRoom(n, need)
     lv := ctx.lv, pts := ctx.pts
     newUnits := []
-    got := 0, stuck := 0, greySince := 0, poorRounds := 0
+    got := 0, stuck := 0, greySince := 0, poorRounds := 0, blind := 0, toldBlind := false
     while got < need {
         if StageOver() {
             ctx.over := true
@@ -4084,12 +4087,19 @@ PlaceSlotAt(ctx, n, need) {
             }
             if !greySince
                 greySince := A_TickCount
-            if ctx.build && A_TickCount - greySince < 360000 {
+            ; the card looks greyed out, but neither the yen nor its price could be read to say it's the
+            ; yen: tried anyway every 20 waits (Jae 9 Nov: "waiting for yen to place slot 6" with no numbers
+            ; for 3+ min, 16,858 yen on screen, Mochi at 660: he placed it by hand, the round was lost)
+            blind := (yen < 0 || cost <= 0) ? blind + 1 : 0
+            if blind >= 20 {
+                blind := 0
+                if !toldBlind
+                    AddLog("Slot " n ": its card looks greyed out, but the yen or its price can't be read. Trying to place it anyway"), toldBlind := true
+            } else if ctx.build && A_TickCount - greySince < 360000 {
                 Step("build order: waiting for yen to place slot " n (yen >= 0 && cost > 0 ? "  (" yen " / " cost ")" : ""))
                 Wait(1000)
                 continue
-            }
-            if !ctx.build {
+            } else if !ctx.build {
                 stuck++
                 if stuck >= (got ? lv[2] : lv[3]) {
                     AddLog("Slot " n " stopped at " got "/" need " (not enough yen), moving on")
@@ -4143,7 +4153,7 @@ PlaceSlotAt(ctx, n, need) {
             here := ctx.cursor, p := pts[here], key := p.x "," p.y
             ctx.cursor := Mod(ctx.cursor, pts.Length) + 1
             tried++
-            if ctx.used.Has(key) || ctx.fails.Get(key, 0) >= 2 || NextToUnit(p.x, p.y)
+            if ctx.used.Has(key) || ctx.fails.Get(key, 0) >= 2 || NextToUnit(p.x, p.y, ctx.HasOwnProp("gap") ? ctx.gap : 22)
                 continue
             if StageOver() {
                 ctx.over := true
@@ -4163,6 +4173,9 @@ PlaceSlotAt(ctx, n, need) {
                     poor := true                ; that one spent the yen: wait for the next one's
                     break
                 }
+            } else if placeRedSkip {
+                ctx.fails[key] := 2             ; red under it: not this stage (no click, not a miss)
+                attempts--
             } else {
                 took := 0
                 for u in TakeUnseen(n)
@@ -4174,6 +4187,19 @@ PlaceSlotAt(ctx, n, need) {
                 }
                 ctx.fails[key] := ctx.fails.Get(key, 0) + 1
                 misses++
+                ; failed right next to a unit: with a close camera a unit covers far more than 22 px (Elyssia
+                ; ~85 on Chris's Dungeon Throne). Spots that close to units are skipped from now on (up to 90)
+                d := 999
+                for u in placedUnits
+                    d := Min(d, Sqrt((u.x - p.x) ** 2 + (u.y - p.y) ** 2))
+                if !took && d < 90 {
+                    gap := Min(90, Round(d) + 12)
+                    if gap > (ctx.HasOwnProp("gap") ? ctx.gap : 22) {
+                        if !ctx.HasOwnProp("gap")
+                            AddLog("Slot " n ": the spots right next to your units don't fit here (a close camera), trying further out")
+                        ctx.gap := gap
+                    }
+                }
                 if !SlotRoom(n, 1)
                     return newUnits                 ; the game's limit for this unit
             }
@@ -4184,8 +4210,10 @@ PlaceSlotAt(ctx, n, need) {
             Wait(1000)
             continue
         }
-        if !attempts && got < need
+        if !attempts && got < need {
             ctx.fails := Map()                 ; every spot is used or failed twice: give them another go
+            ctx.gap := 22                      ; (and the ones near units too)
+        }
         ; walked to the map's spot and not one unit fits anywhere: the walk went off, or it isn't the
         ; map it was taken for (a Fool's Hunt loading screen once said Mountain Temple on another
         ; map, and it walked out to where nothing can be placed). Back to spawn, place from there
@@ -5376,11 +5404,30 @@ ReadYellowNumber(x, y, w, h) {
 
 ; a spot right next to a unit that's already down: clicking it there selects that unit
 ; instead of placing (the game says there's no space), which used to count as placed
-NextToUnit(x, y) {
+NextToUnit(x, y, r := 22) {
     for u in placedUnits
-        if (u.x - x) ** 2 + (u.y - y) ** 2 < 22 ** 2
+        if (u.x - x) ** 2 + (u.y - y) ** 2 < r ** 2
             return true
     return false
+}
+
+; how much of the spot (25 dots, 12 px across) is the game's red "can't place here" (180-193, 7-10, 38-45
+; on Chris's recording). Otherwordly Plane's dark red map has 0.4-2 % of it on the whole screen
+global placeRedSkip := false
+NoPlaceRed(x, y) {
+    hit := 0
+    try {
+        WinGetClientPos &ox, &oy, , , RBX
+        Fresh()
+        scr := FindText()
+        for dx in [-6, -3, 0, 3, 6]
+            for dy in [-6, -3, 0, 3, 6] {
+                c := scr.GetColor(ox + x + dx, oy + y + dy, 0)
+                r := (c >> 16) & 0xFF, g := (c >> 8) & 0xFF, b := c & 0xFF
+                hit += r >= 170 && g <= 60 && b <= 90 && r - g >= 120
+            }
+    }
+    return hit / 25
 }
 
 NearUnit(x, y, r) {
@@ -5421,6 +5468,15 @@ TryPlace(x, y, slot) {
     if VoteOnScreen() {                         ; the cards came up while it was held: cards first
         Keys("q")
         ClearVote()
+        return false
+    }
+    ; the game paints where the held unit can't go in red (Chris's Dungeon Throne 9 Nov: the camera sat
+    ; close, the red covered the middle and every spot tried was in it, 6 s each). Mostly red under the
+    ; spot: no click, the next spot (not a miss: PlaceSlotAt)
+    global placeRedSkip := false
+    if NoPlaceRed(x, y) >= 0.4 {
+        Keys("q")
+        placeRedSkip := true
         return false
     }
     Clk(x, y)
@@ -7591,7 +7647,11 @@ WdNow() => A_TickCount
 WatchdogCheck() {
     global wdRoundAt, wdFires, wdStepTold, wdLastAt, wdInStage
     now := WdNow()
-    if wdBusy || !running || paused || manualRun || now - wdLastAt < 1000
+    if wdBusy || !running || paused || manualRun {
+        wdRoundAt := now                        ; a pause or a manual task isn't the macro being stuck
+        return
+    }
+    if now - wdLastAt < 1000
         return
     wdLastAt := now
     if !wdRoundAt
