@@ -4060,7 +4060,6 @@ HillGrid(step) {
 }
 
 PlaceSlotAt(ctx, n, need) {
-    big := Map()                            ; units that turned out bigger than 22 px (a miss next to them)
     global placedUnits
     need := SlotRoom(n, need)
     lv := ctx.lv, pts := ctx.pts
@@ -4154,7 +4153,7 @@ PlaceSlotAt(ctx, n, need) {
             here := ctx.cursor, p := pts[here], key := p.x "," p.y
             ctx.cursor := Mod(ctx.cursor, pts.Length) + 1
             tried++
-            if ctx.used.Has(key) || ctx.fails.Get(key, 0) >= 2 || NextToUnit(p.x, p.y) || NearBig(big, p.x, p.y)
+            if ctx.used.Has(key) || ctx.fails.Get(key, 0) >= 2 || NextToUnit(p.x, p.y)
                 continue
             if StageOver() {
                 ctx.over := true
@@ -4174,9 +4173,6 @@ PlaceSlotAt(ctx, n, need) {
                     poor := true                ; that one spent the yen: wait for the next one's
                     break
                 }
-            } else if placeRedSkip {
-                ctx.fails[key] := 2             ; red under it: not this stage (no click, not a miss)
-                attempts--
             } else {
                 took := 0
                 for u in TakeUnseen(n)
@@ -4188,15 +4184,6 @@ PlaceSlotAt(ctx, n, need) {
                 }
                 ctx.fails[key] := ctx.fails.Get(key, 0) + 1
                 misses++
-                ; failed right next to a unit: with a close camera a unit covers far more (Elyssia ~85 px on
-                ; Chris's Dungeon Throne). Spots that close to THAT unit are skipped for this one placement
-                ; only: kept for the round, one miss pushed every unit out (3.2.114: "almost beyond the screen")
-                d := 999, near := 0
-                for u in placedUnits
-                    if (e := Sqrt((u.x - p.x) ** 2 + (u.y - p.y) ** 2)) < d
-                        d := e, near := u
-                if !took && near && d < 90
-                    big[near] := Max(big.Get(near, 0), Min(90, Round(d) + 12))
                 if !SlotRoom(n, 1)
                     return newUnits                 ; the game's limit for this unit
             }
@@ -4208,7 +4195,7 @@ PlaceSlotAt(ctx, n, need) {
             continue
         }
         if !attempts && got < need
-            ctx.fails := Map(), big := Map()   ; every spot is used or failed twice: give them another go
+            ctx.fails := Map()                 ; every spot is used or failed twice: give them another go
         ; walked to the map's spot and not one unit fits anywhere: the walk went off, or it isn't the
         ; map it was taken for (a Fool's Hunt loading screen once said Mountain Temple on another
         ; map, and it walked out to where nothing can be placed). Back to spawn, place from there
@@ -5399,43 +5386,9 @@ ReadYellowNumber(x, y, w, h) {
 
 ; a spot right next to a unit that's already down: clicking it there selects that unit
 ; instead of placing (the game says there's no space), which used to count as placed
-NextToUnit(x, y, r := 22) {
+NextToUnit(x, y) {
     for u in placedUnits
-        if (u.x - x) ** 2 + (u.y - y) ** 2 < r ** 2
-            return true
-    return false
-}
-
-; how much of the spot (25 dots, 12 px across) is the game's red "can't place here" (180-193, 7-10, 38-45
-; on Chris's recording). Otherwordly Plane's dark red map has 0.4-2 % of it on the whole screen
-global placeRedSkip := false
-RedDots(x, y) {
-    dots := []
-    try {
-        WinGetClientPos &ox, &oy, , , RBX
-        Fresh()
-        scr := FindText()
-        for dx in [-6, -3, 0, 3, 6]
-            for dy in [-6, -3, 0, 3, 6] {
-                c := scr.GetColor(ox + x + dx, oy + y + dy, 0)
-                r := (c >> 16) & 0xFF, g := (c >> 8) & 0xFF, b := c & 0xFF
-                dots.Push(r >= 170 && g <= 60 && b <= 90 && r - g >= 120)
-            }
-    }
-    return dots
-}
-
-; before: the dots before the unit was held. Only red that came with it counts (a red floor doesn't)
-NoPlaceRed(x, y, before := "") {
-    hit := 0
-    for i, red in RedDots(x, y)
-        hit += red && !(IsObject(before) && before.Length >= i && before[i])
-    return hit / 25
-}
-
-NearBig(big, x, y) {
-    for u, r in big
-        if (u.x - x) ** 2 + (u.y - y) ** 2 < r ** 2
+        if (u.x - x) ** 2 + (u.y - y) ** 2 < 22 ** 2
             return true
     return false
 }
@@ -5466,7 +5419,6 @@ TryPlace(x, y, slot) {
         Wait(250)
         Stale()
     }
-    red0 := RedDots(x, y)                   ; the spot before the unit is held (its red check below)
     Keys(String(slot))
     Sleep 200                               ; (the game's "placed / most" over its card shows while it's held)
     Stale()
@@ -5479,15 +5431,6 @@ TryPlace(x, y, slot) {
     if VoteOnScreen() {                         ; the cards came up while it was held: cards first
         Keys("q")
         ClearVote()
-        return false
-    }
-    ; the game paints where the held unit can't go in red (Chris's Dungeon Throne 9 Nov: the camera sat
-    ; close, the red covered the middle and every spot tried was in it, 6 s each). Mostly red under the
-    ; spot: no click, the next spot (not a miss: PlaceSlotAt)
-    global placeRedSkip := false
-    if NoPlaceRed(x, y, red0) >= 0.4 {
-        Keys("q")
-        placeRedSkip := true
         return false
     }
     Clk(x, y)

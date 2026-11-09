@@ -73,9 +73,6 @@ SaveDebugShot(t) => 0
 global yens := [], price := -1
 ReadYen() => yens.Length ? yens.RemoveAt(1) : -1
 SlotCost(n) => price
-global redAt := "", placeRedSkip := false
-NoPlaceRed(x, y, before := "") => x "," y = redAt ? 0.8 : 0
-RedDots(x, y) => []
 ''' + fn + r'''
 ; no menu, but the yen went down by the unit's price: placed, not tried again (Chris 3 Nov)
 clicks := "", price := 600, yens := [2400, 1800]
@@ -97,13 +94,6 @@ autoOpenSeen := false, autoOpenOff := true, clicks := ""
 TryPlace(380, 300, 1)
 Check("menu never opens by itself: the spot clicked again to look", clicks = "380,300;380,300;", clicks)
 autoOpenSeen := true, autoOpenOff := false
-; the game's red "can't place here" under the spot: not clicked, the unit let go (Chris 9 Nov, Dungeon Throne)
-clicks := "", redAt := "450,300"
-ok := TryPlace(450, 300, 1)
-Check("red under the spot: not clicked, not placed", !ok && !InStr(clicks, "450,300"), clicks)
-Check("  told as a red skip (not a miss)", placeRedSkip)
-clicks := "", redAt := "", menuNext := true
-Check("no red: placed as before, and not a red skip", TryPlace(460, 300, 1) && !placeRedSkip, clicks)
 if foolChecks {
     fool := true, reads := 0
     TryPlace(420, 300, 1)
