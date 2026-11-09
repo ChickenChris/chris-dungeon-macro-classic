@@ -29,7 +29,8 @@ Check(name, ok, got := "") {
     fails += !ok
 }
 TeleportToSpawn() => 0
-ZoomCamera() => 0
+ZoomCamera(want := -1) => 0
+WalkFace(m) => -1
 ClearVote() => 0
 VoteOnScreen() => false
 global foolVotes := 0

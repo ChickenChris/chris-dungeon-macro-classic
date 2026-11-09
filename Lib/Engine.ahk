@@ -3390,10 +3390,11 @@ GoToSpot(mapName, walk := true, force := false) {
     if tp
         TeleportToSpawn()
     if cfg["zoom"] {
+        want := tp && walk ? WalkFace(mapName) : -1     ; the camera turned the way the walk was made
         loop 3 {                        ; a Fool's Hunt card vote over the middle swallows the zoom:
             ClearVote()                 ; pick it first, and zoom again if one came up during it
             votes := foolVotes
-            ZoomCamera()
+            ZoomCamera(want)
             if foolVotes = votes && !VoteOnScreen()
                 break
         }
@@ -3411,15 +3412,15 @@ WalkLearn() => 0
 ; camera, so nothing else may click (a Fool's Hunt card vote picked here left the camera stuck)
 global camBusy := false
 
-ZoomCamera() {
+ZoomCamera(want := -1) {
     global camBusy
     Step("lining up the camera")
     camBusy := true
-    try ZoomCameraNow()
+    try ZoomCameraNow(want)
     finally camBusy := false
 }
 
-ZoomCameraNow() {
+ZoomCameraNow(want := -1) {
     FocusRoblox()
     MouseMove 400, 300
     Wait(100)
@@ -3429,6 +3430,8 @@ ZoomCameraNow() {
     }
     Wait(150)
     Click
+    if want >= 0
+        TurnCamera(want)               ; turned the way the walk was made (zoomed in, a sideways move turns it)
     MouseMove 400, 400                 ; tilt down
     Wait(100)
     loop 20 {                          ; back out
@@ -3730,6 +3733,56 @@ TurnRoute(route, turn) {
         out .= (out = "" ? "" : ",") ev
     }
     return out
+}
+
+; the direction the map's walk was made with (its mark), -1 when it isn't known
+WalkFace(mapName) {
+    route := cfg["walks"].Get(PlaceKey(mapName), "")
+    return RegExMatch(route, "^click:") ? -1 : RouteFace(route)
+}
+
+; Some maps come with the camera turned (Chris 9 Nov: Future City in other weather, like Inferno, "has
+; the camera 180° turned"): the walk and the spots, made with it the other way, went elsewhere. Turned
+; back while zoomed in (first person: a sideways mouse move turns it), watching your arrow on the
+; minimap. It only tells 4 directions, so the turn is measured: the arrow changes at 45° and again at
+; 135°, the steps in between are 90°. True when it faces `want` now
+TurnCamera(want) {
+    face := MiniFacing()
+    if want < 0 || face < 0
+        return false
+    if face = want
+        return true
+    turn := Mod(want - face + 360, 360)
+    dir := turn = 270 ? -1 : 1                  ; a quarter to the left: turned left
+    first := Mod(face + dir * 90 + 360, 360), second := Mod(face + dir * 180 + 360, 360)
+    n := 0, n1 := 0, n2 := 0
+    while n < 150 {
+        CamNudge(dir), n++
+        f := MiniFacing()
+        if !n1 && f = first
+            n1 := n
+        else if n1 && f = second {
+            n2 := n
+            break
+        }
+    }
+    if !n2 {
+        AddLog("The camera faced " FaceName(face) " (the walk was made facing " FaceName(want) "), but it couldn't turn the camera. "
+            . "The walk's keys are turned instead; your spots may be off on this map")
+        return false
+    }
+    ; 135° was crossed half a step before (it's only seen after): on 45° more for a half turn, back 45° for a quarter
+    loop Round((n2 - n1) / 2 + (turn = 180 ? -0.5 : 0.5))
+        CamNudge(turn = 180 ? dir : -dir)
+    AddLog("The camera faced " FaceName(face) ", the walk was made facing " FaceName(want) ": turned it "
+        . (turn = 180 ? "round" : dir > 0 ? "a quarter right" : "a quarter left"))
+    return true
+}
+
+; one small sideways turn of the camera (zoomed in, Roblox turns it by how far the mouse moved)
+CamNudge(dir) {
+    MouseMove 400 + dir * 15, 300
+    Sleep 90
 }
 
 ; ---------- Click to Move walks ----------
