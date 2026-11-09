@@ -13,7 +13,7 @@ rec = open("Lib/DebugRec.ahk", encoding="utf-8-sig").read().replace("SetTimer Db
 body = r'''#Requires AutoHotkey v2.0
 #Warn VarUnset, StdOut
 global fails := 0, logs := [], running := true, paused := false, stepNow := "placing", curMap := "Walled City"
-global APP_VER := "test", cfg := Map("debugRec", 1, "mode", "Fool's Hunt")
+global APP_VER := "test", cfg := Map("autoRec", 1, "mode", "Fool's Hunt")
 Check(name, ok) {
     global fails
     FileAppend((ok ? "PASS " : "FAIL ") name "`n", "*", "UTF-8"), fails += !ok
@@ -52,7 +52,7 @@ first := dir
 paused := true
 DbgTick()
 Check("pause: packed (folder handed over, a log line)", dbgDir = "" && InStr(logs[logs.Length], "debug_") && InStr(logs[logs.Length], ".zip"))
-paused := false, cfg["debugRec"] := 0
+paused := false, cfg["autoRec"] := 0
 DbgTick()
 Check("off: nothing recorded", dbgDir = "")
 FileAppend("`n" (fails ? "FAILED " fails : "ALL PASSED") "`n", "*")

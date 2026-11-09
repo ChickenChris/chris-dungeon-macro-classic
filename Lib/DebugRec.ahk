@@ -1,20 +1,32 @@
-; =====================================================================
+﻿; =====================================================================
 ;  Debug recording (Settings > Debug recording)
 ;  What the macro saw and did, so bugs get fixed from real rounds instead of guesses (Chris 5 Nov).
 ;  While farming: the game as a JPG every second and right before clicks, every log line, step, click
 ;  and key with its time, and what the card check measured. Kept in Logs\debug_<time>\, only the last
 ;  2 minutes of pictures. On pause (F4) or stop it's zipped to Logs\debug_<time>.zip to send in Discord.
-;  Off by default; nothing else changes while it's off.
+;  On for everyone since 9 Nov ("Recording when something goes wrong", autoRec): it also saves itself when
+;  the macro logs a "Couldn't..." line or the watchdog finds it stuck (players' recordings started after
+;  the moment that mattered). At most one save per 3 minutes, the newest 10 zips kept
 ; =====================================================================
-global dbgDir := "", dbgFrames := [], dbgVote := "", dbgStarted := 0
+global dbgDir := "", dbgFrames := [], dbgVote := "", dbgStarted := 0, dbgWant := "", dbgSavedAt := -999999
 DBG_KEEP_MS := 120000           ; pictures kept: the last 2 minutes (a zip of ~10 MB, small enough for Discord)
 
-DbgOn() => IsSet(cfg) && IsObject(cfg) && cfg.Has("debugRec") && cfg["debugRec"]
+DbgOn() => IsSet(cfg) && IsObject(cfg) && cfg.Has("autoRec") && cfg["autoRec"]
+DbgNow() => A_TickCount
+DbgRun(cmd) => Run(cmd, , "Hide")
+
+; something went wrong: the last 2 minutes saved on the next tick (not more often than every 3 minutes)
+DbgSaveSoon(reason) {
+    global dbgWant
+    if dbgWant != "" || DbgNow() - dbgSavedAt < 180000
+        return
+    dbgWant := reason
+}
 
 SetTimer DbgTick, 1000
 
 DbgTick() {
-    global dbgDir
+    global dbgDir, dbgWant, dbgSavedAt
     static busy := false
     if busy
         return
@@ -23,6 +35,12 @@ DbgTick() {
         if DbgOn() && running && !paused {
             if dbgDir = ""
                 DbgBegin()
+            else if dbgWant != "" {             ; saved by itself, and a new 2 minutes starts
+                dbgSavedAt := DbgNow()
+                why := dbgWant, dbgWant := ""
+                DbgPack(why)
+                DbgBegin(true)
+            }
             DbgFrame("every second")
         } else if dbgDir != ""
             DbgPack()
@@ -30,9 +48,11 @@ DbgTick() {
     busy := false
 }
 
-DbgBegin() {
+DbgBegin(quiet := false) {
     global dbgDir, dbgFrames, dbgStarted
     dir := A_ScriptDir "\Logs\debug_" FormatTime(, "yyyyMMdd_HHmmss")
+    if DirExist(dir) || FileExist(dir ".zip")   ; saved and started again in the same second: the old one
+        dir .= "_" A_TickCount                  ; is still being zipped (and then removed)
     try DirCreate dir
     catch
         return
@@ -44,7 +64,8 @@ DbgBegin() {
         info .= "`nRoblox game area: " cw "x" ch " at " ox "," oy
     }
     try FileAppend(info "`n", dir "\info.txt", "UTF-8")
-    AddLog("Debug recording: on (the last 2 minutes are kept, zipped when you pause or stop)")
+    if !quiet
+        AddLog("Recording the last 2 minutes (saved by itself when something goes wrong)")
 }
 
 ; a picture of the game now, with what the macro was doing (at most one every 0.5 s)
@@ -86,13 +107,15 @@ DbgFrame(why) {
 
 ; a line in events.txt: log lines, steps, clicks, keys (all of the session)
 DbgNote(kind, text) {
+    if kind = "log" && RegExMatch(text, "^Couldn't")
+        DbgSaveSoon(SubStr(text, 1, 60))
     if dbgDir = ""
         return
     try FileAppend(FormatTime(, "HH:mm:ss") "." Format("{:03}", A_MSec) "  " kind ": " text "`n", dbgDir "\events.txt", "UTF-8")
 }
 
 ; zipped next to the folder, the folder removed once the zip is there (PowerShell, in the background)
-DbgPack() {
+DbgPack(why := "") {
     global dbgDir, dbgFrames
     dir := dbgDir, dbgDir := "", dbgFrames := []
     if dir = "" || !DirExist(dir)
@@ -100,9 +123,29 @@ DbgPack() {
     zip := dir ".zip"
     q(s) => "'" StrReplace(s, "'", "''") "'"
     ps := "Compress-Archive -LiteralPath " q(dir) " -DestinationPath " q(zip) " -Force; if (Test-Path -LiteralPath " q(zip) ") { Remove-Item -LiteralPath " q(dir) " -Recurse -Force }"
-    try Run('powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -Command "' ps '"', , "Hide")
+    try DbgRun('powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -Command "' ps '"')
     SplitPath zip, &zname
-    AddLog("Debug recording saved: Logs\" zname ". Send it in Discord with what went wrong")
+    if why != ""
+        AddLog("Saved the last 2 minutes: Logs\" zname " (" why "). Send it in Discord with what went wrong")
+    else
+        AddLog("Debug recording saved: Logs\" zname ". Send it in Discord with what went wrong")
+    SplitPath dir, , &logs
+    DbgPrune(logs, 9)                           ; (+ the one being zipped now = 10)
+}
+
+; only the newest `keep` recordings stay in Logs (their names start with the date and time)
+DbgPrune(dir, keep := 10) {
+    zips := []
+    try loop files dir "\debug_*.zip"
+        zips.Push(A_LoopFileName)
+    if zips.Length <= keep
+        return
+    loop zips.Length - 1                        ; oldest first
+        loop zips.Length - A_Index
+            if StrCompare(zips[A_Index], zips[A_Index + 1]) > 0
+                t := zips[A_Index], zips[A_Index] := zips[A_Index + 1], zips[A_Index + 1] := t
+    loop zips.Length - keep
+        try FileDelete dir "\" zips[A_Index]
 }
 
 ; the Roblox game area as a JPG (quality 0-100). Its own screen copy: the macro's checks aren't touched

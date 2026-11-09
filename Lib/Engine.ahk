@@ -87,6 +87,10 @@ global stat := {runs: 0, wins: 0, losses: 0, rooms: 0, chests: 0, dungeons: 0, s
 
 class MacroStop extends Error {
 }
+; the watchdog found the macro stuck: like a stop (everything unwinds to the main loop, which catches
+; it first), then it recovers and carries on (Chris 9 Nov)
+class MacroRecover extends MacroStop {
+}
 
 ; =====================================================================
 ;  Detectors
@@ -286,6 +290,7 @@ EngineRun() {
     global running, idleSince, slotStops, slotCap, slotOne, slotFull, autoOpenSeen, autoOpenOff, clickOpened, icFloors, icFloor
     errors := 0
     idleSince := 0
+    global wdRoundAt := 0, wdFires := 0, wdBusy := false, wdInStage := false
     global goodSpots := Map(), teamLoaded := 0  ; which team the game has isn't known at Start
     slotStops := Map(), slotCap := Map(), slotOne := Map(), slotFull := Map(), autoOpenSeen := false, autoOpenOff := false, clickOpened := 0
     icFloors := 0, icFloor := 0
@@ -294,6 +299,15 @@ EngineRun() {
             Chk()
             Tick()
             errors := 0
+        } catch MacroRecover as err {
+            ReleaseKeys()
+            if !running
+                return
+            try WatchdogRecover(err.Message)
+            catch MacroStop {
+                ReleaseKeys()
+                return
+            }
         } catch MacroStop {
             ReleaseKeys()
             return
@@ -7560,6 +7574,80 @@ Chk() {
         if !running
             throw MacroStop("stopped")
         Stale()                                ; the screen changed while we waited
+    }
+    WatchdogCheck()
+}
+
+; =====================================================================
+;  Watchdog (Chris 9 Nov): players found the macro stuck hours later (Jae: 3+ min "waiting for yen to
+;  place slot 6" with 19,602 yen; an alt account: 25 min on "Waiting for Players")
+;  A. no round for 4 minutes: logged, the recording saved, back to the lobby (the 2nd time in a row:
+;     rejoin the private server). Thrown from Chk(), so it reaches a step stuck anywhere, like Stop
+;  B. a placement wait of 3 minutes in a round: the round goes on; what the macro read is logged and the
+;     recording saved, so the reason shows up in the next bug report
+; =====================================================================
+global wdRoundAt := 0, wdFires := 0, wdBusy := false, wdStepTold := Map(), wdLastAt := 0, wdInStage := false
+WdNow() => A_TickCount
+WatchdogCheck() {
+    global wdRoundAt, wdFires, wdStepTold, wdLastAt, wdInStage
+    now := WdNow()
+    if wdBusy || !running || paused || manualRun || now - wdLastAt < 1000
+        return
+    wdLastAt := now
+    if !wdRoundAt
+        wdRoundAt := now
+    st := IsSet(stepNow) ? stepNow : ""
+    if stageActive {
+        if !wdInStage
+            wdStepTold := Map(), wdInStage := true
+        wdRoundAt := now, wdFires := 0
+        if InStr(st, "place slot") && IsSet(stepAt) && now - stepAt >= 180000 && !wdStepTold.Has(st) {
+            wdStepTold[st] := true
+            WatchdogStepStuck(st)
+        }
+        return
+    }
+    wdInStage := false
+    if InStr(st, "waiting for you to type") {   ; the Find Match number: the player types it
+        wdRoundAt := now
+        return
+    }
+    if now - wdRoundAt >= 240000 {
+        wdFires++
+        throw MacroRecover("Nothing happened for 4 minutes: no round started (last step: " st "). "
+            . (wdFires >= 2 ? "Rejoining your server" : "Going back to the lobby"))
+    }
+}
+
+; B: what it read, so the log says why it waits (the yen, the slot's price, its card)
+WatchdogStepStuck(st) {
+    if RegExMatch(st, "place slot (\d)", &m) {
+        n := Integer(m[1])
+        AddLog("Slot " n ": still waiting to place it after 3 minutes (yen " ReadYen() ", its price " SlotCost(n)
+            . ", its card looks " (SlotReady(n) ? "ready" : "greyed out") ")")
+    } else
+        AddLog("Still on '" st "' after 3 minutes")
+    DbgSaveSoon("stuck: " st)
+}
+
+; A: the main loop caught MacroRecover: log, recording, webhook, then out of wherever it was
+WatchdogRecover(msg) {
+    global wdBusy, wdRoundAt
+    wdBusy := true
+    try {
+        AddLog(msg)
+        DbgSaveSoon("stuck: no round for 4 minutes")
+        try SendWebhook("Macro was stuck", msg, 0xF59E0B)
+        if wdFires >= 2
+            RejoinToLobby()
+        else {
+            Stale()
+            if !Det("Lobby") && !BackToLobby()
+                RejoinToLobby()
+        }
+    } finally {
+        wdBusy := false
+        wdRoundAt := WdNow()
     }
 }
 
