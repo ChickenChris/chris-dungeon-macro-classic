@@ -40,6 +40,7 @@ ReadYen() => yenRead != "" ? yenRead : yen
 CountPlaced(n) => placedUnits.Length
 CapKey(n) => n
 NextToUnit(x, y, r := 22) => false
+NearBig(p*) => false
 global placeRedSkip := false
 StageOver() => now > 600000
 Step(t) => 0

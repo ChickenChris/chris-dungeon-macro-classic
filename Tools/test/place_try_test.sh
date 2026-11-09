@@ -74,7 +74,8 @@ global yens := [], price := -1
 ReadYen() => yens.Length ? yens.RemoveAt(1) : -1
 SlotCost(n) => price
 global redAt := "", placeRedSkip := false
-NoPlaceRed(x, y) => x "," y = redAt ? 0.8 : 0
+NoPlaceRed(x, y, before := "") => x "," y = redAt ? 0.8 : 0
+RedDots(x, y) => []
 ''' + fn + r'''
 ; no menu, but the yen went down by the unit's price: placed, not tried again (Chris 3 Nov)
 clicks := "", price := 600, yens := [2400, 1800]

@@ -17,7 +17,7 @@ def fn(n):
         return m.group(0)
     missing.append(n)
     return n + '(p*) => ""'
-parts = [fn(n) for n in ["PlaceSlot", "PlaceSlotAt", "EnoughYen", "NextToUnit", "PatternPoints", "SortByDistance"]]
+parts = [fn(n) for n in ["PlaceSlot", "PlaceSlotAt", "EnoughYen", "NextToUnit", "NearBig", "PatternPoints", "SortByDistance"]]
 body = r'''#Requires AutoHotkey v2.0
 OnError((e, m) => (FileAppend("ERROR " e.Message " (line " e.Line ")`n", "*"), ExitApp(3)))
 global fails := 0, now := 0, tries := 0, redSkips := 0, logs := [], placeRedSkip := false
@@ -49,17 +49,22 @@ Wait(ms) {
 }
 ; the recording: red over the middle-left (the 3 of 5 spots tried there were mostly red), Elyssia's
 ; body over the rest of the middle (her own spot and 83 px from it failed)
-IsRed(x, y) => x < 400 && !(x = 358 && y = 332)
+global redOn := true, missOnce := false, body := 88
+IsRed(x, y) => redOn && x < 400 && !(x = 358 && y = 332)
 TryPlace(x, y, n) {
-    global tries, redSkips, placeRedSkip, now
+    global tries, redSkips, placeRedSkip, now, missOnce, body
     placeRedSkip := false
     if IsRed(x, y) {                            ; (what the real one does: red under it, no click)
         placeRedSkip := true, redSkips++, now += 400
         return false
     }
     tries++, now += 6000
+    if missOnce && placedUnits.Length = 1 {     ; one miss right next to the first unit (lag, say)
+        missOnce := false
+        return false
+    }
     for u in placedUnits
-        if (u.x - x) ** 2 + (u.y - y) ** 2 < 88 ** 2
+        if (u.x - x) ** 2 + (u.y - y) ** 2 < body ** 2
             return false
     return true
 }
@@ -72,12 +77,30 @@ got := PlaceSlot(ctx, 1, 1)
 spot := got.Length ? got[1].x "," got[1].y : "none"
 Check("the 2nd Elyssia placed", got.Length = 1, got.Length)
 Check("  away from the first (not on her body): " spot, got.Length && (got[1].x - 435) ** 2 + (got[1].y - 300) ** 2 >= 88 ** 2)
-Check("  few real tries (red spots skipped, her body skipped after it failed twice): " tries, tries <= 3, tries)
+Check("  few real tries (red spots skipped, then spots on her body after a miss there): " tries, tries <= 3, tries)
 Check("  in well under a minute", now < 40000, now)
 stopped := false
 for m in logs
     stopped := stopped || InStr(m, "stopped at")
 Check("  the red skips didn't end the step", !stopped)
+
+; a miss next to a unit doesn't spread the units out (Chris 9 Nov, 3.2.114: "not circular anymore,
+; almost beyond the screen"): 6 units with one miss land as close together as 6 without it
+Spread(miss) {
+    global placedUnits, missOnce, redOn, now, tries, body
+    placedUnits := [], missOnce := miss, redOn := false, now := 0, tries := 0, body := 20
+    c := {lv: [6, 2, 5], pts: PatternPoints("Circle"), used: Map(), fails: Map(), cursor: 1, build: true, over: false}
+    loop 6
+        PlaceSlot(c, 1, 1)
+    far := 0
+    for u in placedUnits
+        far := Max(far, Sqrt((u.x - 390) ** 2 + (u.y - 300) ** 2))   ; from the circle's middle
+    return {n: placedUnits.Length, far: Round(far)}
+}
+a := Spread(false), b := Spread(true)
+Check("6 units without a miss", a.n = 6, a.n)
+Check("6 units with one miss next to the first", b.n = 6, b.n)
+Check("  as close to the middle (furthest " b.far " px, without the miss " a.far ")", b.far <= a.far + 10, b.far " vs " a.far)
 FileAppend(fails ? "FAILED " fails "`n" : "ALL PASSED`n", "*", "UTF-8")
 ExitApp fails ? 1 : 0
 '''
