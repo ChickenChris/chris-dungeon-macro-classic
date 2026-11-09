@@ -26,6 +26,7 @@ OrderModeName(m) => m
 global dbgVote := ""
 DbgNote(*) => 0
 DbgFrame(*) => 0
+DbgSaveSoon(*) => 0
 
 global APP_VER := ClassicVersion()       ; e.g. "3.0.64 Classic", from version.txt (Update.bat keeps it current)
 AutoUpdate("ChickenChris/chris-dungeon-macro-classic", "version.txt")   ; a newer version out: installed first
