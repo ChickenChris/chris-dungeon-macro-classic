@@ -2377,6 +2377,9 @@ LoadStage(knownMap := "", knownDepth := "", lenient := false, fromRoom := false)
     ; "active", so the next stage skipped the vote and placing and looked for the old units)
     stageActive := false
     Step("loading the map")
+    ; a map loading is progress: the watchdog's 4 minutes start again (Chris 9 Nov: a defeat, the lobby, the
+    ; party and Summer Hunt took 4 minutes, and it went back to the lobby while the next map was loading)
+    global wdRoundAt := WdNow()
     global prevDepth := curDepth
     curMap := knownMap != "" ? knownMap : "Unknown", curDepth := SaneDepth(knownDepth)
     UpdateMapLabel()

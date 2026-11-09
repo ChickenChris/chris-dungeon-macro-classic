@@ -21,7 +21,8 @@ def fn(n):
 body = r'''#Requires AutoHotkey v2.0
 OnError((e, m) => (FileAppend("ERROR " e.Message " (line " e.Line ")`n", "*"), ExitApp(3)))
 global fails := 0, logs := [], stageActive := false, postStage := 0, foolReplayAt := 0, cfg := Map("mode", "Dungeon", "useBuild", 1)
-global curMap := "", curDepth := "", mapHow := "", prevDepth := "", lastMapRaw := "", played := false, roomsUp := false, enterUp := false
+global curMap := "", curDepth := "", mapHow := "", prevDepth := "", lastMapRaw := "", played := false, roomsUp := false, enterUp := false, wdRoundAt := 0
+WdNow() => A_TickCount
 Check(name, ok, got := "") {
     global fails
     FileAppend((ok ? "PASS " : "FAIL ") name (ok ? "" : " (got " got ")") "`n", "*", "UTF-8")
@@ -84,6 +85,11 @@ roomsUp := false, played := false, logs := []
 t0 := A_TickCount
 LoadStage("Dungeon Throne", 3, false, true)
 Check("the map loaded (no rooms showing): played at once", played && A_TickCount - t0 < 2000, A_TickCount - t0)
+; Chris 9 Nov: a defeat, the lobby, the party and Summer Hunt took 4 minutes, and the watchdog went back to
+; the lobby while the next map was loading ("last step: loading the map"). A map loading restarts its count
+wdRoundAt := 1
+LoadStage("Hellish City")
+Check("a map loading restarts the watchdog's 4 minutes", wdRoundAt >= t0, wdRoundAt)
 FileAppend(fails ? "FAILED " fails "`n" : "ALL PASSED`n", "*", "UTF-8")
 ExitApp fails ? 1 : 0
 '''
