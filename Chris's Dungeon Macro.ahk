@@ -983,6 +983,8 @@ RecordWalk(name) {
             first := events[1].t, route := ""
             for ev in events
                 route .= (route = "" ? "" : ",") ev.k (ev.d ? "+" : "-") (ev.t - first)
+            if face = 180                       ; recorded with the game's flip: stored as the same walk made the normal way
+                route := TurnRoute(route, 180), face := 0
             cfg["walks"][PlaceKey(name)] := (face >= 0 ? "face:" face "," : "") route
             SaveConfig()
             AddLog("Saved a walk for " PlaceKey(name) (face >= 0 ? " (camera facing " FaceName(face) " on the minimap)" : ""))

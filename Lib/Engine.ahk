@@ -3631,6 +3631,8 @@ WalkRoute(mapName) {
         ClickWalk(Integer(cm[1]), Integer(cm[2]))
     else {
         face := MiniFacing(), want := RouteFace(route)
+        if want < 0 && face = 180
+            want := 0                               ; the game's flip (normal is up): a walk with no mark was made facing up
         if want >= 0 && face >= 0 && face != want {
             AddLog("The camera faces " FaceName(face) ", the walk was made facing " FaceName(want) ": its keys turned to match")
             route := TurnRoute(route, Mod(face - want + 360, 360))
@@ -3735,10 +3737,11 @@ TurnRoute(route, turn) {
     return out
 }
 
-; the direction the map's walk was made with (its mark), -1 when it isn't known
+; the direction the map's walk was made with (its mark), -2 for one without a mark (made the normal way:
+; up when the game flipped it), -1: a click walk
 WalkFace(mapName) {
     route := cfg["walks"].Get(PlaceKey(mapName), "")
-    return RegExMatch(route, "^click:") ? -1 : RouteFace(route)
+    return RegExMatch(route, "^click:") ? -1 : (f := RouteFace(route)) >= 0 ? f : -2
 }
 
 ; Some maps come with the camera turned (Chris 9 Nov: Future City in other weather, like Inferno, "has
@@ -3748,6 +3751,8 @@ WalkFace(mapName) {
 ; 135°, the steps in between are 90°. True when it faces `want` now
 TurnCamera(want) {
     face := MiniFacing()
+    if want = -2                                ; made the normal way: the game flips it on purpose (Chris 9 Nov:
+        want := face = 180 ? 0 : face           ; against macros, "flipped is downwards and normal is upwards")
     if want < 0 || face < 0
         return false
     if face = want

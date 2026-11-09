@@ -58,14 +58,21 @@ Check("no direction wanted: not touched", !TurnCamera(-1) && !nudges, nudges)
 
 ; which way each map's camera should face: its walk's mark
 Check("a marked walk: its direction", WalkFace("Future City") = 0, WalkFace("Future City"))
-Check("an older walk without a mark: none", WalkFace("Old Map") = -1, WalkFace("Old Map"))
+Check("an older walk without a mark: made the normal way (-2: up when the game flipped it)", WalkFace("Old Map") = -2, WalkFace("Old Map"))
 Check("a Click to Move walk: none", WalkFace("Clicked") = -1, WalkFace("Clicked"))
-Check("no walk: none", WalkFace("Nowhere") = -1, WalkFace("Nowhere"))
+Check("no walk (the spots still count): the normal way too", WalkFace("Nowhere") = -2, WalkFace("Nowhere"))
+yaw := 180.0, perNudge := 7.0, logs := []
+Check("normal way wanted, the camera flipped (down): turned up", TurnCamera(-2) && Off(yaw, 0) <= 7, Round(yaw))
+yaw := 0.0, nudges := 0
+Check("normal way wanted, it is: not touched", TurnCamera(-2) && !nudges, nudges)
+yaw := 90.0, nudges := 0
+TurnCamera(-2)
+Check("normal way wanted, facing right (not the game's flip): not touched", !nudges && Off(yaw, 90) = 0, nudges)
 if HASALTS {
     walkFaces["Old Map"] := 180, altDepth := 1
     Check("an alt, an older walk: the main's camera this stage", WalkFace("Old Map") = 180, WalkFace("Old Map"))
     altDepth := 0
-    Check("the main, an older walk: none", WalkFace("Old Map") = -1, WalkFace("Old Map"))
+    Check("the main, an older walk: the normal way", WalkFace("Old Map") = -2, WalkFace("Old Map"))
 }
 FileAppend(fails ? "FAILED " fails "`n" : "ALL PASSED`n", "*", "UTF-8")
 ExitApp fails ? 1 : 0

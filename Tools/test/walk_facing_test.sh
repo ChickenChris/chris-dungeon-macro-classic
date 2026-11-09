@@ -106,13 +106,29 @@ Check("arrow not seen: played as it is", played = cfg["walks"]["Dungeon Throne"]
 fakeFace := 0, played := "", altDepth := 0
 WalkRoute("Planet Greenie")
 Check("no mark, the main: played as it is", played = "a+0,w+0,a-2200,w-2200,end@2200", played)
+; the game flips the camera on purpose (Chris 9 Nov: "flipped is downwards and normal is upwards"): a walk
+; with no mark was made the normal way, facing up
+fakeFace := 180, played := "", logs := []
+WalkRoute("Planet Greenie")
+Check("no mark, the camera flipped (down): keys turned as made facing up", played = "d+0,s+0,d-2200,s-2200,end@2200", played)
+Check("  told in the log", LogHas("camera faces down, the walk was made facing up"), logs.Length ? logs[1] : "")
+fakeFace := 90, played := ""
+WalkRoute("Planet Greenie")
+Check("no mark, the camera facing right (not the game's flip): as it is", played = "a+0,w+0,a-2200,w-2200,end@2200", played)
 if HASALTS {
+    fakeFace := 0, played := "", altDepth := 0
+    WalkRoute("Planet Greenie")
     fakeFace := 180, played := "", altDepth := 1
     WalkRoute("Planet Greenie")
     Check("no mark, an alt facing the other way than the main: turned to the main's", played = "d+0,s+0,d-2200,s-2200,end@2200", played)
     fakeFace := 0, played := ""
     WalkRoute("Planet Greenie")
     Check("no mark, an alt facing like the main: as it is", played = "a+0,w+0,a-2200,w-2200,end@2200", played)
+    altDepth := 0, fakeFace := 180
+    WalkRoute("Planet Greenie")                        ; the main flipped (its camera couldn't be turned)
+    altDepth := 1, fakeFace := 0, played := ""
+    WalkRoute("Planet Greenie")
+    Check("the main flipped, the alt the normal way: the alt as it is (not turned to the flip)", played = "a+0,w+0,a-2200,w-2200,end@2200", played)
     altDepth := 0
 }
 FileAppend(fails ? "FAILED " fails "`n" : "ALL PASSED`n", "*", "UTF-8")
@@ -129,20 +145,19 @@ import sys, re
 root = sys.argv[1]
 main = open(f"{root}/Chris's Dungeon Macro.ahk", encoding="utf-8-sig").read()
 m = re.search(r"^RecordWalk\(name\) \{.*?^\}", main, re.S | re.M)
-ok1 = bool(m) and "MiniFacing()" in m.group(0) and '"face:"' in m.group(0)
+ok1 = bool(m) and "MiniFacing()" in m.group(0) and '"face:"' in m.group(0) and "TurnRoute(" in m.group(0)
 ini = open(f"{root}/Lib/defaults.ini", encoding="utf-16").read()
 walks = ini.split("[Walks]")[1].split("\n[")[0] if "[Walks]" in ini else ""
 old = ini.split("[OldWalks]")[1].split("\n[")[0] if "[OldWalks]" in ini else ""
 dt = re.search(r"^Dungeon Throne=(.*)$", walks, re.M)
-ok2 = bool(dt) and dt.group(1).startswith("face:180,w+0,d+0,w-703,")
-ok3 = bool(re.search(r"^Dungeon Throne=w\+0,d\+0,w-703,", old, re.M)) if "Dungeon Throne" in walks else False
-print(("PASS" if ok1 else "FAIL") + " recording a walk keeps which way the camera faced")
-print(("PASS" if ok2 else "FAIL") + " Chris's Dungeon Throne walk marked: made facing down")
-print(("PASS" if ok3 else "FAIL") + " the unmarked one in [OldWalks] (players who have it get the marked one)")
+ok2 = bool(dt) and dt.group(1).startswith("w+0,d+0,w-703,")
+ok3 = bool(re.search(r"^Dungeon Throne=.*face:180,w\+0,d\+0,w-703,", old, re.M))
 fc = re.search(r"^Future City \(Fool's Hunt\)=(.*)$", walks, re.M)
-dc = re.search(r"^Future City=(.*)$", walks, re.M)
-ok4 = bool(fc) and fc.group(1).startswith("face:180,a+0,s+1688,") and bool(dc) and not dc.group(1).startswith("face:")
-print(("PASS" if ok4 else "FAIL") + " Chris's Summer Hunt walk for Future City shipped, made facing down (Inferno turns it round); the dungeon's unmarked")
+ok4 = bool(fc) and fc.group(1).startswith("face:0,d+0,w+1688,d-1813,a+5969,") and bool(re.search(r"^Future City \(Fool's Hunt\)=face:180,a\+0,s\+1688,", old, re.M))
+print(("PASS" if ok1 else "FAIL") + " recording a walk keeps the camera's direction (a flipped one stored as made facing up)")
+print(("PASS" if ok2 else "FAIL") + " Chris's Dungeon Throne walk: no mark again (made the normal way, facing up)")
+print(("PASS" if ok3 else "FAIL") + " the one marked facing down in [OldWalks] (players who got it get the right one back)")
+print(("PASS" if ok4 else "FAIL") + " Chris's Future City Summer Hunt walk stored as made facing up (recorded flipped); his flipped one in [OldWalks]")
 P
 )
 echo "$R"
