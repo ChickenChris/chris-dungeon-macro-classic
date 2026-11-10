@@ -22,6 +22,9 @@ global Exitbutton := "Images\exitButton.png"
 
 ;FindText Text and Buttons
 AreaText:="|<>*105$37.zk007zzwyQDzzjzzzzzXzzzzzVs8Q6DmQ8423kCQ2N7s3CDAkstb0UEQynkM8Tzzzzzzzzzzzzzzzzzzk"
+; UPD 21's "Areas" label (the one above stopped matching: every lobby since UPD 21 was found by reading
+; the word, and a PC reading in Japanese never found it, 10 Nov)
+AreaText21:="|<>*105$37.zk00Tzzw00Tzzrzzzzzlzzzzzks8Q4DtA0427s6A2N3w1CTAkwQb0UESTHks8Tzzzzzzzzzzzzzzzzzzk"
 ModeCancel:="|<>*136$71.zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzXzzUzzzzzzzz7zw0TzzzzzzyDzk0zzzzzzzwTz01zzzzzzzszy7rl6ATkT1lzsTz0A0T0Q1Xzkzw0M0Q0k17zXzk0k0k102Dz3zVlVlVy74Ty7z7X7X7w08zy7q76D67s0lzw040ASA0E1Vzw0A0MwQ0k11zw0Q0lsw1k33zy3wNXly7kD7zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz"
 
 ;ENSURE WHEN UNIT PLACEMENT IS DETECTED

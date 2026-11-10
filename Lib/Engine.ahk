@@ -102,7 +102,7 @@ DetDefs() {
     if IsObject(d)
         return d
     d := Map()
-    DetAdd(d, "Lobby", "Lobby", 740, 508, 796, 536, 0, AreaText)   ; (a few px around the label, 3 Nov)
+    DetAdd(d, "Lobby", "Lobby", 740, 508, 796, 536, 0, AreaText21, AreaText)   ; (a few px around the label, 3 Nov)
     DetAdd(d, "EnterDungeon", "Enter dungeon (lobby)", 310, 395, 495, 440, 0.2, EnterDungeon)
     DetAdd(d, "RoomBorder", "Room picker", 200, 340, 600, 437, 0.2, DungeonRoomBorder)
     DetAdd(d, "Enter", "Room Enter button", 120, 425, 680, 500, 0.2, Enter, EnterNew)
