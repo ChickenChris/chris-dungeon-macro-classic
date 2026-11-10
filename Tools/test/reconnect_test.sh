@@ -51,13 +51,18 @@ RelinkRoblox() => 0
 FixWindow() => 0
 Det(name) => false
 Chk() => 0
+global discoText := "Lost connection to the game server (Error Code: 277)"
+ReconnectHere() => (Note("Reconnect;"), false)  ; the box's own Reconnect didn't bring it back
+SameAccount(t) => false
+StopSameAccount() => Note("Stop273;")
 '''
 body += "\n".join(parts) + "\n"
 body += r'''
 CheckConnection()
 Check("on Roblox's app page nothing is clicked", !InStr(calls, "Clk"), calls)
 Check("the game is opened again each time (5 tries)", StrSplit(calls, "Launch;").Length - 1 = 5, calls)
-Check("the app page is closed before opening it again", StrSplit(calls, "Close;").Length - 1 = 4, calls)
+Check("the box's own Reconnect first, then that window closed before Roblox is opened again", SubStr(calls, 1, 22) = "Reconnect;Close;Launch", calls)
+Check("the app page is closed before opening it again", StrSplit(calls, "Close;").Length - 1 = 5, calls)
 ; the app's left bar (Home, Moments, Chat, Me), read with mistakes; the game's own buttons aren't it
 for t, want in Map("Home`nMoments`nChat`nMe", 1, "Hame`nMoments`nChat", 1, "Home`nChat", 1, "Home", 0, "", 0,
         "Play`nAreas`nUnits`nSummon`nItems", 0, "Chat with friends", 0)

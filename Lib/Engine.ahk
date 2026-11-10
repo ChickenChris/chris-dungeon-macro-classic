@@ -7401,6 +7401,7 @@ IsDisconnected() {
         txt := OCR.FromRect(ox + 180, oy + 170, 440, 260, OcrLang(), {scale: 2, grayscale: true}).Text
     }
     ; no English text read (reading failed, or Roblox in another language): trust the dots, as before
+    global discoText := txt
     lastRes := !RegExMatch(txt, "[A-Za-z]{3}") || RegExMatch(txt, "i)disconnect|reconnect|connection|kicked|leave|lost|error code|shut ?down")
     if !lastRes && !told {
         told := true
@@ -7409,6 +7410,27 @@ IsDisconnected() {
     }
     return lastRes
 }
+
+; Roblox's disconnect box on the Roblox in front, read now. discoText: what the box said (error 273 is
+; told apart by it)
+global discoText := ""
+DisconnectBoxUp() {
+    global discoText
+    if !(PixelIs(430, 384, 0xFFFFFF) && PixelIs(489, 341, 0x393B3D))
+        return false
+    txt := ""
+    try {
+        WinGetClientPos &ox, &oy, , , RBX
+        txt := OCR.FromRect(ox + 180, oy + 170, 440, 260, OcrLang(), {scale: 2, grayscale: true}).Text
+    }
+    discoText := txt
+    return !RegExMatch(txt, "[A-Za-z]{3}") || RegExMatch(txt, "i)disconnect|reconnect|connection|kicked|leave|lost|error code|shut ?down")
+}
+
+; Roblox's error 273: "Same account launched experience from different device. Reconnect if you prefer
+; to use this device." That account is open in another Roblox: Reconnect here kicks that one, and its
+; Reconnect kicks this one back (Chris 10 Nov: the main and an alt took turns for 10 minutes)
+SameAccount(txt) => RegExMatch(txt, "i)same\s*acc[o0]unt|different\s*dev[il1]ce|launched\s*experience|code:?\s*\(?273")
 
 ; Roblox's app page (its left bar: Home, Moments, Chat, Me) instead of a game
 RobloxAppPage() {
@@ -7432,9 +7454,27 @@ CheckConnection(force := false) {
     global stageActive
     if !force && WinExist(RBX) && !IsDisconnected()
         return false
+    ; error 273: your main's account is open in another Roblox (another window or another PC). A
+    ; reconnect here would kick that one and it would kick this one back: stopped instead
+    if !force && WinExist(RBX) && SameAccount(discoText)
+        return StopSameAccount()
     AddLog(WinExist(RBX) ? "Disconnected! Reconnecting..." : "Roblox is closed, reopening it...")
     SendWebhook("Disconnected", "Trying to reconnect.`n" Summary(), 0xF59E0B)
     stageActive := false
+    ; the box's own Reconnect first: the same window, the same account. A new Roblox opens with
+    ; whichever account Roblox is logged into (with alts often one of them), and the old window got
+    ; Reconnect pressed too while the new one loaded: the same account twice, error 273, and they took
+    ; turns kicking each other (Chris 10 Nov). Not back: that window is closed before a new one opens
+    if !force && WinExist(RBX) {
+        if ReconnectHere() {
+            AddLog("Reconnected")
+            return true
+        }
+        if SameAccount(discoText)               ; after Reconnect: the account is open elsewhere
+            return StopSameAccount()
+        AddLog("Reconnect didn't bring it back, opening Roblox again")
+        CloseRoblox()
+    }
     loop 5 {
         if A_Index > 1 && WinExist(RBX) {       ; still not the lobby: maybe another game opened
             AddLog("Roblox didn't get to the Anime Adventures lobby (another game, or stuck loading). Closing it and trying again"
@@ -7470,6 +7510,34 @@ CheckConnection(force := false) {
     AddLog("Couldn't reconnect, stopping")
     StopMacro()
     Chk()
+}
+
+StopSameAccount() {
+    AddLog("Roblox error 273: this account was opened in another Roblox too (another window or PC). Stopped, so the two don't keep kicking each other. Close the other one, then start again")
+    SaveDebugShot("same_account")
+    SendWebhook("Stopped: account opened twice", "This account was opened in another Roblox too (error 273).`n" Summary(), 0xDC2626)
+    StopMacro()
+    Chk()
+    return true
+}
+
+; the disconnect box's Reconnect (white, right) on the Roblox in front, then up to a minute for the lobby;
+; pressed once more if the box is still up after 15 s. False: not back
+ReconnectHere() {
+    Clk(430, 384)
+    again := false, t0 := A_TickCount
+    while A_TickCount - t0 < 60000 {
+        Wait(2000)
+        Stale()
+        up := DisconnectBoxUp()
+        if up && SameAccount(discoText)
+            return false                        ; now the account is open elsewhere: not pressed again
+        if !up && Det("Lobby")
+            return true
+        if !again && A_TickCount - t0 > 15000 && up
+            again := true, Clk(430, 384)
+    }
+    return false
 }
 
 ; closes Roblox and opens it again (lands in the lobby), then waits there like a reconnect
