@@ -465,12 +465,12 @@ Tick() {
         WaitFor(() => ScanRooms().Length || SpecialScreen(), 3000)
         return
     }
-    if (ICMode() || LegendMode()) && OpenPortalRow() {   ; "Open Portal?" left open
+    if (ICMode() || LegendMode() || RaidMode()) && OpenPortalRow() {   ; "Open Portal?" left open
         idleSince := 0
         OpenPortalFriends()
         return
     }
-    if (ICMode() || LegendMode()) && FoolJoinUp() {   ; "Join Matchmaking?" left open: Play Here
+    if (ICMode() || LegendMode() || RaidMode()) && FoolJoinUp() {   ; "Join Matchmaking?" left open: Play Here
         idleSince := 0
         PlayHere()
         Wait(800)
@@ -485,6 +485,8 @@ Tick() {
             StartInfinityCastle()
         else if LegendMode()
             StartLegend()
+        else if RaidMode()
+            StartRaid()
         else if FoolMode()
             StartSummerHunt()
         else
@@ -7071,6 +7073,10 @@ HandleEnd() {
     }
     if LegendMode() {
         LegendReplay()
+        return
+    }
+    if RaidMode() {
+        RaidReplay()
         return
     }
     if ICMode() {

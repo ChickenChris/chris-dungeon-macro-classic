@@ -440,10 +440,11 @@ function renderSpotsPage() {
 }
 
 // Farm mode: one switch on the start page, one on the Dungeon page, kept in step
-const MODES = ["Dungeon", "Infinity Castle", "Fool's Hunt", "Infinite", "Legend", "Portal"];
-const FREE_MODES = ["Dungeon", "Infinity Castle", "Legend", "Fool's Hunt"];   // Fool's Hunt = the Summer Hunt (free in Classic since UPD 21)   // the ones Classic has (Infinity Castle free since 3.0.100)
+const MODES = ["Dungeon", "Infinity Castle", "Fool's Hunt", "Infinite", "Legend", "Raid", "Portal"];
+const FREE_MODES = ["Dungeon", "Infinity Castle", "Legend", "Raid", "Fool's Hunt"];   // Fool's Hunt = the Summer Hunt (free in Classic since UPD 21)   // the ones Classic has (Infinity Castle free since 3.0.100)
 const isInf = () => S.cfg.mode === "Infinite";
 const isLegend = () => S.cfg.mode === "Legend";
+const isRaid = () => S.cfg.mode === "Raid";
 const isPortal = () => S.cfg.mode === "Portal";
 const isIC = () => S.cfg.mode === "Infinity Castle";
 const isFool = () => S.cfg.mode === "Fool's Hunt";
@@ -469,6 +470,7 @@ function renderMode() {
   im.innerHTML = options(maps, Math.max(0, maps.indexOf(S.cfg.infMap || "Shibuya District")));
   im.onchange = () => setVal("infMap", maps[+im.value]);
   $("#legendSub").classList.toggle("open", isLegend());
+  $("#raidSub").classList.toggle("open", isRaid());
   $("#autoChallenge").classList.toggle("dim", isFool());
   $("#portalSub").classList.toggle("open", isPortal());
   const pn = $("#portalName");
@@ -480,6 +482,12 @@ function renderMode() {
   const ls = $("#legendStage"), stages = [1, 2, 3, 4, 5, 6].map((n) => "Stage " + n);
   ls.innerHTML = options(stages, Math.min(5, Math.max(0, (+S.cfg.legendStage || 1) - 1)));
   ls.onchange = () => { setVal("legendStage", +ls.value + 1); if (run) setRun(run); };
+  const rw = $("#raidWorld"), raidWorlds = S.raidWorlds || ["Sacred Planet"];
+  rw.innerHTML = options(raidWorlds, Math.max(0, raidWorlds.indexOf(S.cfg.raidWorld || "Sacred Planet")));
+  rw.onchange = () => { setVal("raidWorld", raidWorlds[+rw.value]); if (run) setRun(run); };
+  const ra = $("#raidAct"), acts = [1, 2, 3, 4, 5].map((n) => "Raid " + n);
+  ra.innerHTML = options(acts, Math.min(4, Math.max(0, (+S.cfg.raidAct || 1) - 1)));
+  ra.onchange = () => { setVal("raidAct", +ra.value + 1); if (run) setRun(run); };
   // Find Match: back since the game's next update (Global Matchmaking, the player types the number)
   seg($("#segFoolJoin"), ["Play Here", "Find Match"], +S.cfg.foolMatch ? 1 : 0, (i) => {
     setVal("foolMatch", i);
@@ -707,7 +715,7 @@ function setRun(state) {
   run = state;
   document.body.dataset.run = state;
   $("#pillText").textContent = RUN_TEXT[state][0];
-  $("#heroTitle").textContent = state === "running" && isIC() ? "Climbing Infinity Castle" : state === "running" && isFool() ? "Hunting in Summer Hunt" : state === "running" && isInf() ? "Infinite on " + (S.cfg.infMap || "Shibuya District") : state === "running" && isPortal() ? "Portals: " + (S.cfg.portalName || "Shibuya Portal") : state === "running" && isLegend() ? "Legend: " + (S.cfg.legendWorld || "Magic Hills (Elf Invasion)") + " stage " + (+S.cfg.legendStage || 1) : RUN_TEXT[state][1];
+  $("#heroTitle").textContent = state === "running" && isIC() ? "Climbing Infinity Castle" : state === "running" && isFool() ? "Hunting in Summer Hunt" : state === "running" && isInf() ? "Infinite on " + (S.cfg.infMap || "Shibuya District") : state === "running" && isPortal() ? "Portals: " + (S.cfg.portalName || "Shibuya Portal") : state === "running" && isLegend() ? "Legend: " + (S.cfg.legendWorld || "Magic Hills (Elf Invasion)") + " stage " + (+S.cfg.legendStage || 1) : state === "running" && isRaid() ? "Raid: " + (S.cfg.raidWorld || "Sacred Planet") + " raid " + (+S.cfg.raidAct || 1) : RUN_TEXT[state][1];
   $(".controls .btn.go").lastChild.textContent = state === "running" ? "Farming…" : state === "paused" ? "Paused" : "Start farming";
   $(".controls [data-cmd=pause]").lastChild.textContent = state === "paused" ? "Resume" : "Pause";
 }

@@ -30,6 +30,7 @@ FinishStage() => 0
 ChallengeEnded() => 0
 ChallengeLeave() => false
 LegendMode() => false
+RaidMode() => false
 PortalMode() => false
 LegendReplay() => 0
 PortalReplay() => 0

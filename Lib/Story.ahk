@@ -688,3 +688,119 @@ LegendReplay() {
     if !Det("EndScreen")
         LoadStage(LegendBaseMap(LEGEND_WORLD()))
 }
+
+; ---------------------------------------------------------------- Raids
+; UPD 21 (Chris's recording 10 Nov): Areas > Raids teleports to the raid room; the raid pad is a short
+; walk away (Ryn's route: left a moment, then ahead; on the recording the pad came 4.5 s after the
+; landing). The pad works like the Story pad: "Select World" on the right (the raid worlds), the raids
+; of that world on the left (5 buttons, 35 px apart, like the Legend stages), Select, "Join
+; Matchmaking?" Play Here, Start. The pad's window closes by itself after 60 s ("Time Remaining").
+; The worlds after Cursed Festival are Ryn's list (the recording didn't scroll down that far)
+RAID_WORLDS() => ["Ant Kingdom (Midnight)", "Sacred Planet", "Strange Town", "Ruined City (The Menace)", "Cursed Festival",
+    "Future City (Tyrant)", "Storm Hideout", "Future City", "Nightmare Train", "Sand Village"]
+RaidMode() => cfg.Has("mode") && cfg["mode"] = "Raid"
+RAID_WORLD() => cfg.Has("raidWorld") && IndexOf(RAID_WORLDS(), cfg["raidWorld"]) ? cfg["raidWorld"] : "Sacred Planet"
+RAID_ACT() => cfg.Has("raidAct") && IsInteger(cfg["raidAct"]) ? Max(1, Min(5, Integer(cfg["raidAct"]))) : 1
+RaidBaseMap(world) => RegExReplace(world, "\s*\(.*$")      ; "Ant Kingdom (Midnight)" -> Ant Kingdom
+
+; Areas, Raids, the walk to the pad until its Cancel shows (each try from a new teleport)
+RaidWalk() {
+    loop 3 {
+        if PadCancelUp()
+            return true
+        before := SceneSig()
+        Clk(765, 475)                           ; Areas
+        Wait(300)
+        Clk(495, 410)                           ; Raids
+        Step("lobby: waiting for the teleport to the raids")
+        WaitAreaTeleport(before)
+        FocusRoblox()
+        Step("walking to the raid pad")
+        SendKeys("{a down}")
+        Wait(400)
+        SendKeys("{a up}")
+        SendKeys("{w down}")
+        t0 := A_TickCount
+        while A_TickCount - t0 < 6000 {
+            Wait(250)
+            Stale()
+            if PadCancelUp()
+                break
+        }
+        SendKeys("{w up}")
+        Wait(800)
+        Stale()
+    }
+    return PadCancelUp()
+}
+
+; lobby -> raid pad -> the world -> the raid -> Start
+StartRaid() {
+    world := RAID_WORLD(), act := RAID_ACT()
+    Step("lobby: going to the raids")
+    AddLog("In the lobby, going to " world " raid " act)
+    Clk(400, 340), Clk(400, 390)
+    CloseChat()
+    if !RaidWalk() {
+        AddLog("Couldn't reach the raid pad. Send Logs\raid_entry_....bmp in Discord so it can be fixed")
+        SaveDebugShot("raid_entry")
+        Wait(3000)
+        return
+    }
+    ClosePopups()
+    if !WorldFind(world, RAID_WORLDS(), &sx, &sy)
+        return RaidFail("world", "couldn't find " world " in the raid list (read: " SubStr(worldLastRead, 1, 120) ")")
+    Clk(sx, sy + 8)
+    Wait(1000)
+    Clk(289, 240 + (act - 1) * 35)              ; the raid's button on the left
+    Wait(600)
+    name := RaidTitle()                         ; a locked raid can't be picked: the log says which one starts
+    if !PadStart("Raid")
+        return
+    AddLog(world " raid " act (name != "" ? " (" name ")" : "") " started")
+    LoadStage(RaidBaseMap(world))
+}
+
+RaidFail(kind, why) {
+    AddLog("Raid: " why ". Send Logs\raid_" kind "_....bmp in Discord")
+    SaveDebugShot("raid_" kind)
+    Clk(401, 525)                               ; Cancel
+    Wait(1500)
+}
+
+; the raid picked, from the big blue title in the middle of the window ("Raid: The Guardian"), "" unread
+RaidTitle() {
+    try {
+        WinGetClientPos &ox, &oy, , , RBX
+        t := Trim(RegExReplace(OCR.FromRect(ox + 350, oy + 215, 230, 32, OcrLang(), {scale: 2, grayscale: true}).Text, "\s+", " "))
+        return RegExMatch(t, "i)^ra[il1]d\b") ? t : ""
+    }
+    return ""
+}
+
+; the end of a raid: counted already (RecordRun), so Replay (the word, as after a Legend win the yellow
+; button can be Next); not seen after a win: back to the lobby, where the raid is picked again
+RaidReplay() {
+    AddLog("Raid: " (lastResult = "win" ? "won" : lastResult = "loss" ? "lost" : "round over") ", replaying")
+    if ChallengeLeave()                         ; a new challenge is up: the lobby instead
+        return
+    Step("replaying the raid")
+    if OcrFindWord(0, 300, 800, 300, "i)^replay$", &rx, &ry)
+        Clk(rx, ry)
+    else if lastResult = "win" {
+        AddLog("Raid: no Replay button seen, back to the lobby to start " RAID_WORLD() " raid " RAID_ACT() " again")
+        BackToLobby()
+        return
+    } else
+        ClickOpenDungeon()                      ; the yellow Replay after a loss
+    Wait(800)
+    t0 := A_TickCount
+    while A_TickCount - t0 < 10000 {
+        Stale()
+        if !Det("EndScreen")
+            break
+        Wait(250)
+    }
+    if !Det("EndScreen")
+        LoadStage(RaidBaseMap(RAID_WORLD()))
+}
