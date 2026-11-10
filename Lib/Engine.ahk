@@ -7121,9 +7121,9 @@ HandleEnd() {
     Wait(800)
 }
 
-; The results screen has a green "Return to lobby" and a yellow "Open Dungeon" button side by side.
-; Reads rows across the top of the screen and looks for a wide green stretch followed straight
-; away by a wide yellow one. Needs that on 3+ rows, so a stray green or yellow pixel can't fool it.
+; The results screen has a green "Return to lobby" and a yellow "Open Dungeon" button side by side
+; (on Snowy Kingdom a second green one). Reads rows across the top of the screen and looks for a wide
+; green stretch followed straight away by a wide yellow (or second wide green) one. Needs that on 3+ rows, so a stray green or yellow pixel can't fool it.
 ; (Tested on the recording where the old check failed: found on every frame once the buttons
 ; had faded in, and never fired on any other screen.)
 EndByColourLog() {
@@ -7285,12 +7285,27 @@ FindOpenDungeon(&cx, &cy) {
             for i, gr in runs {
                 if gr[1] !== "g" || gr[3] - gr[2] < 70
                     continue
+                if gr[2] >= 215 && gr[2] <= 245 && gr[3] - gr[2] >= 300 && gr[3] - gr[2] <= 380 {
+                    ; two green buttons whose gap is just their dark outline join into one stretch (228-568 on
+                    ; Chris's frame): the Replay is its right quarter. Starts where Return to lobby does, so
+                    ; the health bar (from 158) can't pass for it
+                    hitX.Push(gr[3] - (gr[3] - gr[2]) // 4), hitY.Push(py)
+                    continue
+                }
                 j := i + 1
                 while j <= runs.Length {
                     yr := runs[j]
                     if yr[2] - gr[3] > 30
                         break
                     if yr[1] == "y" && yr[3] - yr[2] >= 70 {
+                        hitX.Push((yr[2] + yr[3]) // 2), hitY.Push(py)
+                        break
+                    }
+                    ; on Snowy Kingdom (Summer Hunt) the Replay is green too, a lighter green (Chris 10 Nov: the
+                    ; main sat on its results for an hour; 9 Nov both alts "couldn't find its Replay button"
+                    ; there). Two wide green buttons side by side: the right one. 120+ px each (they're ~165), so
+                    ; green text ("Wave Completed!") or the health bar can't pass for them
+                    if yr[1] == "g" && gr[3] - gr[2] >= 120 && yr[3] - yr[2] >= 120 {
                         hitX.Push((yr[2] + yr[3]) // 2), hitY.Push(py)
                         break
                     }
