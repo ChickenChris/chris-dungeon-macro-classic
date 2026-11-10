@@ -3440,6 +3440,10 @@ WalkLearn() => 0
 ; the camera is being zoomed: fully zoomed in, Roblox is in first person and a click turns the
 ; camera, so nothing else may click (a Fool's Hunt card vote picked here left the camera stuck)
 global camBusy := false
+; the game's Settings is open by the macro itself (Teleport to Spawn, closing one in the way): its big dark
+; panel with white rows passed for the card vote (RNG 10 Nov: "cards up", a "card" clicked inside Settings,
+; and the Teleport click held back as if the cards were up: it never teleported). No card vote meanwhile
+global settingsBusy := false
 
 ZoomCamera(want := -1) {
     global camBusy
@@ -3482,7 +3486,10 @@ TeleportToSpawn() {
         WaitFor(() => !LoadingScreenUp(), 25000, 1000)
         Wait(1500)
     }
+    global settingsBusy
     found := false
+    settingsBusy := true
+    try {
     loop 2 {                                       ; second go reopens the menu
         Clk(26, 570)                               ; settings gear
         Wait(350)
@@ -3535,6 +3542,7 @@ TeleportToSpawn() {
         if found
             break
     }
+    } finally settingsBusy := false
     if !found
         AddLog("Couldn't find Teleport to Spawn in the game's settings. Send Logs\no_spawn_....bmp in Discord so it can be fixed. (Settings tab: 'Teleport to spawn' can be turned off meanwhile)")
     return found
@@ -3626,9 +3634,12 @@ SettingsInTheWay() {
     lastAt := A_TickCount
     if !GameSettingsOpen()
         return false
+    global settingsBusy
     AddLog("The game's Settings window was open over the map, closing it")
     SaveDebugShot("game_settings")
-    CloseSettings()
+    settingsBusy := true
+    try CloseSettings()
+    finally settingsBusy := false
     return true
 }
 
@@ -3791,15 +3802,25 @@ TurnCamera(want) {
     turn := Mod(want - face + 360, 360)
     dir := turn = 270 ? -1 : 1                  ; a quarter to the left: turned left
     first := Mod(face + dir * 90 + 360, 360), second := Mod(face + dir * 180 + 360, 360)
-    n := 0, n1 := 0, n2 := 0
+    ; 25 nudges without the arrow changing (45°): this account's camera turns slowly. Roblox's Camera
+    ; Sensitivity is per account (RNG 10 Nov: his alt 2 nudged 18 s, its picture barely moved, while the
+    ; main and alt 1 were done in seconds). Then 4 times bigger nudges, then 16 times; still nothing: it
+    ; doesn't turn at all, given up after 75 (it went to 150, ~20 s). Fixed once the arrow moved, so the
+    ; half turn is measured in one size
+    n := 0, n1 := 0, n2 := 0, px := 15, since := 0
     while n < 150 {
-        CamNudge(dir), n++
+        CamNudge(dir, px), n++, since++
         f := MiniFacing()
         if !n1 && f = first
             n1 := n
         else if n1 && f = second {
             n2 := n
             break
+        }
+        if !n1 && since >= 25 {
+            if px >= 240
+                break
+            px *= 4, since := 0
         }
     }
     if !n2 {
@@ -3809,15 +3830,16 @@ TurnCamera(want) {
     }
     ; 135° was crossed half a step before (it's only seen after): on 45° more for a half turn, back 45° for a quarter
     loop Round((n2 - n1) / 2 + (turn = 180 ? -0.5 : 0.5))
-        CamNudge(turn = 180 ? dir : -dir)
+        CamNudge(turn = 180 ? dir : -dir, px)
     AddLog("The camera faced " FaceName(face) ", the walk was made facing " FaceName(want) ": turned it "
-        . (turn = 180 ? "round" : dir > 0 ? "a quarter right" : "a quarter left"))
+        . (turn = 180 ? "round" : dir > 0 ? "a quarter right" : "a quarter left")
+        . (px > 15 ? " (it turns slowly on this account: its Camera Sensitivity in Roblox's settings is low)" : ""))
     return true
 }
 
 ; one small sideways turn of the camera (zoomed in, Roblox turns it by how far the mouse moved)
-CamNudge(dir) {
-    MouseMove 400 + dir * 15, 300
+CamNudge(dir, px := 15) {
+    MouseMove 400 + dir * px, 300
     Sleep 90
 }
 
@@ -8505,6 +8527,10 @@ global voteNew := false          ; the vote panel since UPD 21 (Summer Hunt): ta
 FoolVoteDy() {
     global voteNew, dbgVote
     static halfAt := 0
+    if settingsBusy {                           ; the macro's own Settings visit: not the cards (RNG 10 Nov)
+        dbgVote := "the game's Settings open: no vote"
+        return ""
+    }
     white := (r, g, b) => r > 220 && g > 220 && b > 220
     ; since UPD 21: "Vote ends in" at 340-462 x 457-473 and the title ("Choose a card..." or "The weather
     ; shifts...") at 317-487 x 154-171 (Chris's screenshots, 0.27+ and 0.21+ white; none without a vote)

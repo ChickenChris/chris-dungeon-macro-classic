@@ -31,9 +31,9 @@ Check(name, ok, got := "") {
 AddLog(t) => logs.Push(t)
 WalkKey(m) => m
 PlaceKey(m) => m
-CamNudge(dir) {                                  ; the fake camera: a nudge turns it perNudge degrees
+CamNudge(dir, px := 15) {                        ; the fake camera: a 15 px nudge turns it perNudge degrees
     global yaw, nudges
-    yaw := Mod(yaw + dir * perNudge + 720, 360), nudges++
+    yaw := Mod(yaw + dir * perNudge * px / 15 + 720, 360), nudges++
 }
 MiniFacing() => Mod(Round(yaw / 90) * 90, 360)   ; like the arrow: 4 directions, changing at 45°
 Off(a, b) => Abs(Mod(a - b + 540, 360) - 180)
@@ -50,8 +50,21 @@ yaw := 190.0, perNudge := 5.0, logs := []
 Check("not quite straight (190°), wanted up: lands on up", TurnCamera(0) && Off(yaw, 0) <= 5, Round(yaw))
 Check("  told in the log", logs.Length && InStr(logs[logs.Length], "the camera faced down") && InStr(logs[logs.Length], "turned it round"), logs.Length ? logs[logs.Length] : "")
 yaw := 180.0, perNudge := 0.0, nudges := 0, logs := []
-Check("the camera doesn't turn (no first person): gives up", !TurnCamera(0) && nudges <= 150, nudges)
+Check("the camera doesn't turn (no first person): gives up", !TurnCamera(0) && nudges <= 75, nudges)
 Check("  told in the log", logs.Length && InStr(logs[logs.Length], "couldn't turn the camera"), logs.Length ? logs[logs.Length] : "")
+; an account whose camera turns slowly (Roblox's Camera Sensitivity is per account: RNG 10 Nov, his alt 2
+; nudged for 18 s and its picture barely moved): bigger nudges after 25 without the arrow changing
+for slow in [0.3, 0.8, 1.5] {
+    for t in [[180, 0], [0, 90]] {
+        yaw := t[1] + 0.0, perNudge := slow, nudges := 0, logs := []
+        ok := TurnCamera(t[2])
+        Check("a slow camera (" slow "° a nudge), " FaceName(t[1]) " to " FaceName(t[2]) ": turned, within " Round(slow * 16, 1) "°", ok && Off(yaw, t[2]) <= slow * 16, Round(yaw) "° after " nudges " nudges")
+    }
+}
+Check("  the log says it turns slowly (Camera Sensitivity)", logs.Length && InStr(logs[logs.Length], "Camera Sensitivity"), logs.Length ? logs[logs.Length] : "")
+yaw := 180.0, perNudge := 7.0, nudges := 0, logs := []
+TurnCamera(0)
+Check("a normal camera: no word about sensitivity", logs.Length && !InStr(logs[logs.Length], "Sensitivity"), logs.Length ? logs[logs.Length] : "")
 yaw := 0.0, perNudge := 7.0, nudges := 0
 Check("already the right way: not touched", TurnCamera(0) && !nudges, nudges)
 Check("no direction wanted: not touched", !TurnCamera(-1) && !nudges, nudges)
