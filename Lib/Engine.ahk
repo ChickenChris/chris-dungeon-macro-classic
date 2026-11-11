@@ -8351,11 +8351,50 @@ FoolWaitHook() {
     last := A_TickCount
     if WaveDoneUp()
         waveDoneAt := A_TickCount
-    if !FoolVoteUp()
+    if !FoolVoteUp() {
+        if AdaptationUp()
+            AdaptationPick()
         return
+    }
     Keys("q")
     Sleep 100
     FoolCardsNow(15000)
+}
+
+; Summer Hunt's "Choose an Adaptation:" (Tony 10 Nov: it sits over the units on the left, and some couldn't
+; be upgraded; "it doesn't matter wich first as long as it just picks one"). A dark panel at 133-387 x
+; 298-394 in a 2 px yellow frame, its title in white and gold. Not on any of 5351 recorded frames
+AdaptationUp() {
+    yellow := (r, g, b) => r >= 235 && g >= 200 && g <= 245 && b <= 120
+    top := 0, bottom := 0
+    loop 7 {                                    ; (the frame's rows, give or take a few pixels)
+        top := Max(top, ColorShare(150, 295 + A_Index, 370, 295 + A_Index, yellow))
+        bottom := Max(bottom, ColorShare(150, 390 + A_Index, 370, 390 + A_Index, yellow))
+    }
+    return top >= 0.8 && bottom >= 0.8
+        && ColorShare(150, 302, 370, 308, (r, g, b) => Max(r, g, b) <= 45) >= 0.7
+        && ColorShare(255, 311, 365, 329, (r, g, b) => r >= 230 && g >= 160 && b <= 110) >= 0.05
+}
+
+; one of its three: the middle one first (the left one was greyed out in Tony's), then the right, then the left
+AdaptationPick() {
+    global voteClick
+    Step("Summer Hunt: picking an Adaptation")
+    which := ["middle", "right", "left"]
+    for i, x in [260, 337, 184] {
+        voteClick := true                       ; (the middle of the screen: not held for a card vote)
+        try Clk(x, 342)
+        voteClick := false
+        Sleep 700
+        Stale()
+        if !AdaptationUp() {
+            AddLog("Summer Hunt: picked an Adaptation (the " which[i] " one)")
+            return true
+        }
+    }
+    AddLog("Summer Hunt: the Adaptation choice stayed up after clicking each of the three")
+    SaveDebugShot("adaptation")
+    return false
 }
 ; a map's own Summer Hunt walk ("Haunted Mansion (Fool's Hunt)") when there is one, else the map's
 PlaceKey(mapName) => FoolMode() && mapName != "" && cfg["walks"].Has(mapName " (Fool's Hunt)") ? mapName " (Fool's Hunt)"
