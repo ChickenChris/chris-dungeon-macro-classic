@@ -2695,6 +2695,17 @@ SummerRoundMap() {
         return
     }
     if name = "" {
+        ; Play Here after a Replay: no loading screen, and the green title was read as the round loaded, under
+        ; the "Vote start" panel (a player's log 11 Nov: "Last text read: wave o", the auto pattern on Future
+        ; City; 5 rounds on 10 Nov). The countdown is over now: the title shows, read again
+        if !(cfg.Has("foolMatch") && cfg["foolMatch"]) && (t := SummerTitleMap(8000)) != "" {
+            AddLog((curMap = "Unknown" ? "Map: " t : "The " (mapHow != "" ? mapHow : "loading screen") " said " curMap ", the title says " t ". Going with " t)
+                . "  (the green title, after the start countdown)")
+            curMap := t, mapHow := "title"
+            UpdateMapLabel()
+            MinimapNote(t)
+            return
+        }
         if cfg.Has("foolMatch") && cfg["foolMatch"] && curMap != "Unknown" {
             AddLog("Didn't see the blue map name, and with Find Match the loading screen's " curMap " can be wrong: using the auto pattern")
             curMap := "Unknown"
