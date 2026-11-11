@@ -3802,11 +3802,10 @@ TurnCamera(want) {
     turn := Mod(want - face + 360, 360)
     dir := turn = 270 ? -1 : 1                  ; a quarter to the left: turned left
     first := Mod(face + dir * 90 + 360, 360), second := Mod(face + dir * 180 + 360, 360)
-    ; 25 nudges without the arrow changing (45°): this account's camera turns slowly. Roblox's Camera
-    ; Sensitivity is per account (RNG 10 Nov: his alt 2 nudged 18 s, its picture barely moved, while the
-    ; main and alt 1 were done in seconds). Then 4 times bigger nudges, then 16 times; still nothing: it
-    ; doesn't turn at all, given up after 75 (it went to 150, ~20 s). Fixed once the arrow moved, so the
-    ; half turn is measured in one size
+    ; 25 nudges without the arrow changing (45°): the camera turns slowly (Roblox's Camera Sensitivity is
+    ; per account). Then 4 times bigger nudges, then 16 times; still nothing: it doesn't turn at all, given
+    ; up after 75 (it went to 150, ~20 s: RNG's alt 2, 10 Nov). (Those didn't turn because the nudges were
+    ; MouseMoves to a place: see CamNudge.) Fixed once the arrow moved, so the half turn is measured in one size
     n := 0, n1 := 0, n2 := 0, px := 15, since := 0
     while n < 150 {
         CamNudge(dir, px), n++, since++
@@ -3833,13 +3832,18 @@ TurnCamera(want) {
         CamNudge(turn = 180 ? dir : -dir, px)
     AddLog("The camera faced " FaceName(face) ", the walk was made facing " FaceName(want) ": turned it "
         . (turn = 180 ? "round" : dir > 0 ? "a quarter right" : "a quarter left")
-        . (px > 15 ? " (it turns slowly on this account: its Camera Sensitivity in Roblox's settings is low)" : ""))
+        . (px > 15 ? " (it turned slowly, so bigger steps were used)" : ""))
     return true
 }
 
-; one small sideways turn of the camera (zoomed in, Roblox turns it by how far the mouse moved)
+; one small sideways turn of the camera. Zoomed in (first person) Roblox keeps the pointer in the middle
+; and turns the camera by how far the mouse MOVED: a relative move, as a real mouse sends. MouseMove sends
+; a place to be (absolute): the pointer was put back in the middle and the camera didn't turn (Chris 11
+; Nov on Future City: "zoomed in and started twitching", "couldn't turn the camera"; RNG's alt 2 the day
+; before). Holds on Pause (F4: it went on nudging while paused) and stops on Stop
 CamNudge(dir, px := 15) {
-    MouseMove 400 + dir * px, 300
+    Chk()
+    DllCall("mouse_event", "UInt", 0x0001, "Int", dir * px, "Int", 0, "UInt", 0, "UPtr", 0)   ; MOUSEEVENTF_MOVE
     Sleep 90
 }
 

@@ -61,10 +61,10 @@ for slow in [0.3, 0.8, 1.5] {
         Check("a slow camera (" slow "° a nudge), " FaceName(t[1]) " to " FaceName(t[2]) ": turned, within " Round(slow * 16, 1) "°", ok && Off(yaw, t[2]) <= slow * 16, Round(yaw) "° after " nudges " nudges")
     }
 }
-Check("  the log says it turns slowly (Camera Sensitivity)", logs.Length && InStr(logs[logs.Length], "Camera Sensitivity"), logs.Length ? logs[logs.Length] : "")
+Check("  the log says it turned slowly", logs.Length && InStr(logs[logs.Length], "turned slowly"), logs.Length ? logs[logs.Length] : "")
 yaw := 180.0, perNudge := 7.0, nudges := 0, logs := []
 TurnCamera(0)
-Check("a normal camera: no word about sensitivity", logs.Length && !InStr(logs[logs.Length], "Sensitivity"), logs.Length ? logs[logs.Length] : "")
+Check("a normal camera: no word about it", logs.Length && !InStr(logs[logs.Length], "slowly"), logs.Length ? logs[logs.Length] : "")
 yaw := 0.0, perNudge := 7.0, nudges := 0
 Check("already the right way: not touched", TurnCamera(0) && !nudges, nudges)
 Check("no direction wanted: not touched", !TurnCamera(-1) && !nudges, nudges)
@@ -107,6 +107,15 @@ print(("PASS" if ok2 else "FAIL") + " the line-up turns the camera while zoomed 
 P
 )
 echo "$R"
-OUT=$(WINEDEBUG=-all timeout 90 xvfb-run -a wine "$AHK" /ErrorStdOut "Z:${T//\//\\}\\t.ahk" 2>&1 | grep -v "^X conn" | tr -d '\r')
+OUT=$(# the nudge itself: a relative mouse move (what Roblox turns the camera by in first person), Pause respected
+python3 - "$(pwd)" <<'P2'
+import re, sys
+e = open(sys.argv[1] + "/Lib/Engine.ahk", encoding="utf-8-sig").read()
+f = re.search(r"^CamNudge\(dir, px := 15\) \{.*?^\}", e, re.S | re.M)
+b = f.group(0) if f else ""
+print(("PASS" if 'DllCall("mouse_event", "UInt", 0x0001, "Int", dir * px' in b and "MouseMove" not in b else "FAIL") + " the nudge is a relative mouse move, not MouseMove to a place")
+print(("PASS" if "Chk()" in b else "FAIL") + " the nudge holds on Pause and stops on Stop")
+P2
+WINEDEBUG=-all timeout 90 xvfb-run -a wine "$AHK" /ErrorStdOut "Z:${T//\//\\}\\t.ahk" 2>&1 | grep -v "^X conn" | tr -d '\r')
 rm -rf "$T"
 if echo "$R" | grep -q "^FAIL"; then echo "$OUT" | grep -v "ALL PASSED"; echo "FAILED (static)"; else echo "$OUT"; fi
