@@ -566,10 +566,40 @@ body.fool-units .teambar { display: none; }
 /* the bigger build order editor: only the steps and the builder on the page */
 body.build-full #p-build > :not(#stepPane) { display: none; }
 body.build-full #stepPane { flex: 1; }
-body.build-full #steps .item { padding-top: 9px; padding-bottom: 9px; font-size: 14px; }
-#steps .item.abil { border-left: 2px solid var(--warn); }
-#steps .item.abil .num .i { width: 13px; height: 13px; color: var(--warn); }
-#steps .item .txt small { display: block; color: var(--mist); font-size: 11px; }
+/* the build order list: flat rows with a hairline between, quiet numbers, the handle and the X only on
+   hover or keyboard focus, whose step as a small tag (Chris 11 Nov: "more minimalistic and cleaner") */
+:is(#steps, #abilList) { gap: 0; }
+:is(#steps, #abilList) .item {
+  flex: none; height: 36px; padding: 0 4px 0 2px; gap: 8px; background: none; border: 0; border-radius: 6px;
+  box-shadow: inset 0 -1px 0 rgba(255, 255, 255, .06);
+}
+:is(#steps, #abilList) .item:last-child { box-shadow: none; }
+:is(#steps, #abilList) .item:is(:hover, :focus-within) { background: rgba(255, 255, 255, .04); box-shadow: none; border-color: transparent; }
+:is(#steps, #abilList) .item .num {
+  width: 20px; height: auto; background: none; color: var(--faint);
+  font: 500 12px "Outfit", sans-serif; font-variant-numeric: tabular-nums;
+}
+:is(#steps, #abilList) .item.abil .num .i { width: 14px; height: 14px; color: color-mix(in srgb, var(--warn) 85%, transparent); }
+:is(#steps, #abilList) .item .txt { color: var(--cloud); font-size: 13px; }
+:is(#steps, #abilList) .item :is(.grip, .acts) { opacity: 0; }
+:is(#steps, #abilList) .item:is(:hover, :focus-within) :is(.grip, .acts), #steps .item.dragging .grip { opacity: 1; }
+#steps .item.dragging { background: color-mix(in srgb, var(--acc) 12%, transparent); box-shadow: none; }
+.item .who {
+  flex: none; padding: 2px 8px; border-radius: 10px; background: rgba(255, 255, 255, .07);
+  color: var(--mist); font: 500 11px "Outfit", sans-serif;
+}
+body.build-full #steps .item { height: 40px; font-size: 14px; }
+body.build-full #steps .item .txt { font-size: 14px; }
+.empty.warn { border-style: solid; }
+
+/* the step editor: what kind on one row, its fields and Add step on the next */
+#stepPane .bo-ed { flex-direction: column; align-items: stretch; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255, 255, 255, .07); }
+.bo-fields { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.bo-fields :is(select, input) { height: 30px; }
+.bo-fields #bUp { flex: 1 1 140px; min-width: 0; }
+.bo-fields #bAdd { margin-left: auto; }
+.fld { display: inline-flex; align-items: center; gap: 6px; color: var(--mist); font-size: 12px; white-space: nowrap; }
+#bKind button { flex: 1 1 auto; padding: 0 8px; white-space: nowrap; }
 .diff { display: inline-block; margin-right: 8px; padding: 1px 7px; border-radius: 5px; font-size: 11px; font-weight: 600; color: var(--mist); background: rgba(255,255,255,.08); }
 .diff.hard { color: #fff; background: color-mix(in srgb, var(--bad) 70%, transparent); }
 

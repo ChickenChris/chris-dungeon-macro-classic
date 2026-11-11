@@ -118,7 +118,7 @@ const legendBtn = (p) => p.evaluateHandle(() => [...document.querySelectorAll("#
       await p.evaluate(() => { window.__sent = []; $$("#bKind button")[4].click(); $("#bSlot").value = "2"; $("#bAdd").click(); }); await p.waitForTimeout(100);
       const ws = await p.evaluate(() => { const m = window.__sent.filter((m) => m.cmd === "build").pop(); return m && m.steps[m.steps.length - 1]; });
       check("premium: Wenda buff added as {kind: wenda, slot 3, 4 copies, to max}", !!ws && ws.kind === "wenda" && ws.slot === 3 && ws.count === 4 && ws.up === -1, JSON.stringify(ws));
-      check("premium: it reads 'Wenda buff: slot 3, ...', golden, 'places the 4 Wendas'", await p.evaluate(() => $$("#steps .item").some((it) => /^Wenda buff: slot 3, 4 copies as in the video/.test($(".txt", it).textContent) && /4 Wendas/.test($(".txt", it).textContent) && it.classList.contains("abil"))));
+      check("premium: it reads 'Wenda buff: slot 3, ...', golden, 'places the 4 Wendas'", await p.evaluate(() => $$("#steps .item").some((it) => /^Wenda buff: slot 3, 4 copies as in the video/.test($(".txt", it).textContent) && /4 Wendas/.test(it.title) && it.classList.contains("abil"))));
       check("premium: Wenda in the share code as W3umax, and read back", await p.evaluate(() => buildCode(S.cfg.build).includes("W3umax") && parseBuildCode("W3umax")[0].kind === "wenda" && parseBuildCode("W3umax")[0].slot === 3 && parseBuildCode("E2u2")[0].kind === "erwin" && parseBuildCode("E2u2")[0].up === 2));
       // Wait for yen (Chris): just an amount, a numbered step in the line, Y2500 in the share code
       await p.evaluate(() => { window.__sent = []; $$("#bKind button")[5].click(); }); await p.waitForTimeout(100);
@@ -130,7 +130,7 @@ const legendBtn = (p) => p.evaluateHandle(() => [...document.querySelectorAll("#
       check("premium: it reads 'Wait until you have 2,500 yen', numbered in the line", await p.evaluate(() => $$("#steps .item").some((it) => /^Wait until you have 2,500 yen/.test($(".txt", it).textContent) && !it.classList.contains("abil") && /^\d+$/.test($(".num", it).textContent))));
       check("premium: in the share code as Y2500, and read back", await p.evaluate(() => buildCode(S.cfg.build).includes("Y2500") && parseBuildCode("Y2500 P1x2")[0].kind === "yen" && parseBuildCode("Y2500")[0].amount === 2500));
       await p.evaluate(() => $$("#bKind button")[1].click()); await p.waitForTimeout(50);
-      check("premium: back on Upgrade the slot and upgrade boxes show again", await p.evaluate(() => getComputedStyle($("#bSlot")).display !== "none" && getComputedStyle($("#bYen")).display === "none"));
+      check("premium: back on Upgrade the slot and upgrade boxes show again", await p.evaluate(() => getComputedStyle($("#bSlot")).display !== "none" && getComputedStyle($("#bYen").closest(".fld")).display === "none"));
       // its own timings (Lunoc): 2nd after / 3rd after boxes, saved and in the share code
       check("premium: Erwin / Wenda show their 2nd after / 3rd after boxes (4 and 30)", await p.evaluate(() => { $$("#bKind button")[4].click(); return getComputedStyle($("#bGap")).display !== "none" && +$("#bGap").value === 4 && +$("#bSecs").value === 30; }));
       await p.evaluate(() => { window.__sent = []; $("#bSlot").value = "2"; $("#bGap").value = "6"; $("#bSecs").value = "25"; $("#bAdd").click(); }); await p.waitForTimeout(100);
@@ -138,7 +138,7 @@ const legendBtn = (p) => p.evaluateHandle(() => [...document.querySelectorAll("#
       check("premium: added with gap 6 and 25 s", !!wt && wt.kind === "wenda" && wt.gap === 6 && wt.secs === 25, JSON.stringify(wt));
       check("premium: it reads '..., 2nd after 6 s, 3rd after 25 s'", await p.evaluate(() => $$("#steps .item").some((it) => /2nd after 6 s, 3rd after 25 s/.test($(".txt", it).textContent))));
       check("premium: in the share code as W3umaxs25g6, read back; plain codes keep 4 and 30", await p.evaluate(() => buildCode(S.cfg.build).includes("W3umaxs25g6") && parseBuildCode("W3umaxs25g6")[0].gap === 6 && parseBuildCode("W3umaxs25g6")[0].secs === 25 && parseBuildCode("E2umax")[0].gap === 4 && parseBuildCode("E2umax")[0].secs === 30));
-      check("premium: the boxes hide on Place", await p.evaluate(() => { $$("#bKind button")[0].click(); return getComputedStyle($("#bGap")).display === "none"; }));
+      check("premium: the boxes hide on Place", await p.evaluate(() => { $$("#bKind button")[0].click(); return getComputedStyle($("#bGap").closest(".fld")).display === "none"; }));
       check("premium: an older Buff step still reads and shows", await p.evaluate(() => parseBuildCode("B5s30")[0].kind === "buff" && stepText({ kind: "buff", slot: 5, secs: 30 }) === "Buff rotation: slot 5, one copy every 30 s"));
       check("premium: the Until box still saves", await p.evaluate(() => { const s = document.querySelector('.slot[data-i="4"] select[data-p="limit"]'); s.value = "2"; s.dispatchEvent(new Event("change")); return window.__sent.some((m) => m.prop === "limit" && m.value === 2); }));
       await p.evaluate(() => $$("#bKind button")[0].click());

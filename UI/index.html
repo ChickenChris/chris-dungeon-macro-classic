@@ -188,17 +188,20 @@
       <div class="pane" id="stepPane" style="flex:1;min-height:0;display:flex;flex-direction:column">
         <div class="step-head"><b id="stepTitle">Steps</b><button class="btn sm" id="bBig"><svg class="i" data-icon="maximize"></svg>Bigger editor</button></div>
         <div class="list scroll" id="steps" style="flex:1;min-height:0"></div>
-        <div class="builder" style="margin-top:10px">
-          <div class="seg" id="bKind"></div>
-          <span class="muted abil-only">Wave</span><input type="number" class="abil-only" id="bWave" min="1" max="999" value="10" style="width:64px" title="The wave its ability is used at">
-          <span class="muted pair-only" style="display:none" data-tip="When the 2nd copy's Auto goes on after the 1st's (the video: 4 s)">2nd after</span><input type="number" class="pair-only" id="bGap" min="1" max="30" value="4" style="width:52px;display:none" title="Seconds between the 1st and 2nd copy's Auto (the video: 4). Curses can change how long the buff lasts: set it to what works for you"><span class="muted pair-only" style="display:none">s, 3rd after</span><input type="number" class="pair-only" id="bSecs" min="10" max="120" value="30" style="width:56px;display:none" title="Seconds until the 3rd copy's Auto: when the 1st buff runs out (the video: 30). The 4th follows by the same gap as the 2nd"><span class="muted pair-only" style="display:none">s</span>
-          <input type="number" class="yen-only" id="bYen" min="1" max="999999" step="100" value="2000" style="width:96px;display:none" title="The build order waits here until you have this much yen, then goes on with the next step (abilities and buffs keep going meanwhile)"><span class="muted yen-only" style="display:none">yen</span>
-          <select id="bSlot"></select>
-          <span class="muted" id="bX">×</span>
-          <select id="bCount"></select>
-          <select id="bUp" style="flex:1"></select>
-          <button class="chip place-only" id="bHill" title="Hill unit: placed on the green hills the game shows while it's held (the usual spots when no hill is seen)">Hill</button>
-          <button class="btn acc" id="bAdd"><svg class="i" data-icon="plus"></svg>Add step</button>
+        <div class="builder bo-ed">
+          <div class="seg wide" id="bKind"></div>
+          <div class="bo-fields">
+            <label class="fld abil-only">Wave<input type="number" id="bWave" min="1" max="999" value="10" style="width:64px" title="The wave its ability is used at"></label>
+            <label class="fld pair-only" style="display:none" data-tip="When the 2nd copy's Auto goes on after the 1st's (the video: 4 s)">2nd after<input type="number" id="bGap" min="1" max="30" value="4" style="width:52px" title="Seconds between the 1st and 2nd copy's Auto (the video: 4). Curses can change how long the buff lasts: set it to what works for you">s</label>
+            <label class="fld pair-only" style="display:none">3rd after<input type="number" id="bSecs" min="10" max="120" value="30" style="width:56px" title="Seconds until the 3rd copy's Auto: when the 1st buff runs out (the video: 30). The 4th follows by the same gap as the 2nd">s</label>
+            <label class="fld yen-only" style="display:none"><input type="number" id="bYen" min="1" max="999999" step="100" value="2000" style="width:96px" title="The build order waits here until you have this much yen, then goes on with the next step (abilities and buffs keep going meanwhile)">yen</label>
+            <select id="bSlot"></select>
+            <span class="muted" id="bX">×</span>
+            <select id="bCount"></select>
+            <select id="bUp"></select>
+            <button class="chip place-only" id="bHill" title="Hill unit: placed on the green hills the game shows while it's held (the usual spots when no hill is seen)">Hill</button>
+            <button class="btn acc" id="bAdd"><svg class="i" data-icon="plus"></svg>Add step</button>
+          </div>
         </div>
       </div>
     </section>

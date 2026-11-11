@@ -338,8 +338,13 @@ function renderBuild() {
   $("#stepTitle").textContent = (isFool() ? "Summer Hunt steps" : "Steps") + (team ? " · " + team.name : "");
   unitsLockState();
   const el = $("#steps");
+  // a flat list (Chris 11 Nov: "more minimalistic and cleaner"): the full text and what a side step does in
+  // its tooltip
+  const tip = (st) => st.kind === "ability" ? "Fires at its wave, doesn't wait for the steps above"
+    : st.kind === "buff" ? "From the slot's first copy down, doesn't wait for the steps above"
+    : isPair(st) ? `Places the 4 ${st.kind === "wenda" ? "Wendas" : "Erwins"} in its turn, then keeps the 100% buff going all round` : "";
   el.innerHTML = list.length ? list.map((st, i) => `
-    <div class="item drag ${isMoveStep(st) && !isPair(st) ? "" : "abil"}" data-i="${i}"><span class="grip">${icon("grip-vertical")}</span><span class="num">${isPair(st) ? icon("sparkles") : isMoveStep(st) ? i + 1 : sideIcon(st)}</span><span class="txt">${esc(stepText(st))}${st.kind === "ability" ? '<small>fires at its wave, doesn\'t wait for the steps above</small>' : st.kind === "buff" ? '<small>from the slot\'s first copy down, doesn\'t wait for the steps above</small>' : isPair(st) ? `<small>places the 4 ${st.kind === "wenda" ? "Wendas" : "Erwins"} in its turn, then keeps the 100% buff going all round</small>` : ""}</span>
+    <div class="item drag ${isMoveStep(st) && !isPair(st) ? "" : "abil"}" data-i="${i}" title="${esc(stepText(st) + (tip(st) ? ". " + tip(st) : ""))}"><span class="grip">${icon("grip-vertical")}</span><span class="num">${isPair(st) ? icon("sparkles") : isMoveStep(st) ? i + 1 : sideIcon(st)}</span><span class="txt">${esc(stepText(st))}</span>
       <span class="acts"><button class="del" data-a="del" aria-label="Remove">${icon("x")}</button></span>
     </div>`).join("")
     : '<div class="empty">No steps yet. Add the first one below, like "Place slot 1 ×2, upgrade each 2 times".</div>';
