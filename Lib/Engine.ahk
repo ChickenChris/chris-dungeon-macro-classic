@@ -8728,7 +8728,10 @@ FoolCards() {
     ; (bestRank starts out of reach: "safe farm" scores enemy cards in the thousands, nothing beat 99
     ; and no card was picked, the macro stopped with "no property named x", Apocalypse 2 Nov)
     best := 0, bestRank := 1e18, known := 0, mid := cfg["foolCards"].Length / 2 + 0.5
-    ; the same card twice (Range I and Range II): the higher level wins (it took the leftmost).
+    ; the same card twice: your own buff the stronger one (Range II over Range I: it took the leftmost),
+    ; an enemy card the milder one (Chris 11 Nov: "it selected 100% magic resist instead of 50%",
+    ; Resistant Enemies II over I). Its level by its SummerPearls (+30 / +70 / +150%) when read, else
+    ; by the I / II / III in its name.
     ; "Most AprilCoins" on: the card with the most coins first (enemy cards +30%, level II +70%,
     ; your own buffs none), the list decides between equal ones
     static enemy := "|boss|shield|regen|health|speed|explosive|resistant|spellproof|plated|gale|updraft|"
@@ -8741,7 +8744,8 @@ FoolCards() {
         known += rk ? 1 : 0
         coins := c.pearls >= 0 ? c.pearls : c.key != "" && InStr(enemy, "|" c.key "|") ? [30, 70, 110][Min(3, c.lvl)] : 0
         buff := c.green || (c.key != "" && !InStr(enemy, "|" c.key "|"))
-        score := (safe ? (buff ? -100000 : coins * 100) : coinsFirst ? -coins * 100 : 0) + (rk || mid) - c.lvl * 0.01
+        lv := c.pearls >= 120 ? 3 : c.pearls >= 60 ? 2 : c.pearls > 0 ? 1 : c.lvl
+        score := (safe ? (buff ? -100000 : coins * 100) : coinsFirst ? -coins * 100 : 0) + (rk || mid) + (buff ? -lv : lv) * 0.01
         if score < bestRank
             best := c, bestRank := score
     }
