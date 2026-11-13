@@ -93,6 +93,9 @@ Check("a win with no Replay seen: back to the lobby, not the yellow button", InS
 Reset(), lastResult := "loss"
 LegendReplay()
 Check("a loss with no Replay word read: the yellow button (Replay after a loss)", InStr(calls, "OpenDungeon;") && !InStr(calls, "Lobby;"), calls)
+Reset(), lastResult := ""
+LegendReplay()
+Check("no result read and no Replay: back to the lobby, not a guess at a yellow button (Apocalypse 13 Nov)", InStr(calls, "Lobby;") && !InStr(calls, "OpenDungeon"), calls)
 
 ; --- the Tournament popup: only its title counts, and only closed when it's gone afterwards
 WinGetClientPos(&ox, &oy, , , RBX)

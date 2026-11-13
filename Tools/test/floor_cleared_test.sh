@@ -69,6 +69,10 @@ postStage := A_TickCount - 2000, cfg["mode"] := "Fool's Hunt", foolReplayAt := 0
 Check("Summer Hunt before Replay: the old round (as before)", OldRoundScreen())
 foolReplayAt := A_TickCount
 Check("Summer Hunt after Replay: a new round (as before)", !OldRoundScreen())
+cfg["mode"] := "Raid"
+Check("a raid just won (Next pressed): the map under its Return to lobby is the old round (Alphonse 13 Nov: teleported to spawn, Run finished in 0m 00s)", OldRoundScreen())
+cfg["mode"] := "Legend"
+Check("a Legend Stage just won: the same (Apocalypse 13 Nov: Victory, teleported to spawn, Run finished in 0m 03s)", OldRoundScreen())
 cfg["mode"] := "Infinity Castle"
 Check("other modes: as before (not held back)", !OldRoundScreen())
 cfg["mode"] := "Dungeon", postStage := 0

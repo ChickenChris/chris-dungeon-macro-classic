@@ -7109,13 +7109,17 @@ IcReadUnlocked() {
 ; Just after a round: its screen under the reward popups isn't a new round. Summer Hunt until Replay is
 ; pressed; a dungeon until the next room is entered (that starts its round itself). RNG 9 Nov: "Money
 ; (Dungeon) x54" over a won floor was played as a new round: Tab, teleport, the camera line-up (its click
-; opened a unit's upgrade menu), then "Run finished in 0m 12s"
+; opened a unit's upgrade menu), then "Run finished in 0m 12s". A raid or a Legend Stage until Replay / the
+; lobby: after its VICTORY's Next the map stays under a "Return to lobby" (Alphonse 13 Nov, Sand Village
+; raid; Apocalypse 13 Nov, Magic Hills Legend: teleported to spawn, "Run finished in 0m 00s", the win lost,
+; then a yellow Replay guessed)
 OldRoundScreen() {
     if stageActive || !postStage || A_TickCount - postStage >= 90000
         return false
     if FoolMode()
         return foolReplayAt < postStage
-    return cfg.Get("mode", "Dungeon") = "Dungeon"
+    m := cfg.Get("mode", "Dungeon")
+    return m = "Dungeon" || m = "Raid" || m = "Legend"
 }
 
 ; counts the stage once (win / loss / time), whichever end screen shows first

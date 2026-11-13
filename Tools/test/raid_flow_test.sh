@@ -185,6 +185,9 @@ Check("a win with no Replay seen: back to the lobby (the raid is picked again)",
 Reset(), lastResult := "loss"
 RaidReplay()
 Check("a loss: the yellow Replay", calls = "OpenDungeon;LoadStage Strange Town;", calls)
+Reset(), lastResult := ""
+RaidReplay()
+Check("no result read and no Replay: back to the lobby, not a guess at a yellow button (Alphonse 13 Nov: stuck clicking 660,117)", calls = "Lobby;", calls)
 cfg["raidMatch"] := 1
 Reset(), lastResult := "win", words["i)^replay$"] := [520, 470]
 RaidReplay()

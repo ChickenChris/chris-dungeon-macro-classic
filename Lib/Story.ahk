@@ -671,7 +671,7 @@ LegendReplay() {
     Step("replaying Legend")
     if OcrFindWord(0, 300, 800, 300, "i)^replay$", &rx, &ry)
         Clk(rx, ry)
-    else if lastResult = "win" {
+    else if lastResult != "loss" {              ; (no result read either: the lobby, not a guess)
         AddLog("Legend: no Replay button seen, back to the lobby to start Stage " LEGEND_STAGE() " again")
         BackToLobby()
         return
@@ -851,7 +851,7 @@ RaidReplay() {
     Step("replaying the raid")
     if OcrFindWord(0, 300, 800, 300, "i)^replay$", &rx, &ry)
         Clk(rx, ry)
-    else if lastResult = "win" {
+    else if lastResult != "loss" {              ; (no result read either: the lobby, not a guess)
         AddLog("Raid: no Replay button seen, back to the lobby to start " RAID_WORLD() " raid " RAID_ACT() " again")
         BackToLobby()
         return
