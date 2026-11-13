@@ -8,7 +8,7 @@ python3 - "$T/t.ahk" <<'P'
 import re, sys
 src = open("Lib/Engine.ahk", encoding="utf-8-sig").read()
 fn = re.search(r"^HillPoints\(.*?^\}", src, re.S | re.M).group(0) + "\n" + re.search(r"^HillGreen\(.*$", src, re.M).group(0)
-srt = re.search(r"^SortByDistance\(.*?^\}", src, re.S | re.M).group(0)
+srt = re.search(r"^SortByDistance\(.*?^\}", src, re.S | re.M).group(0) + "\n" + re.search(r"^IndexOf\(.*?^\}", open("Chris's Dungeon Macro.ahk", encoding="utf-8-sig").read(), re.S | re.M).group(0)
 real = re.search(r"^HillGrid\(.*?^\}", src, re.S | re.M).group(0).replace("HillGrid(", "HillGridReal(", 1).replace("WinGetClientPos &ox, &oy, , , RBX", "ox := 0, oy := 0")
 import os
 root = os.getcwd()
@@ -18,15 +18,22 @@ body = r'''#Requires AutoHotkey v2.0
 #Include ROOT\Lib\FindText.ahk
 global fails := 0, grids := [], logs := "", stageStart := 1, RBX := ""
 Snap() => 0
-Check(name, ok) {
+Check(name, ok, got := "") {
     global fails
-    FileAppend((ok ? "PASS " : "FAIL ") name "`n", "*", "UTF-8"), fails += !ok
+    FileAppend((ok ? "PASS " : "FAIL ") name (ok || got = "" ? "" : " (got " got ")") "`n", "*", "UTF-8"), fails += !ok
 }
-Keys(k) => 0
+global did := ""
+Keys(k) {
+    global did
+    did .= "key " k ";"
+}
 ClearVote() => 0
 CardsPause() => 0
 Stale() => 0
-SaveDebugShot(t) => 0
+SaveDebugShot(t) {
+    global did
+    did .= "shot " t ";"
+}
 AddLog(t) {
     global logs
     logs .= t "|"
@@ -66,10 +73,24 @@ for p in pts
     ok := ok && (inBox(p, big) || inBox(p, small))
 Check("every spot on a hill", ok)
 Check("the small hill too", inBox(pts[pts.Length], small))
+; RNG 13 Nov: "placing multiple hill units ... tries to place it almost at the same spot, but fails due to
+; the hitbox". A hill's spots 12 px apart all sat inside the first unit: now at least 30 px apart
+near := 99999
+loop 4 {
+    i := A_Index
+    loop 4
+        if A_Index > i
+            near := Min(near, Sqrt((pts[i].x - pts[A_Index].x) ** 2 + (pts[i].y - pts[A_Index].y) ** 2))
+}
+Check("a hill's first 4 spots at least 30 px apart (" Round(near) ")", near >= 30)
 Check("says it saw 2 hills", InStr(logs, "2 hills seen"))
 stageStart := 2, logs := ""
 grids := [View([], true)]
+did := ""
 Check("no green: no spots, and it says so", HillPoints(4).Length = 0 && InStr(logs, "no hills seen"))
+; RNG 13 Nov: green hills not seen on Mountain Temple / a snowy map ("might be lighting"). The picture was
+; taken after the unit was put back (no green on it): now while it's still held, to see the real colours
+Check("  its picture taken while the unit is still held", RegExMatch(did, "shot hill;.*key q;"), did)
 
 ; a player's Snowy Kingdom (8 Nov): the map's blue light makes the hills (20-60, 240, 110-160), not pure
 ; green, and they lit up a moment after the unit was picked up (looked once at 0.45 s: none, then 15

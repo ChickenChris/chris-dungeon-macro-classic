@@ -125,6 +125,8 @@ ChallengeEnded() {
         Stale()
         if Det("Lobby")
             return (challengeOn := false)
+        if BackLobbyPick()                      ; "Back to Lobby?" (a server joined with its code)
+            continue
         if Det("Next")
             ClickDet("Next", 0, -40, 5000)
         else if OcrFindWord(300, 95, 200, 55, LobbyWordRe(), &lx, &ly)

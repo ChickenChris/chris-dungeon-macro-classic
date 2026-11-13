@@ -50,6 +50,7 @@ SendKeys(k) => Note("Keys " k ";")
 PadStart(label, sel := true) => (Note("PadStart " label " " sel ";"), padOk)
 LoadStage(p*) => Note("LoadStage;")
 BackToLobby() => (Note("BackToLobby;"), backOk)
+BackLobbyPick() => false
 SaveConfig() => Note("Save;")
 SaveDebugShot(t) {
     global shots

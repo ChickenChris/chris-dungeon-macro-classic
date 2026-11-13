@@ -726,13 +726,15 @@ BackToLobby() {
         Stale()
         if Det("Lobby")
             return true
-        if Det("EndScreen")
-            ClickDet("EndScreen", 0, -35)           ; "Return to lobby"
-        else if FindOpenDungeon(&bx, &by)
-            Clk(bx - 210, by)                       ; the green button left of "Open Dungeon"
-        else
-            break
-        if WaitFor(() => Det("Lobby"), 15000, 500)
+        if !BackLobbyPick() {                       ; ("Back to Lobby?" asked already: answered)
+            if Det("EndScreen")
+                ClickDet("EndScreen", 0, -35)       ; "Return to lobby"
+            else if FindOpenDungeon(&bx, &by)
+                Clk(bx - 210, by)                   ; the green button left of "Open Dungeon"
+            else
+                break
+        }
+        if WaitFor(() => (Stale(), BackLobbyPick(), Det("Lobby")), 15000, 500)
             return true
     }
     Stale()
@@ -744,6 +746,26 @@ BackToLobby() {
         SaveDebugShot("to_lobby")
     }
     return false
+}
+
+; "Back to Lobby?" after Return to lobby, in a private server joined with its code (Kaguya 13 Nov, video):
+; "Public Server" (green, left) or "@<owner>'s Server" (blue, right), laid out like "Join Matchmaking?"
+; (its buttons at 282-390 / 411-520 x 268-378). The macro kept pressing Return to lobby under it until the
+; watchdog fired. Its own private server is picked
+BackLobbyUp() => ColorShare(282, 268, 390, 378, (r, g, b) => g >= 200 && r <= 140 && b <= 120) >= 0.12
+    && ColorShare(411, 268, 520, 378, (r, g, b) => b >= 200 && r <= 150) >= 0.06
+
+BackLobbyPick() {
+    static told := false
+    if !BackLobbyUp()
+        return false
+    if !told {
+        told := true
+        AddLog("Back to Lobby?: picked your private server (not the public one)")
+    }
+    Clk(465, 323)                               ; "@<owner>'s Server"
+    Wait(800)
+    return true
 }
 
 ; The "DUNGEON RUN" window with its big green "Enter Dungeon" button, found by colour: the purple
@@ -4212,6 +4234,12 @@ HillPoints(slot) {
         if on.Count >= 3 || A_TickCount - t0 >= 3000
             break
     }
+    ; none seen: the picture while it's still held, with the hills' real colours on it (RNG 13 Nov: green
+    ; hills not seen on Mountain Temple and a snowy map, "might be lighting"; taken after it was put back
+    ; it showed no green at all)
+    key := slot "|" stageStart
+    if on.Count < 3 && !told.Has(key)
+        SaveDebugShot("hill")
     Keys("q")
     ; hills: cells side by side
     comps := [], seen := Map()
@@ -4248,16 +4276,27 @@ HillPoints(slot) {
         for c in list
             cells.Push({x: c // 10000, y: Mod(c, 10000)})
         SortByDistance(cells, mx, my)
-        loop Min(cells.Length, 8)
-            pts.Push(cells[A_Index])
+        ; the middle first, then spots at least 30 px from the ones taken: 12 px apart they all sat inside
+        ; the first unit placed (RNG 13 Nov: "tries to place it almost at the same spot, but fails due to
+        ; the hitbox"); the ones in between after, while there's room for 8
+        mine := []
+        for c in cells {
+            far := true
+            for p in mine
+                far := far && (c.x - p.x) ** 2 + (c.y - p.y) ** 2 >= 900
+            if far
+                mine.Push(c)
+        }
+        for c in cells
+            if mine.Length < 8 && !IndexOf(mine, c)
+                mine.Push(c)
+        loop Min(mine.Length, 8)
+            pts.Push(mine[A_Index])
     }
-    key := slot "|" stageStart
     if !told.Has(key) {
         told[key] := 1
         AddLog("Slot " slot " (hill unit): " (comps.Length ? comps.Length " hill" (comps.Length = 1 ? "" : "s") " seen, placing there"
-            : "no hills seen in green while holding it, trying the usual spots"))
-        if !comps.Length
-            SaveDebugShot("hill")
+            : "no hills seen in green while holding it, trying the usual spots (a picture of it: Logs\hill_….bmp)"))
     }
     return pts
 }
