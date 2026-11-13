@@ -47,6 +47,18 @@ const raidBtn = (p) => p.evaluateHandle(() => [...document.querySelectorAll("#se
     sent = await p.evaluate(() => window.__sent);
     check(tag + ": the world is saved", sent.some((m) => m.cmd === "set" && m.key === "raidWorld" && m.value === "Cursed Festival"));
     check(tag + ": the raid is saved as a number", sent.some((m) => m.cmd === "set" && m.key === "raidAct" && m.value === 3));
+    // Find Match (og-73): Play Here / Find Match under the world and raid, Play Here at first
+    const join = await p.evaluate(() => [...document.querySelectorAll("#segRaidJoin button")].map((x) => x.textContent.trim() + (x.classList.contains("on") ? "*" : "")));
+    check(tag + ": Play Here / Find Match on the raid panel, Play Here at first", join.join(",") === "Play Here*,Find Match", join.join(","));
+    await p.evaluate(() => [...document.querySelectorAll("#segRaidJoin button")].find((x) => x.textContent.trim() === "Find Match")?.click());
+    sent = await p.evaluate(() => window.__sent);
+    check(tag + ": picking Find Match saves it", sent.some((m) => m.cmd === "set" && m.key === "raidMatch" && m.value === 1));
+    const panel = await p.evaluate(() => {
+      const box = document.querySelector("#raidSub .mode-sub-in"), r = box.getBoundingClientRect();
+      const kids = [...box.children].map((x) => x.getBoundingClientRect());
+      return { inside: kids.every((x) => x.left >= r.left - 1 && x.right <= r.right + 1 && x.width > 20), joinBelow: kids[kids.length - 1].top > kids[0].bottom - 2 };
+    });
+    check(tag + ": the raid panel's controls fit, the switch on its own line", panel.inside && panel.joinBelow, JSON.stringify(panel));
     const legendOpen = await p.evaluate(() => document.querySelector("#legendSub")?.classList.contains("open"));
     check(tag + ": the Legend panel stays closed", !legendOpen);
     // the mode row still fits with 7 buttons (nothing wraps or spills out of it)
@@ -65,6 +77,8 @@ const raidBtn = (p) => p.evaluateHandle(() => [...document.querySelectorAll("#se
   const p = await open(b, "", { mode: "Raid", raidWorld: "Storm Hideout", raidAct: 4 });
   check("saved settings shown: Storm Hideout, raid 4", await p.evaluate(() => document.querySelector("#raidWorld").selectedOptions[0].textContent === "Storm Hideout"
     && document.querySelector("#raidAct").selectedOptions[0].textContent === "Raid 4"));
+  const p2 = await open(b, "", { mode: "Raid", raidMatch: 1 });
+  check("saved Find Match shown", await p2.evaluate(() => document.querySelector("#segRaidJoin button.on")?.textContent.trim() === "Find Match"));
   await b.close();
   console.log(fails ? "FAILED " + fails : "ALL PASSED");
   process.exit(fails ? 1 : 0);

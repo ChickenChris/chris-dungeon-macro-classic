@@ -702,6 +702,9 @@ RaidMode() => cfg.Has("mode") && cfg["mode"] = "Raid"
 RAID_WORLD() => cfg.Has("raidWorld") && IndexOf(RAID_WORLDS(), cfg["raidWorld"]) ? cfg["raidWorld"] : "Sacred Planet"
 RAID_ACT() => cfg.Has("raidAct") && IsInteger(cfg["raidAct"]) ? Max(1, Min(5, Integer(cfg["raidAct"]))) : 1
 RaidBaseMap(world) => RegExReplace(world, "\s*\(.*$")      ; "Ant Kingdom (Midnight)" -> Ant Kingdom
+; Find Match (og-73 13 Nov "ADD MATCHMAKING TO RAIDS"; Chris: the same "Join Matchmaking?" as every mode):
+; Find Match there instead of Play Here, the number typed in as in Summer Hunt
+RaidMatchOn() => cfg.Has("raidMatch") && cfg["raidMatch"]
 
 ; Areas, Raids, the walk to the pad until its Cancel shows (each try from a new teleport)
 RaidWalk() {
@@ -734,31 +737,87 @@ RaidWalk() {
     return PadCancelUp()
 }
 
-; lobby -> raid pad -> the world -> the raid -> Start
+; lobby -> raid pad -> the world -> the raid -> Start (Find Match: the match's round)
 StartRaid() {
     world := RAID_WORLD(), act := RAID_ACT()
     Step("lobby: going to the raids")
-    AddLog("In the lobby, going to " world " raid " act)
+    AddLog("In the lobby, going to " world " raid " act (RaidMatchOn() ? " (Find Match)" : ""))
     Clk(400, 340), Clk(400, 390)
     CloseChat()
+    if !RaidToPad(world, act)
+        return
+    name := RaidTitle()                         ; a locked raid can't be picked: the log says which one starts
+    if RaidMatchOn() {
+        Clk(401, 438)                           ; Select
+        Wait(1000)
+        Stale()
+        if FoolJoinUp() && FoolMatchTries(RaidToMatch, "Raid") {
+            if RaidWaitMatch() {
+                AddLog(world " raid " act (name != "" ? " (" name ")" : "") " matched, starting")
+                LoadStage(RaidBaseMap(world))
+            }
+            return
+        }
+        if !PadStart("Raid", false)             ; not matched: Play Here and Start, as without it
+            return
+    } else if !PadStart("Raid")
+        return
+    AddLog(world " raid " act (name != "" ? " (" name ")" : "") " started")
+    LoadStage(RaidBaseMap(world))
+}
+
+; the walk to the raid pad, the world in its list, the raid's button. False when it went wrong (logged)
+RaidToPad(world, act) {
     if !RaidWalk() {
         AddLog("Couldn't reach the raid pad. Send Logs\raid_entry_....bmp in Discord so it can be fixed")
         SaveDebugShot("raid_entry")
         Wait(3000)
-        return
+        return false
     }
     ClosePopups()
-    if !WorldFind(world, RAID_WORLDS(), &sx, &sy)
-        return RaidFail("world", "couldn't find " world " in the raid list (read: " SubStr(worldLastRead, 1, 120) ")")
+    if !WorldFind(world, RAID_WORLDS(), &sx, &sy) {
+        RaidFail("world", "couldn't find " world " in the raid list (read: " SubStr(worldLastRead, 1, 120) ")")
+        return false
+    }
     Clk(sx, sy + 8)
     Wait(1000)
     Clk(289, 240 + (act - 1) * 35)              ; the raid's button on the left
     Wait(600)
-    name := RaidTitle()                         ; a locked raid can't be picked: the log says which one starts
-    if !PadStart("Raid")
-        return
-    AddLog(world " raid " act (name != "" ? " (" name ")" : "") " started")
-    LoadStage(RaidBaseMap(world))
+    return true
+}
+
+; Find Match again after a number that didn't go through: "Join Matchmaking?" if it's still up, else the
+; pad (from a new teleport when its window is gone), the world, the raid and Select. True when it's up
+RaidToMatch() {
+    Stale()
+    if FoolJoinUp()
+        return true
+    if !RaidToPad(RAID_WORLD(), RAID_ACT())
+        return false
+    Clk(401, 438)                               ; Select
+    Wait(1000)
+    Stale()
+    return FoolJoinUp()
+}
+
+; matched: the match fills up and teleports, the loading screen hides the settings gear. True then; false
+; after about 2.5 minutes without it, or a number window still up (closed: nothing starts under it)
+RaidWaitMatch() {
+    Step("waiting for the raid match to start")
+    loop 600 {                                  ; (600 x 250 ms)
+        Stale()
+        if CaptchaWindowUp() {
+            AddLog("A Find Match number window is still open: closing it, Find Match again from the lobby")
+            CaptchaClose()
+            return false
+        }
+        if !FoolGear()
+            return true
+        Wait(250)
+    }
+    AddLog("The raid match didn't start within 2.5 minutes. Trying again")
+    SaveDebugShot("raid_queue")
+    return false
 }
 
 RaidFail(kind, why) {
@@ -784,6 +843,11 @@ RaidReplay() {
     AddLog("Raid: " (lastResult = "win" ? "won" : lastResult = "loss" ? "lost" : "round over") ", replaying")
     if ChallengeLeave()                         ; a new challenge is up: the lobby instead
         return
+    if RaidMatchOn() {                          ; Replay would keep the same players (or none): a new
+        AddLog("Raid: back to the lobby to Find Match again")   ; match from the lobby, as in Summer Hunt
+        BackToLobby()
+        return
+    }
     Step("replaying the raid")
     if OcrFindWord(0, 300, 800, 300, "i)^replay$", &rx, &ry)
         Clk(rx, ry)

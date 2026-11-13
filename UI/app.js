@@ -493,6 +493,7 @@ function renderMode() {
   const ra = $("#raidAct"), acts = [1, 2, 3, 4, 5].map((n) => "Raid " + n);
   ra.innerHTML = options(acts, Math.min(4, Math.max(0, (+S.cfg.raidAct || 1) - 1)));
   ra.onchange = () => { setVal("raidAct", +ra.value + 1); if (run) setRun(run); };
+  seg($("#segRaidJoin"), ["Play Here", "Find Match"], +S.cfg.raidMatch ? 1 : 0, (i) => setVal("raidMatch", i));
   // Find Match: back since the game's next update (Global Matchmaking, the player types the number)
   seg($("#segFoolJoin"), ["Play Here", "Find Match"], +S.cfg.foolMatch ? 1 : 0, (i) => {
     setVal("foolMatch", i);

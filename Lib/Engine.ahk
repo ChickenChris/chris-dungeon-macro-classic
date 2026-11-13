@@ -8499,7 +8499,7 @@ StartSummerHunt() {
         Wait(3000)
         return
     }
-    matched := cfg.Has("foolMatch") && cfg["foolMatch"] && FoolMatchTries()   ; Global Matchmaking: you type the number
+    matched := cfg.Has("foolMatch") && cfg["foolMatch"] && FoolMatchTries(FoolToPad, "Summer Hunt")   ; Global Matchmaking: you type the number
     if !matched {
         Clk(330, 325)                           ; Play Here
         Wait(800)
@@ -9112,8 +9112,8 @@ FoolToPad() {
     return false
 }
 
-FoolFindMatch(last := true) {
-    Step("Summer Hunt: Find Match, waiting for you to type the number")
+FoolFindMatch(last := true, what := "Summer Hunt") {
+    Step(what ": Find Match, waiting for you to type the number")
     Clk(460, 330)                               ; Find Match
     t0 := A_TickCount                           ; up to 4 s for the number window: the first Find Match
     Wait(1500)                                  ; after starting was given up on at 1.5 s (Dark's log)
@@ -9193,10 +9193,11 @@ FoolFindMatch(last := true) {
 }
 
 ; Find Match up to 3 times: when the number didn't go through, its window is closed, Play, walk back
-; to the pad and Find Match again (Chris 3 Nov). True when matched; false = Play Here instead
-FoolMatchTries() {
+; to the pad and Find Match again (Chris 3 Nov). True when matched; false = Play Here instead.
+; toPad: back to "Join Matchmaking?" (FoolToPad, RaidToMatch); what: the mode, for the step line
+FoolMatchTries(toPad, what) {
     loop 3 {
-        r := FoolFindMatch(A_Index = 3)
+        r := FoolFindMatch(A_Index = 3, what)
         if r == "nowin"
             return false
         if r == "retry" {
@@ -9205,14 +9206,14 @@ FoolMatchTries() {
             AddLog("Find Match didn't go through: Play, walking back and trying again (" A_Index + 1 " of 3)")
             if CaptchaUp()
                 CaptchaClose()
-            if !FoolToPad()
+            if !toPad()
                 return false
             continue
         }
         return !!r
     }
     if !FoolJoinUp()                            ; the last go closed it (a wrong number): back for Play Here
-        FoolToPad()
+        toPad()
     return false
 }
 
