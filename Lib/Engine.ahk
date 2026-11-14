@@ -6052,6 +6052,10 @@ LimitMessage(&txt := "") {
         txt := OCR.FromRect(ox + 100, oy + 60, 600, 450, OcrLang(), {scale: 2, grayscale: true}).Text
         if !RegExMatch(txt, limitWords)
             txt .= " " OCR.FromRect(ox + 100, oy + 70, 600, 110, OcrLang(), {scale: 3, grayscale: true}).Text
+        ; "Cannot place more than 2 of this unit!" shows just above the yen and the hotbar now (y 455-472):
+        ; garbled in the big read over a busy map, slot 3 (Elysia) was tried every 4 s (Alphonse 14 Nov)
+        if !RegExMatch(txt, limitWords)
+            txt .= " " OCR.FromRect(ox + 100, oy + 440, 600, 50, OcrLang(), {scale: 3, grayscale: true}).Text
     }
     if RegExMatch(txt, "i)un[il1]que|[il1]ts\s*k[il1]nd|w[il1]th\s*[o0]thers")
         return "unique"

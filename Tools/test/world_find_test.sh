@@ -22,7 +22,7 @@ if missing:
 body = r'''#Requires AutoHotkey v2.0
 #Warn VarUnset, StdOut
 OnError((e, m) => (FileAppend("ERROR " e.Message " (line " e.Line ")`n", "*"), ExitApp(3)))
-global fails := 0, worldLastRead := "", RBX := "WorldFindTestWindow", pos := 0, lastDir := 0, blurDown := false, scrolls := 0
+global fails := 0, worldLastRead := "", RBX := "WorldFindTestWindow", pos := 0, lastDir := 0, blurDown := false, scrolls := 0, split := false
 g := Gui(, RBX), g.Show("x0 y0 w800 h600 NA")
 Check(name, ok, got := "") {
     global fails
@@ -45,6 +45,11 @@ class OCR {
             t := LIST[pos + A_Index]
             if blurDown && lastDir = 1 && t = "Shibuya District"      ; still sliding on the way down
                 t := "Sh!b~ya D!s"
+            if split && InStr(t, " (") {                ; the name's bracket on a line of its own, just under it
+                lines.Push({Text: SubStr(t, 1, InStr(t, " (") - 1), x: 10, y: A_Index * 90, w: 120, h: 16})
+                lines.Push({Text: SubStr(t, InStr(t, " (") + 1), x: 10, y: A_Index * 90 + 14, w: 120, h: 16})
+                continue
+            }
             lines.Push({Text: t, x: 10, y: A_Index * 90, w: 120, h: 16})
         }
         return {Lines: lines}
@@ -63,6 +68,15 @@ pos := 0, blurDown := false
 Check("read clearly on the way down: found", WorldFind("Shibuya District", INF_MAPS(), &x, &y) && x = 685, x)
 pos := 0, blurDown := true
 Check("passed on the way down (still sliding): found on the way back up", WorldFind("Shibuya District", INF_MAPS(), &x, &y))
+; the raid list (Alphonse 14 Nov): "Future City (Tyrant's Invasion)" in small letters comes first, the reader
+; put its bracket on a line of its own; the plain Future City is further down
+pos := 0, split := true
+LIST := ["Strange Town", "Ruined City (The Menace)", "Cursed Festival", "Future City (Tyrant's Invasion)", "Storm Hideout", "Future City", "Nightmare Train", "Sand Village"]
+Check("Future City, its Tyrant's Invasion line first, read in two pieces: the plain one is picked", WorldFind("Future City", LIST, &x, &y) && pos + Round((y - 160) / 90) = 6, pos " " y)
+split := false
+LIST := ["Planet Greenie", "Walled City", "Snowy Town", "Sand Village", "Navy Bay", "Fiend City", "Spirit World", "Ant Kingdom",
+    "Magic Town", "Haunted Academy", "Space Center", "Alien Spaceship", "Fabled Kingdom", "Ruined City", "Puppet Island",
+    "Virtual Dungeon", "Snowy Kingdom", "Shibuya District", "Dungeon Throne", "Mountain Temple"]
 pos := 0, blurDown := false, scrolls := 0
 Check("a world that isn't there: not found, and it stops (no endless scrolling)", !WorldFind("Nowhere Land", INF_MAPS(), &x, &y) && scrolls < 80, scrolls)
 FileAppend(fails ? "FAILED " fails "`n" : "ALL PASSED`n", "*", "UTF-8")

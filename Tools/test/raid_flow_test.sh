@@ -119,6 +119,15 @@ cfg["mode"] := "Raid"
 Check("Sacred Planet's line", WorldLineIs("Sacred Planet", "Sacred Planet", RAID_WORLDS()))
 Check("a locked world, its name half under the lock: Ant Kingdo (Midnight)", WorldLineIs("Ant Kingdo (Midnight)", "Ant Kingdom (Midnight)", RAID_WORLDS()))
 Check("Future City (Tyrant) isn't Future City", !WorldLineIs("Future City (Tyrant)", "Future City", RAID_WORLDS()))
+; Alphonse 14 Nov: "Future City (Tyrant's Invasion)" (small letters, above the plain Future City) taken for
+; Future City twice: its bracket misread, or on a line of its own
+Check("  its bracket read as { : still not", !WorldLineIs("Future City {Tyrant's Invasion)", "Future City", RAID_WORLDS()))
+Check("  its bracket read as a letter: still not (more words after the name)", !WorldLineIs("Future City lTyrant's Invasion)", "Future City", RAID_WORLDS()))
+Check("  no bracket read at all: still not", !WorldLineIs("Future City Tyrant's Invasion", "Future City", RAID_WORLDS()))
+Check("  the bracket on the line just under it: still not", !WorldLineIs("Future City", "Future City", RAID_WORLDS(), "", "(Tyrant's Invasion)"))
+Check("the plain Future City, its Levels Cleared under it: Future City", WorldLineIs("Future City", "Future City", RAID_WORLDS(), "", "Levels Cleared: 0/5"))
+Check("a misread last word is still the world (Future Cityy)", WorldLineIs("Future Cityy", "Future City", RAID_WORLDS()))
+Check("the Tyrant line is Future City (Tyrant)", WorldLineIs("Future City (Tyrant's Invasion)", "Future City (Tyrant)", RAID_WORLDS()))
 
 ; --- lobby -> pad -> world -> raid -> Start
 Reset(), cfg["raidWorld"] := "Strange Town", cfg["raidAct"] := 3, padAfter := 2, worldOk := true, padStartOk := true, title := "Raid: The Evil Monk"

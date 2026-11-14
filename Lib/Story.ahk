@@ -133,12 +133,15 @@ WorldRegex(name) {
 }
 
 ; is this line of the world list the world `name` (one of `names`)? Its first letters, or the closest
-; name. A Legend world has a bracket ("Ruined City (Midnight)"): a line with one isn't a main world
-WorldLineIs(line, name, names, re := "") {
-    if InStr(line, "(") && !InStr(name, "(")
+; name. A Legend world has a bracket ("Ruined City (Midnight)"): a line with one isn't a main world.
+; Nor is a line with more words after the name, or a bracket on the line just under it (`next`): the
+; raid list's small "Future City (Tyrant's Invasion)" came first and was taken for Future City, its bracket
+; misread or read as a line of its own (Alphonse 14 Nov)
+WorldLineIs(line, name, names, re := "", next := "") {
+    if !InStr(name, "(") && (RegExMatch(line, "[(\[{]") || RegExMatch(next, "^\W*[(\[{]"))
         return false
-    if RegExMatch(line, re != "" ? re : WorldRegex(name))
-        return true
+    if RegExMatch(line, re != "" ? re : WorldRegex(name), &m)
+        return InStr(name, "(") || !RegExMatch(RegExReplace(SubStr(line, m.Pos + m.Len), "^\S*"), "[A-Za-z]{4}")
     return StrLen(Trim(line)) >= 6 && FuzzyPick(line, names) = name
 }
 
@@ -178,9 +181,10 @@ WorldRead(name, names, re, &x, &y, &txt) {
         try {
             WinGetClientPos &ox, &oy, , , RBX
             res := OCR.FromRect(ox + 615, oy + 160, 175, 300, OcrLang(), tf)
-            for ln in res.Lines {
+            for i, ln in res.Lines {
                 txt .= ln.Text "|"
-                if WorldLineIs(ln.Text, name, names, re) {
+                nx := i < res.Lines.Length && res.Lines[i + 1].y - ln.y < ln.h * 2 ? res.Lines[i + 1].Text : ""
+                if WorldLineIs(ln.Text, name, names, re, nx) {
                     x := Round(615 + ln.x + ln.w / 2), y := Round(160 + ln.y + ln.h / 2)
                     return true
                 }
