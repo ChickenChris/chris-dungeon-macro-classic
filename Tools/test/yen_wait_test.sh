@@ -27,6 +27,7 @@ global slotCap := Map(), walkedHere := false, curMap := "Test", barShown := fals
 global cardGrey := false, yenRead := "", logs := []
 HillSlot(n) => false                   ; no hill units here (hill_test.sh)
 HillPoints(n) => []
+TickNow() => now
 Check(name, ok, got := "") {
     global fails
     FileAppend((ok ? "PASS " : "FAIL ") name (ok ? "" : " (got " got ")") "`n", "*", "UTF-8")

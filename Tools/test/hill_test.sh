@@ -8,6 +8,8 @@ python3 - "$T/t.ahk" <<'P'
 import re, sys
 src = open("Lib/Engine.ahk", encoding="utf-8-sig").read()
 fn = re.search(r"^HillPoints\(.*?^\}", src, re.S | re.M).group(0) + "\n" + re.search(r"^HillGreen\(.*$", src, re.M).group(0)
+m = re.search(r"^HillComps\(.*?^\}", src, re.S | re.M)
+fn += "\n" + (m.group(0) if m else "")
 srt = re.search(r"^SortByDistance\(.*?^\}", src, re.S | re.M).group(0) + "\n" + re.search(r"^IndexOf\(.*?^\}", open("Chris's Dungeon Macro.ahk", encoding="utf-8-sig").read(), re.S | re.M).group(0)
 real = re.search(r"^HillGrid\(.*?^\}", src, re.S | re.M).group(0).replace("HillGrid(", "HillGridReal(", 1).replace("WinGetClientPos &ox, &oy, , , RBX", "ox := 0, oy := 0")
 import os
@@ -102,6 +104,24 @@ stageStart := 4, logs := "", hillCol := [0, 200, 0]
 grids := [View([], true), View([], true), View([big], true)]
 pts := HillPoints(4)
 Check("the hills light up late: looked again, found", pts.Length >= 6 && inBox(pts[1], big))
+; RNG 14 Nov (Alt 2, Spirit Town): picked up and put back 0.48 s later, "no hills seen": 3 scattered green
+; points (text) ended the look before the roofs lit up. It looks until it sees a hill, not 3 green points
+stageStart := 6, logs := ""
+Scatter() {
+    g := View([], true)
+    for k in [42 * 10000 + 108, 306 * 10000 + 204, 498 * 10000 + 396]
+        g.Has(k) ? g[k] := [0, 200, 0] : 0
+    return g
+}
+grids := [Scatter(), Scatter(), View([big], true)]
+pts := HillPoints(4)
+Check("3 green points but no hill yet: looked again until the hill lit up", pts.Length >= 6 && inBox(pts[1], big), pts.Length)
+; RNG 14 Nov: Summer Hunt's Level Modifiers list runs down to y 425 on the right; its green "Magic
+; Resistance: -60" was a hill at 702,420. The grid leaves the right-hand panel out down to the minimap
+g := HillGridReal(12), inPanel := 0
+for k in g
+    inPanel += k // 10000 >= 630 && Mod(k, 10000) >= 160 && Mod(k, 10000) < 440
+Check("the grid leaves out the info panel down to the minimap (y 160-440 on the right)", inPanel = 0, inPanel)
 FileAppend(fails ? "FAILED " fails "`n" : "ALL PASSED`n", "*", "UTF-8")
 ExitApp fails ? 1 : 0
 '''

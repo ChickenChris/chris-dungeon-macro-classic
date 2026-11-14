@@ -59,6 +59,14 @@ if foolOnly {
     Check("a dungeon, 19 units down: not taken as full (only Fool's Hunt has that cap in players' logs)", !PlaceRefused(4) && !mapFull, mapFull)
 } else
     Check("Classic (no Fool's Hunt): never taken as a full map, placing goes on", !PlaceRefused(3) && !mapFull, mapFull)
+; "Cannot place unit here!" (a path, another unit in the way) is the spot, not the unit's limit
+Sleep 4100
+fool := false, mapFull := 0, logs := "", said := "Wave 9 En Cannot place unit here! 3955%"
+Units(2)
+Check("'Cannot place unit here!' is the spot, not the unit's limit (Alphonse 14 Nov: Dark Mage stopped at 2 of 3)", !PlaceRefused(5) && !slotFull.Has(5) && !InStr(logs, "no more of this unit"), logs)
+Sleep 4100
+said := "Cannot place more than 3 of this unit!"
+Check("  'Cannot place more than 3 of this unit!' is still its limit", PlaceRefused(5) && slotFull.Has(5), logs)
 FileAppend(fails ? "FAILED " fails "`n" : "ALL PASSED`n", "*", "UTF-8")
 ExitApp fails ? 1 : 0
 '''

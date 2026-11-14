@@ -4194,17 +4194,19 @@ PlaceAll(ctx := "") {
 ; A new round carries on to new spots instead of going back to ones that just failed;
 ; a spot that fails twice is skipped. Sets ctx.over if the stage ends.
 ; a hill unit (its switch on the Units page) is placed on the hills the game shows in green while it's
-; held, not on the usual spots; the usual spots when no hill is seen
+; held, never on the usual spots: it only goes on a hill. No hill seen: nothing is tried (RNG 14 Nov: no
+; hills on Spirit Town / Navy Bay, it tried the ground spots and went back to spawn for 10 minutes)
 PlaceSlot(ctx, n, need, hill := false) {
     if !hill && !HillSlot(n)
         return PlaceSlotAt(ctx, n, need)
     hp := HillPoints(n)
     if !hp.Length
-        return PlaceSlotAt(ctx, n, need)
-    keep := [ctx.pts, ctx.cursor], ctx.pts := hp, ctx.cursor := 1
+        return []
+    keep := [ctx.pts, ctx.cursor], ctx.pts := hp, ctx.cursor := 1, ctx.hill := true
     try return PlaceSlotAt(ctx, n, need)
-    finally ctx.pts := keep[1], ctx.cursor := keep[2]
+    finally ctx.pts := keep[1], ctx.cursor := keep[2], ctx.DeleteProp("hill")
 }
+TickNow() => A_TickCount
 
 HillSlot(n) => n >= 1 && n <= cfg["slots"].Length && cfg["slots"][n].HasOwnProp("hill") && cfg["slots"][n].hill
 
@@ -4222,6 +4224,8 @@ HillPoints(slot) {
     Keys(String(slot))
     ; the hills light up a moment after the unit is picked up: one look at 0.45 s saw none on a player's
     ; Snowy Kingdom (8 Nov) and 15 ground spots were tried. Looked at again for up to 3 s
+    ; until a hill shows, not 3 green points: scattered green text ended the look at 0.45 s before
+    ; Spirit Town's roofs lit up (RNG 14 Nov, "no hills seen")
     t0 := A_TickCount
     loop {
         Sleep 450
@@ -4231,34 +4235,17 @@ HillPoints(slot) {
         for k, cb in b
             if HillGreen(cb)
                 on[k] := 1
-        if on.Count >= 3 || A_TickCount - t0 >= 3000
+        comps := HillComps(on, step)
+        if comps.Length || A_TickCount - t0 >= 3000
             break
     }
     ; none seen: the picture while it's still held, with the hills' real colours on it (RNG 13 Nov: green
     ; hills not seen on Mountain Temple and a snowy map, "might be lighting"; taken after it was put back
     ; it showed no green at all)
     key := slot "|" stageStart
-    if on.Count < 3 && !told.Has(key)
+    if !comps.Length && !told.Has(key)
         SaveDebugShot("hill")
     Keys("q")
-    ; hills: cells side by side
-    comps := [], seen := Map()
-    for k in on {
-        if seen.Has(k)
-            continue
-        list := [], todo := [k], seen[k] := 1
-        while todo.Length {
-            c := todo.Pop(), list.Push(c)
-            cx := c // 10000, cy := Mod(c, 10000)
-            for d in [[step, 0], [-step, 0], [0, step], [0, -step]] {
-                nk := (cx + d[1]) * 10000 + cy + d[2]
-                if on.Has(nk) && !seen.Has(nk)
-                    seen[nk] := 1, todo.Push(nk)
-            }
-        }
-        if list.Length >= 3
-            comps.Push(list)
-    }
     ; biggest first
     loop comps.Length - 1 {
         i := A_Index
@@ -4296,12 +4283,36 @@ HillPoints(slot) {
     if !told.Has(key) {
         told[key] := 1
         AddLog("Slot " slot " (hill unit): " (comps.Length ? comps.Length " hill" (comps.Length = 1 ? "" : "s") " seen, placing there"
-            : "no hills seen in green while holding it, trying the usual spots (a picture of it: Logs\hill_….bmp)"))
+            : "no hills seen in green while holding it, skipping it (a hill unit only goes on a hill; a picture of it: Logs\hill_….bmp)"))
     }
     return pts
 }
 
-; the view's colours on a grid over the map (not the top bar, the info panel, the F button or the minimap)
+; hills: green cells side by side, 3 or more
+HillComps(on, step) {
+    comps := [], seen := Map()
+    for k in on {
+        if seen.Has(k)
+            continue
+        list := [], todo := [k], seen[k] := 1
+        while todo.Length {
+            c := todo.Pop(), list.Push(c)
+            cx := c // 10000, cy := Mod(c, 10000)
+            for d in [[step, 0], [-step, 0], [0, step], [0, -step]] {
+                nk := (cx + d[1]) * 10000 + cy + d[2]
+                if on.Has(nk) && !seen.Has(nk)
+                    seen[nk] := 1, todo.Push(nk)
+            }
+        }
+        if list.Length >= 3
+            comps.Push(list)
+    }
+    return comps
+}
+
+; the view's colours on a grid over the map (not the top bar, the info panel, the F button or the minimap).
+; The info panel down to the minimap: Summer Hunt's Level Modifiers list runs to y 425, its green "Magic
+; Resistance: -60" was taken for a hill (RNG 14 Nov)
 HillGrid(step) {
     g := Map()
     try {
@@ -4312,7 +4323,7 @@ HillGrid(step) {
         while y <= 500 {
             x := 30
             while x <= 760 {
-                if !(x >= 630 && y >= 160 && y <= 340) && !(x >= 640 && y >= 440) {
+                if !(x >= 630 && y >= 160 && y < 440) && !(x >= 640 && y >= 440) {
                     col := scr.GetColor(ox + x, oy + y, 0)
                     g[x * 10000 + y] := [(col >> 16) & 0xFF, (col >> 8) & 0xFF, col & 0xFF]
                 }
@@ -4326,6 +4337,7 @@ HillGrid(step) {
 
 PlaceSlotAt(ctx, n, need) {
     global placedUnits
+    hillFail := 0                               ; a hill unit: when the hills stopped taking more
     need := SlotRoom(n, need)
     lv := ctx.lv, pts := ctx.pts
     newUnits := []
@@ -4461,7 +4473,7 @@ PlaceSlotAt(ctx, n, need) {
             }
         }
         if poor && got < need {                 ; a try failed for want of yen: wait for it, then go on
-            poorRounds++
+            poorRounds++, hillFail := 0
             Step("waiting for yen to place slot " n "  (" got "/" need ")")
             Wait(1000)
             continue
@@ -4471,12 +4483,21 @@ PlaceSlotAt(ctx, n, need) {
         ; walked to the map's spot and not one unit fits anywhere: the walk went off, or it isn't the
         ; map it was taken for (a Fool's Hunt loading screen once said Mountain Temple on another
         ; map, and it walked out to where nothing can be placed). Back to spawn, place from there
-        if got < need && !placedUnits.Length && walkedHere && attempts >= lv[1] && !ctx.HasOwnProp("respawned") {
+        if got < need && !placedUnits.Length && walkedHere && attempts >= lv[1] && !ctx.HasOwnProp("respawned") && !ctx.HasOwnProp("hill") {
             ctx.respawned := true
             AddLog("Nothing could be placed after walking to the " curMap " spot (wrong map, or the walk went off). Back to spawn, placing from there")
             GoToSpot(curMap, false, true)
             ctx.fails := Map(), ctx.used := Map(), ctx.cursor := 1
             continue
+        }
+        if got < need && ctx.HasOwnProp("hill") {
+            ; only the hills will do: a minute without one more on them, moving on (RNG 14 Nov: "skip the
+            ; step and move on", not back to spawn: "I need it nearby the main units for buffs")
+            hillFail := got > before ? 0 : hillFail ? hillFail : TickNow()
+            if hillFail && TickNow() - hillFail >= 60000 {
+                AddLog("Slot " n " (hill unit): no more fit on the hills for a minute, moving on (" got "/" need ")")
+                break
+            }
         }
         if got < need {
             stuck := got = before ? stuck + 1 : 0
@@ -5921,6 +5942,11 @@ PlaceRefused(slot) {
     static toldMsg := false, toldFull := -1, lastAt := 0, lastSlot := 0
     msg := LimitMessage(&said)
     if msg = ""
+        return false
+    ; "Cannot place unit here!" (a path, another unit in the way) is the spot, not a limit: the next
+    ; spot is tried. Its "cannot pl" counted as this unit's limit (Alphonse 14 Nov: Dark Mage stopped
+    ; at 2 of 3, once the message above the yen was read)
+    if RegExMatch(said, "i)\bh[e3]r[e3]\b") && !RegExMatch(said, "i)m[o0]re\s*th|th[ae]n\s*\d|un[il1]que|[il1]ts\s*k[il1]nd|m[a@]x\W{0,2}\s*p[l1I]|p[l1I]acement\s*(l[il1]m|reach|max)")
         return false
     ; the red text stays up for a few seconds: seen right after another slot's refusal, it's that
     ; old message, not this slot's (it gave every next slot a limit of 0, one second each)
