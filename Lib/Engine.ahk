@@ -3508,6 +3508,27 @@ ZoomCameraNow(want := -1) {
     Stale()                            ; its click landed on a unit and opened its menu (RNG 9 Nov): closed
     if NewMenu()
         Clk(277, 226)
+    ClosePlayerCard()                  ; or on another player (an alt on the same spot): their profile
+}
+
+; AA's View Player (15 Nov): a click on another player's character opens their profile at the top right
+; (green Units / Titles, a red X at 717,129). The camera zoom's click in the middle hit an alt standing
+; on the same spot, and the profile stayed open over the 3rd Summer Hunt card (RNG 15 Nov)
+PlayerCardUp() => ColorShare(530, 206, 645, 218, (r, g, b) => g > 150 && g > r + 60 && g > b + 60) >= 0.35 && ColorShare(711, 119, 727, 139, (r, g, b) => r > 170 && r > g + 90 && r > b + 90) >= 0.35
+
+ClosePlayerCard() {
+    static told := false
+    loop 2 {
+        if !PlayerCardUp()
+            return true
+        Clk(717, 129)
+        Wait(400)
+        if !told {
+            told := true
+            AddLog("Closed a player's profile (AA's View Player) that a click on their character opened")
+        }
+    }
+    return !PlayerCardUp()
 }
 
 TeleportToSpawn() {
@@ -8793,6 +8814,13 @@ FoolCards() {
         voteClick := false
         Wait(400)
         Stale()
+    }
+    ; a player's profile (View Player) over the right card: closed too (RNG 15 Nov: the 3rd card was
+    ; never picked). Its X is let through like the menu's
+    if PlayerCardUp() {
+        voteClick := true
+        try ClosePlayerCard()
+        voteClick := false
     }
     if (dy := FoolVoteDy()) = ""
         return false
