@@ -15,7 +15,7 @@ def fn(n):
 body = r'''#Requires AutoHotkey v2.0
 #Warn VarUnset, StdOut
 OnError((e, m) => (FileAppend("ERROR " e.Message " (line " e.Line ")`n", "*"), ExitApp(3)))
-global fails := 0, fool := true, logs := "", said := "", mapFull := 0, placedUnits := [], stageStart := 1, slotCap := Map(), slotFull := Map()
+global fails := 0, fool := true, logs := "", said := "", mapFull := 0, placedUnits := [], stageStart := 1, slotCap := Map(), slotFull := Map(), placeUnsure := Map()
 Check(name, ok, got := "") {
     global fails
     FileAppend((ok ? "PASS " : "FAIL ") name (ok ? "" : " (got " got ")") "`n", "*", "UTF-8")
@@ -67,6 +67,13 @@ Check("'Cannot place unit here!' is the spot, not the unit's limit (Alphonse 14 
 Sleep 4100
 said := "Cannot place more than 3 of this unit!"
 Check("  'Cannot place more than 3 of this unit!' is still its limit", PlaceRefused(5) && slotFull.Has(5), logs)
+; Apocalypse 15 Nov (Summer Hunt, 19 units down): "Cannot place more than 2 of this unit!" read as "...Cannot
+; ellacelmor*han 250_f$hiqunit!": no "t" before "han", "unit!" not "units". It's this unit's limit of 2
+Sleep 4100
+fool := true, mapFull := 0, logs := "", slotCap := Map(), slotFull := Map()
+said := "Wave31 *28810 tarrn Ark Cannot ellacelmor*han 250_f$hiqunit! 162807V @Neil« 'Star C Enerrv ç Physical Res.'"
+Units(19)
+Check("Apocalypse's '...han 250_f$hiqunit!': slot 3's limit of 2, not the map full", PlaceRefused(3) && !mapFull && slotCap.Get(3, 0) = 2, mapFull " / " slotCap.Get(3, "none") " / " logs)
 FileAppend(fails ? "FAILED " fails "`n" : "ALL PASSED`n", "*", "UTF-8")
 ExitApp fails ? 1 : 0
 '''
