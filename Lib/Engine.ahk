@@ -7257,8 +7257,9 @@ EndButtonsSeen(now := false) {
 ; the white "XP Progress" over the panel right of the results (client 585-700 x 133-152: 0.26 on
 ; Chris's Summer Hunt DEFEAT, 0 on a card vote). Without it the colours alone fooled the macro: an
 ; Inferno card vote (red frames, lava, the green "Wave Completed!") was taken for a results screen at
-; wave 29, "Victory", and it went to replay mid-round (Chris 2 Nov)
-XpPanelUp() => ColorShare(585, 133, 700, 152, (r, g, b) => r > 215 && g > 215 && b > 215) >= 0.15
+; wave 29, "Victory", and it went to replay mid-round (Chris 2 Nov). Light text, not only white: the
+; Sandstorm weather tints it cream (255,244,211), and the macro never pressed VICTORY's Next (Clone 15 Nov)
+XpPanelUp() => ColorShare(585, 133, 700, 152, (r, g, b) => r > 190 && g > 170 && b > 130) >= 0.15
 
 ; The VICTORY / DEFEAT results with the green Next button under the title, found by colour: on
 ; some players' games the "Next" text wasn't recognised and the macro kept upgrading forever.
