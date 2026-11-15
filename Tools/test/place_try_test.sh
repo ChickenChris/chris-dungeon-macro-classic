@@ -44,6 +44,7 @@ PlaceRefused(slot) {
     return false
 }
 ClearVote() => 0
+ClosePlayerCard() => true
 VoteOnScreen() => false
 ClosePanel() => 0
 OverviewClose() => 0

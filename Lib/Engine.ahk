@@ -341,6 +341,12 @@ Tick() {
     if CheckConnection()
         return
     Snap()                                   ; one screenshot for this whole pass
+    ; a player's profile (AA's View Player, 15 Nov: a click on a player opens it, in the lobby or a round)
+    ; covers the right side, the results' XP Progress title too (Next wasn't pressed): closed
+    if PlayerCardUp() {
+        ClosePlayerCard()
+        return
+    }
 
     ; "Leave Dungeon?" first: the results' Return to lobby / Open Dungeon and the chest screen both stay
     ; behind it. Pressing Open Dungeon there stacked more popups, and the chests behind it were "opened"
@@ -5726,6 +5732,7 @@ TryPlace(x, y, slot) {
     }
     ClosePanel()                            ; the unit panel covers the right side of the map
     OverviewClose()                         ; the Unit Overview (F) too, if something opened it
+    ClosePlayerCard()                       ; and a player's profile (a placing click landed on a player)
     loop 2 {
         if !UnitMenuOpen()                  ; an open menu would look like this placement worked
             break
@@ -6300,6 +6307,7 @@ OpenUnit(u) {
         CloseMenuClick()
         WaitFor(() => !UnitMenuOpen(), 1200, 100)
     }
+    ClosePlayerCard()                           ; a player's profile from an earlier click (View Player)
     tries := [[u.dx, u.dy]]
     for o in around
         if o[1] != u.dx || o[2] != u.dy

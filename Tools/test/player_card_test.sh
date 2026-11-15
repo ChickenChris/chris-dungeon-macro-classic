@@ -119,6 +119,19 @@ a, b = fc.find("ClosePlayerCard()"), fc.find("for cx in voteNew")
 body = body.replace("FileAppend(fails ?", 'Check("FoolCards closes a profile before it reads the cards", ' + ("1" if 0 <= a < b else "0") + ', "' + str(a) + ' vs ' + str(b) + '")\nFileAppend(fails ?', 1)
 v = fc[max(0, a - 200):a]
 body = body.replace("FileAppend(fails ?", 'Check("  with the vote click let through (voteClick)", ' + ("1" if a > 0 and "voteClick := true" in v else "0") + ')\nFileAppend(fails ?', 1)
+# and wherever a click can land on a player (yaymlg / shaaaaark / a 4-alt player's recordings 15 Nov: a placing
+# click on an alt opened its profile, then every placement there failed; one open at a round's end covers
+# the results' XP Progress title, so Next wasn't pressed): before a placing try, before a unit is clicked,
+# and on every pass of the main loop, before the round's end is looked for
+def body_of(n):
+    m = re.search(r"^" + n + r"\([^)\n]*\) \{.*?^\}", src, re.S | re.M)
+    return m.group(0) if m else ""
+tp, ou, tk = body_of("TryPlace"), body_of("OpenUnit"), body_of("Tick")
+ok_tp = 0 <= tp.find("ClosePlayerCard()") < tp.find("Keys(String(slot))")
+ok_ou = 0 <= ou.find("ClosePlayerCard()") < ou.find("for o in tries")
+ok_tk = 0 <= tk.find("PlayerCardUp()") < tk.find("EndButtonsSeen(true)")
+for name, ok in (("a placing try closes a profile first", ok_tp), ("a unit click closes a profile first", ok_ou), ("the main loop closes a profile before it looks for the round's end", ok_tk)):
+    body = body.replace("FileAppend(fails ?", 'Check("' + name + '", ' + ("1" if ok else "0") + ')\nFileAppend(fails ?', 1)
 body = body.replace("ROOT", "Z:" + root.replace("/", "\\")).replace("W\\", W + "\\").replace("HAVE", "1" if have else "0")
 if missing:
     body = body.replace("ExitApp fails ? 1 : 0", 'FileAppend("FAIL not defined: ' + ", ".join(missing) + '`n", "*")\nExitApp 1')
