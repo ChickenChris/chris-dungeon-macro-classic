@@ -30,7 +30,7 @@ CloseMenuClick() => Clk(325, 185)
 ClickAway() => Clk(560, 560)
 OnError((e, m) => (FileAppend("ERROR " e.Message " (line " e.Line ")`n", "*"), ExitApp(3)))
 global fails := 0, reads := 0, clicks := "", menuNext := false, fool := false, placeUnsure := Map()
-global autoOpenSeen := true, autoOpenOff := false, clickOpened := 0, foolVotes := 0
+global autoOpenSeen := true, autoOpenOff := false, clickOpened := 0, foolVotes := 0, turbo := false
 global foolChecks := ''' + flag + r'''
 Check(name, ok, got := "") {
     global fails
@@ -38,6 +38,7 @@ Check(name, ok, got := "") {
     fails += !ok
 }
 FoolMode() => fool
+PlaceTurbo() => turbo
 PlaceRefused(slot) {
     global reads
     reads++
@@ -100,6 +101,22 @@ if foolChecks {
     TryPlace(420, 300, 1)
     Check("Fool's Hunt: the red message is looked for (its 20-unit cap)", reads >= 1, reads)
 }
+; Turbo placing (Chris 16 Nov, slow PCs: "it tries placing units much slower"): a try waits 1 s for the menu, not
+; 2, and reads the red text once at the end, not every second (each read is up to 3 screen reads)
+fool := true, turbo := true, reads := 0, clicks := ""
+t := A_TickCount
+TryPlace(440, 300, 1)
+el := A_TickCount - t
+Check("Turbo: a failed Summer Hunt try gives up after about 1 s", el < 1600, el " ms")
+Check("  the red text read once", reads = 1, reads)
+clicks := "", menuNext := true
+Check("  a placed unit still counts", TryPlace(445, 300, 1), clicks)
+turbo := false, reads := 0, clicks := ""
+t := A_TickCount
+TryPlace(460, 300, 1)
+el := A_TickCount - t
+Check("Turbo off: as before (2 s at least, read while waiting)", el >= 2000 && reads >= 2, el " ms, " reads " reads")
+fool := false
 FileAppend(fails ? "FAILED " fails "`n" : "ALL PASSED`n", "*", "UTF-8")
 ExitApp fails ? 1 : 0
 '''

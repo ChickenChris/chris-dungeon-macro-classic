@@ -5761,8 +5761,11 @@ TryPlace(x, y, slot) {
     ; up to 2 s for it (the Placement speed setting when that's slower): a laggy game showed it after
     ; 1 s, the try counted as nothing and the unit was placed again ("place, wait 2 seconds to read the
     ; UI on the left", Chris 3 Nov). Found: a moment more so its name and level have drawn
-    quick := false, t1 := A_TickCount, lookMs := autoOpenOff ? 1000 : Max(2000, PlaceTimeout())
-    redNext := 900
+    ; Turbo placing (a setting, for slow PCs: Chris 16 Nov, "it tries placing units much slower"): the menu
+    ; waited 1 s, not 2, and the red text read once after the wait, not every second (up to 3 reads each)
+    turbo := PlaceTurbo()
+    quick := false, t1 := A_TickCount, lookMs := autoOpenOff || turbo ? 1000 : Max(2000, PlaceTimeout())
+    redNext := turbo ? 999999 : 900
     while A_TickCount - t1 < lookMs {
         Sleep 60
         Stale()
@@ -5806,9 +5809,9 @@ TryPlace(x, y, slot) {
     ; MenuParts): the yen can't be read reliably. The game lags now and then, so a late menu
     ; gets extra time.
     how := ""
-    if quick || WaitUnitMenu(autoOpenOff ? 300 : Max(300, PlaceTimeout() - lookMs))   ; (looked for lookMs already)
+    if quick || WaitUnitMenu(autoOpenOff || turbo ? 300 : Max(300, PlaceTimeout() - lookMs))   ; (looked for lookMs already)
         how := "auto"
-    else if (refusals || CountPlaced(slot) >= 1) && PlaceRefused(slot)   ; a unique / limited unit's red text
+    else if (refusals || CountPlaced(slot) >= 1 || turbo && FoolMode()) && PlaceRefused(slot)   ; a unique / limited unit's red text
         return false
     else if (!autoOpenSeen || autoOpenOff) && !NearUnit(x, y, 22) {
         ; No menu: nothing was placed, or the menu didn't open (the game's 'Disable Auto-Open
@@ -6121,6 +6124,8 @@ LimitMessage(&txt := "") {
         return "limit"
     return ""
 }
+
+PlaceTurbo() => cfg.Has("placeTurbo") && cfg["placeTurbo"]
 
 PlaceTimeout() {
     static speeds := [1000, 1500, 2000, 2500, 3000, 4000, 5000]

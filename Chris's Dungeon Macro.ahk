@@ -1191,7 +1191,7 @@ ImportDo(parts) {
                 LoadShippedWalks(true)          ; Chris's own walks and spots win over imported ones
                 copyKeys(["useSpots"]), done.Push("spots and walks")
             case "general":
-                copyKeys(["placeSpeed", "zoom", "tpSpawn", "fixOnStart", "tolerance", "hookRuns"]), done.Push("other settings")
+                copyKeys(["placeSpeed", "placeTurbo", "zoom", "tpSpawn", "fixOnStart", "tolerance", "hookRuns"]), done.Push("other settings")
             case "links":
                 copyKeys(["webhook", "psLink"]), done.Push("webhook and server link")
         }
@@ -1375,7 +1375,7 @@ DefaultConfig() {
         "pattern", "Spiral", "useSpots", 1, "saveForTop", 0, "autoAbility", 1,
         "zoom", 1, "tpSpawn", 1, "saveChests", 1, "buyShop", 1,
         "denyAllShrines", 0, "denyUnknownShrine", 1, "stopAfterDefeat", 0,
-        "placeSpeed", 1, "webhook", "", "hookRuns", 1, "psLink", "", "fixOnStart", 1, "tolerance", 2, "retries", 3, "useBuild", 0,
+        "placeSpeed", 1, "placeTurbo", 0, "webhook", "", "hookRuns", 1, "psLink", "", "fixOnStart", 1, "tolerance", 2, "retries", 3, "useBuild", 0,
         "bgStrength", 3, "bgGif", "", "accent", "Crimson",
         "bgOpacity", 70, "bgBlur", 0, "glass", 60, "bgAnimate", 1, "bgFile", "", "bgName", "", "lastSpotMap", "", "elemTeams", 0, "keyboard", "Auto", "mode", "Dungeon", "legendWorld", "Magic Hills (Elf Invasion)", "legendStage", 1, "raidWorld", "Sacred Planet", "raidAct", 1, "raidMatch", 0, "autoChallenge", 0, "orderOn", 0, "orderRepeat", 1, "autoRec", 1, "order", [], "challengeSlot", 0, "icHard", 0, "icStopFloors", 0, "foolCoins", 0, "foolSafe", 0, "walksReset", "", "foolMatch", 0, "foolCards", FOOL_CARDS(), "team", 1, "teamDefault", 1, "teams", [],
         "route", ["Rare_Chest", "Chest", "Shop", "Hoard", "Shrine", "Boss"],
@@ -1511,7 +1511,7 @@ class IniDoc {
 }
 
 ScalarKeys() => ["pattern", "useSpots", "saveForTop", "autoAbility", "zoom", "tpSpawn", "saveChests", "buyShop",
-    "denyAllShrines", "denyUnknownShrine", "stopAfterDefeat", "placeSpeed", "webhook", "hookRuns", "psLink", "fixOnStart", "tolerance", "skipWorst", "retries", "useBuild",
+    "denyAllShrines", "denyUnknownShrine", "stopAfterDefeat", "placeSpeed", "placeTurbo", "webhook", "hookRuns", "psLink", "fixOnStart", "tolerance", "skipWorst", "retries", "useBuild",
     "bgStrength", "bgGif", "accent", "bgOpacity", "bgBlur", "glass", "bgAnimate", "bgFile", "bgName", "lastSpotMap", "elemTeams", "keyboard", "mode", "legendWorld", "legendStage", "raidWorld", "raidAct", "raidMatch", "autoChallenge", "challengeSlot", "orderOn", "orderRepeat", "autoRec", "icHard", "icStopFloors", "foolCoins", "foolSafe", "foolMatch", "walksReset"]
 
 ; Fool's Hunt cards (Premium): only shown, locked, on the Dungeon page
