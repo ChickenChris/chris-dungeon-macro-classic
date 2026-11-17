@@ -6100,8 +6100,12 @@ PlaceRefused(slot) {
     ; only a clear "of this unit" is that unit's limit (it stops the slot for the map); anything
     ; else counts as the map being full, which just waits a minute and tries again
     ; the number tells them apart too: a unit's limit is small (3 of this unit), the map's is 20
-    most := RegExMatch(said, "i)(?:t{1,3}h?|\Wh)[ae]n\s*(\d[\dOo]?)", &mm) ? Integer(RegExReplace(mm[1], "[Oo]", "0")) : 0   ; "than", "tttan", "*han"
-    mapWords := RegExMatch(said, "i)sell|weaker|make\s*r|r[o0][o0]m\b|un[il1]ts")
+    ; the words are judged on the message itself, from its "Cannot place": the text read covers the whole
+    ; map, and a player's profile beside it (View Player: "Units | Titles") made "...4 of this unit!" look
+    ; like the map's "20 units!" (derAffe5432 15 Nov: a 5th zombie tried again and again after 4)
+    msgTxt := RegExMatch(said, "i)c[a@]nn[o0]t|nn[o0]t\s*pl|can.t\s*pl|m[o0]re\s*th", &mp) ? SubStr(said, mp.Pos) : said
+    most := RegExMatch(msgTxt, "i)(?:t{1,3}h?|\Wh)[ae]n\s*(\d[\dOo]?)", &mm) ? Integer(RegExReplace(mm[1], "[Oo]", "0")) : 0   ; "than", "tttan", "*han"
+    mapWords := RegExMatch(msgTxt, "i)sell|weaker|make\s*r|r[o0][o0]m\b|un[il1]ts")
     if most >= 10 && !mapWords                  ; a unit's own limit is one digit: "than 3 of" read as "than 30f"
         most := Integer(SubStr(most, 1, 1))     ; ("the game allows 30 of this unit", kisurri)
     ; since UPD 21 there's no 20-unit map cap: "Cannot place more than..." without the map's words
@@ -6109,8 +6113,8 @@ PlaceRefused(slot) {
     ; ents Ynit!", Chris 2 Nov: it kept trying a 3rd of a unit allowed twice)
     ; "unit!" (one, not "units"): this unit's (Apocalypse 15 Nov: "...Cannot ellacelmor*han 250_f$hiqunit!" was
     ; taken as the map being full, and slot 3 was never upgraded)
-    thisUnit := !mapWords && (RegExMatch(said, "i)th[il1]s\s*un[il1]t|of\s*th[il1]s|of\s*the\s*un|un[il1]t(?![s5])") || most && most < 10
-        || RegExMatch(said, "i)m[o0]re\s*th|nn[o0]t\s*pl|place\s*m[o0]re|m[a@]x\W{0,2}\s*p[l1I]\w*c|p[l1I]acement\s*(l[il1]m|reach|max)"))
+    thisUnit := !mapWords && (RegExMatch(msgTxt, "i)th[il1]s\s*un[il1]t|of\s*th[il1]s|of\s*the\s*un|un[il1]t(?![s5])") || most && most < 10
+        || RegExMatch(msgTxt, "i)m[o0]re\s*th|nn[o0]t\s*pl|place\s*m[o0]re|m[a@]x\W{0,2}\s*p[l1I]\w*c|p[l1I]acement\s*(l[il1]m|reach|max)"))
     if msg = "limit" && !thisUnit {
         ; Classic has no Fool's Hunt, the only mode whose 20-unit cap showed the real message in
         ; players' logs: anything read as it here was some other red text (Ted and others: "the map is

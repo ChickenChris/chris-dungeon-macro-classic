@@ -29,7 +29,8 @@ AddLog(t) {
     global logs
     logs .= t "|"
 }
-CountPlaced(n) => 0
+global counted := 0
+CountPlaced(n) => counted
 FoolMode() => fool
 CapKey(n) => n
 FindUnseen(p*) => 0
@@ -74,6 +75,14 @@ fool := true, mapFull := 0, logs := "", slotCap := Map(), slotFull := Map()
 said := "Wave31 *28810 tarrn Ark Cannot ellacelmor*han 250_f$hiqunit! 162807V @Neil« 'Star C Enerrv ç Physical Res.'"
 Units(19)
 Check("Apocalypse's '...han 250_f$hiqunit!': slot 3's limit of 2, not the map full", PlaceRefused(3) && !mapFull && slotCap.Get(3, 0) = 2, mapFull " / " slotCap.Get(3, "none") " / " logs)
+; derAffe5432 15 Nov (Summer Hunt, zombie at 3 of 4 seen): "Cannot place more than 4 of this unit!" read with a
+; player's profile (View Player) open beside it, whose "Units" button made it look like the map's message
+; ("...20 units!"): the 4th zombie was down, and it kept trying a 5th
+Sleep 4100
+fool := true, mapFull := 0, logs := "", slotCap := Map(), slotFull := Map(), counted := 3
+said := "Wave 12 pper -OVE Lu29 Units 90 2000 v Kadayif @0123akiß210 Titles goo v 1000 Zonbie Enerty Speec Enerty Healt Cannot place more-then of thié unit!"
+Units(6)
+Check("derAffe's read (a profile's 'Units' beside it): slot 4's own limit, placing no more", PlaceRefused(4) && slotFull.Has(4) && !mapFull, mapFull " / " logs)
 FileAppend(fails ? "FAILED " fails "`n" : "ALL PASSED`n", "*", "UTF-8")
 ExitApp fails ? 1 : 0
 '''
