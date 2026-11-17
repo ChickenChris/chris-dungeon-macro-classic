@@ -198,6 +198,7 @@ WorldRead(name, names, re, &x, &y, &txt) {
 ; a trade request or the Tournament popup: closed. True if one was
 ClosePopups() {
     t := DeclineTrade()
+    ClosePlayerCard()                       ; a player's profile over the pad menu (View Player)
     return CloseTournament() || t
 }
 

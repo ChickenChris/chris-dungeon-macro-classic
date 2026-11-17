@@ -28,6 +28,7 @@ global slotMenuName := Map()
 Stale() => 0
 ClearVote() => 0
 ClosePlayerCard() => true
+PlayerCardUp() => false
 AutoOffSeen() => false
 ClickAuto() => Clk(373, 237)
 NewMax() => false

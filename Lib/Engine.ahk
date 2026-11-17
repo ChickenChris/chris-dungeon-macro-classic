@@ -343,7 +343,8 @@ Tick() {
     Snap()                                   ; one screenshot for this whole pass
     ; a player's profile (AA's View Player, 15 Nov: a click on a player opens it, in the lobby or a round)
     ; covers the right side, the results' XP Progress title too (Next wasn't pressed): closed
-    if PlayerCardUp() {
+    static cardAt := 0                       ; (and anywhere, where the lobby opens it, every 1.5 s)
+    if PlayerCardUp() || A_TickCount - cardAt > 1500 && (cardAt := A_TickCount) && PlayerCardFind(&cx, &cy) {
         ClosePlayerCard()
         return
     }
@@ -3522,19 +3523,106 @@ ZoomCameraNow(want := -1) {
 ; on the same spot, and the profile stayed open over the 3rd Summer Hunt card (RNG 15 Nov)
 PlayerCardUp() => ColorShare(530, 206, 645, 218, (r, g, b) => g > 150 && g > r + 60 && g > b + 60) >= 0.35 && ColorShare(711, 119, 727, 139, (r, g, b) => r > 170 && r > g + 90 && r > b + 90) >= 0.35
 
+; In the lobby it opens next to the player clicked, anywhere (15 Nov: at 490-560 x 200-280, over the Legend
+; world list: "Dungeon Throne not seen", 11 times in a day, and the check above never saw it). It's the same
+; window: its green Units | Titles pair is looked for over the screen (every 3rd line), then its red X, 192
+; px right and 83 up of the pair's left end, with its white cross in the middle. &cx, &cy: that X
+PlayerCardFind(&cx, &cy) {
+    if PlayerCardUp()                           ; where it opens in a round
+        return (cx := 717, cy := 129, true)
+    try {
+        WinGetClientPos &ox, &oy, , , RBX
+        Fresh()
+        scr := FindText()
+        y := 150
+        while y <= 520 {
+            runs := [], x := 4, start := 0, last := 0, greens := 0, miss := 0
+            while x <= 720 {
+                c := scr.GetColor(ox + x, oy + y, 0) & 0xFFFFFF
+                g := (c >> 8) & 0xFF
+                if g > 150 && g > ((c >> 16) & 0xFF) + 60 && g > (c & 0xFF) + 60 {
+                    if !start
+                        start := x
+                    greens += 1, last := x, miss := 0
+                } else if start && ++miss > 2 {     ; more than 8 px without green (letters have outlines)
+                    runs.Push([start, last, greens]), start := 0, greens := 0, miss := 0
+                }
+                x += 4
+            }
+            if start
+                runs.Push([start, last, greens])
+            for i, r in runs {
+                ; the 2 buttons as one run (their gap bridged), or as 2 runs side by side; never a long strip
+                one := r[2] - r[1] >= 100 && r[2] - r[1] <= 150 && r[3] >= 12
+                two := i < runs.Length && r[2] - r[1] >= 40 && r[2] - r[1] <= 76 && r[3] >= 6
+                    && runs[i + 1][2] - runs[i + 1][1] >= 40 && runs[i + 1][2] - runs[i + 1][1] <= 76
+                    && runs[i + 1][3] >= 6 && runs[i + 1][1] - r[2] <= 20
+                if (one || two) && PlayerCardX(scr, ox, oy, r[1], y, &cx, &cy)
+                    return true
+            }
+            y += 3
+        }
+    }
+    return false
+}
+
+; the profile's red X above-right of its buttons (their left end at left, a line y of them): the square
+; around the reddest spot, with its white cross in the middle
+PlayerCardX(scr, ox, oy, left, y, &cx, &cy) {
+    hits := [], n := 0, x := left + 178
+    while x <= left + 210 {
+        yy := y - 100
+        while yy <= y - 64 {
+            c := scr.GetColor(ox + x, oy + yy, 0) & 0xFFFFFF
+            r := (c >> 16) & 0xFF
+            n += 1
+            if r > 170 && r > ((c >> 8) & 0xFF) + 90 && r > (c & 0xFF) + 90
+                hits.Push([x, yy])
+            yy += 3
+        }
+        x += 3
+    }
+    if !n || hits.Length / n < 0.2
+        return false
+    best := 0, peak := hits[1]
+    for h in hits {
+        k := 0
+        for o in hits
+            k += Abs(h[1] - o[1]) <= 9 && Abs(h[2] - o[2]) <= 9
+        if k > best
+            best := k, peak := h
+    }
+    x1 := 9999, x2 := 0, y1 := 9999, y2 := 0
+    for o in hits
+        if Abs(peak[1] - o[1]) <= 14 && Abs(peak[2] - o[2]) <= 14
+            x1 := Min(x1, o[1]), x2 := Max(x2, o[1]), y1 := Min(y1, o[2]), y2 := Max(y2, o[2])
+    cx := (x1 + x2) // 2, cy := (y1 + y2) // 2
+    white := 0, x := cx - 6
+    while x <= cx + 6 {
+        yy := cy - 6
+        while yy <= cy + 6 {
+            c := scr.GetColor(ox + x, oy + yy, 0) & 0xFFFFFF
+            white += Min((c >> 16) & 0xFF, (c >> 8) & 0xFF, c & 0xFF) > 190
+            yy += 2
+        }
+        x += 2
+    }
+    return white >= 5
+}
+
 ClosePlayerCard() {
     static told := false
     loop 2 {
-        if !PlayerCardUp()
+        if !PlayerCardFind(&cx, &cy)
             return true
-        Clk(717, 129)
+        Clk(cx, cy)
         Wait(400)
         if !told {
             told := true
             AddLog("Closed a player's profile (AA's View Player) that a click on their character opened")
         }
     }
-    return !PlayerCardUp()
+    return !PlayerCardFind(&cx, &cy)
 }
 
 TeleportToSpawn() {
@@ -5732,7 +5820,8 @@ TryPlace(x, y, slot) {
     }
     ClosePanel()                            ; the unit panel covers the right side of the map
     OverviewClose()                         ; the Unit Overview (F) too, if something opened it
-    ClosePlayerCard()                       ; and a player's profile (a placing click landed on a player)
+    if PlayerCardUp()                       ; and a player's profile (a placing click landed on a player;
+        ClosePlayerCard()                   ; in a round it opens there, so only that quick look per try)
     loop 2 {
         if !UnitMenuOpen()                  ; an open menu would look like this placement worked
             break
@@ -6316,7 +6405,8 @@ OpenUnit(u) {
         CloseMenuClick()
         WaitFor(() => !UnitMenuOpen(), 1200, 100)
     }
-    ClosePlayerCard()                           ; a player's profile from an earlier click (View Player)
+    if PlayerCardUp()                           ; a player's profile from an earlier click (View Player)
+        ClosePlayerCard()
     tries := [[u.dx, u.dy]]
     for o in around
         if o[1] != u.dx || o[2] != u.dy
@@ -8251,6 +8341,7 @@ Keys(k) {
 CloseChat() {
     if Det("Chat")
         Clk(138, 30)
+    ClosePlayerCard()                   ; a player's profile: the lobby's nudge clicks (the middle) open one
 }
 
 FmtTime(ms) {
