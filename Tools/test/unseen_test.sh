@@ -8,7 +8,7 @@ python3 - "$T/t.ahk" <<'P'
 import re, sys
 src = open("Lib/Engine.ahk", encoding="utf-8-sig").read()
 fns = [re.search(r"^" + n + r"\(.*?^\}", src, re.S | re.M).group(0) for n in ["NearUnit", "FindUnseen", "TakeUnseen"]]
-most = re.search(r'most := RegExMatch\(said, "([^"]+)"', src).group(1)
+most = re.search(r'most := RegExMatch\((?:said|msgTxt), "([^"]+)"', src).group(1)
 body = """#Requires AutoHotkey v2.0
 #Warn VarUnset, StdOut
 global placedUnits := [], placeUnsure := Map(), unseenFound := []
