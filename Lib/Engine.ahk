@@ -7709,7 +7709,7 @@ IsAppNav(txt) {
 
 ; returns true if it had to reconnect
 CheckConnection(force := false) {
-    global stageActive
+    global stageActive, wdBusy, wdRoundAt
     if !force && WinExist(RBX) && !IsDisconnected()
         return false
     ; error 273: your main's account is open in another Roblox (another window or another PC). A
@@ -7719,55 +7719,64 @@ CheckConnection(force := false) {
     AddLog(WinExist(RBX) ? "Disconnected! Reconnecting..." : "Roblox is closed, reopening it...")
     SendWebhook("Disconnected", "Trying to reconnect.`n" Summary(), 0xF59E0B)
     stageActive := false
-    ; the box's own Reconnect first: the same window, the same account. A new Roblox opens with
-    ; whichever account Roblox is logged into (with alts often one of them), and the old window got
-    ; Reconnect pressed too while the new one loaded: the same account twice, error 273, and they took
-    ; turns kicking each other (Chris 10 Nov). Not back: that window is closed before a new one opens
-    if !force && WinExist(RBX) {
-        if ReconnectHere() {
-            AddLog("Reconnected")
-            return true
-        }
-        if SameAccount(discoText)               ; after Reconnect: the account is open elsewhere
-            return StopSameAccount()
-        AddLog("Reconnect didn't bring it back, opening Roblox again")
-        CloseRoblox()
-    }
-    loop 5 {
-        if A_Index > 1 && WinExist(RBX) {       ; still not the lobby: maybe another game opened
-            AddLog("Roblox didn't get to the Anime Adventures lobby (another game, or stuck loading). Closing it and trying again"
-                . (Trim(cfg["psLink"]) != "" ? ". Check your private server link in Settings: it has to be an Anime Adventures server" : ""))
-            SaveDebugShot("wrong_game")
+    ; the 4-minute watchdog holds off while the macro reconnects, and counts its 4 minutes from the end of
+    ; it: it broke in 2 minutes into Roblox opening again (the round had ended 3 min before) and opened it
+    ; once more on top of the one loading, and none of the next 5 came back (mmanimals 15-17 Nov, 3 times)
+    wdBusy := true
+    try {
+        ; the box's own Reconnect first: the same window, the same account. A new Roblox opens with
+        ; whichever account Roblox is logged into (with alts often one of them), and the old window got
+        ; Reconnect pressed too while the new one loaded: the same account twice, error 273, and they took
+        ; turns kicking each other (Chris 10 Nov). Not back: that window is closed before a new one opens
+        if !force && WinExist(RBX) {
+            if ReconnectHere() {
+                AddLog("Reconnected")
+                return true
+            }
+            if SameAccount(discoText)               ; after Reconnect: the account is open elsewhere
+                return StopSameAccount()
+            AddLog("Reconnect didn't bring it back, opening Roblox again")
             CloseRoblox()
         }
-        Launch(A_Index)
-        Wait(15000)
-        t0 := A_TickCount
-        while A_TickCount - t0 < 150000 {
-            RelinkRoblox()                      ; Premium: the reopened main has a new window
-            if WinExist(RBX) {
-                FixWindow()
-                try WinActivate RBX
-                Sleep 200
-                if Det("Lobby") {
-                    AddLog("Reconnected")
-                    return true
-                }
-                ; Roblox's own app page instead of the game: a click there opened another game
-                if RobloxAppPage() {
-                    AddLog("Roblox opened its app page instead of Anime Adventures. Opening the game again")
-                    SaveDebugShot("roblox_app")
-                    break
-                }
-                Clk(490, 400)                   ; the game's loading screen: tap through
+        loop 5 {
+            if A_Index > 1 && WinExist(RBX) {       ; still not the lobby: maybe another game opened
+                AddLog("Roblox didn't get to the Anime Adventures lobby (another game, or stuck loading). Closing it and trying again"
+                    . (Trim(cfg["psLink"]) != "" ? ". Check your private server link in Settings: it has to be an Anime Adventures server" : ""))
+                SaveDebugShot("wrong_game")
+                CloseRoblox()
             }
-            Wait(5000)
+            Launch(A_Index)
+            Wait(15000)
+            t0 := A_TickCount
+            while A_TickCount - t0 < 150000 {
+                RelinkRoblox()                      ; Premium: the reopened main has a new window
+                if WinExist(RBX) {
+                    FixWindow()
+                    try WinActivate RBX
+                    Sleep 200
+                    if Det("Lobby") {
+                        AddLog("Reconnected")
+                        return true
+                    }
+                    ; Roblox's own app page instead of the game: a click there opened another game
+                    if RobloxAppPage() {
+                        AddLog("Roblox opened its app page instead of Anime Adventures. Opening the game again")
+                        SaveDebugShot("roblox_app")
+                        break
+                    }
+                    Clk(490, 400)                   ; the game's loading screen: tap through
+                }
+                Wait(5000)
+            }
+            AddLog("Not back yet, trying again (" A_Index "/5)")
         }
-        AddLog("Not back yet, trying again (" A_Index "/5)")
+        AddLog("Couldn't reconnect, stopping")
+        StopMacro()
+        Chk()
+    } finally {
+        wdBusy := false
+        wdRoundAt := WdNow()
     }
-    AddLog("Couldn't reconnect, stopping")
-    StopMacro()
-    Chk()
 }
 
 StopSameAccount() {

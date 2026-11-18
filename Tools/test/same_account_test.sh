@@ -25,6 +25,8 @@ body = r'''#Requires AutoHotkey v2.0
 OnError((e, m) => (FileAppend("ERROR " e.Message " (line " e.Line ")`n", "*"), ExitApp(3)))
 global fails := 0, calls := "", logs := [], stageActive := true, RBX := "SameAccountTestWindow", cfg := Map("psLink", "")
 global discoText := "", boxes := [], lobbyAfter := 0, lobbyChecks := 0
+global wdBusy := false, wdRoundAt := 0          ; the watchdog (it holds off while reconnecting)
+WdNow() => A_TickCount
 g := Gui(, RBX), g.Show("x0 y0 w800 h600 NA")
 Check(name, ok, got := "") {
     global fails

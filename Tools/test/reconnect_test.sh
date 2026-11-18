@@ -52,6 +52,8 @@ FixWindow() => 0
 Det(name) => false
 Chk() => 0
 global discoText := "Lost connection to the game server (Error Code: 277)"
+global wdBusy := false, wdRoundAt := 0          ; the watchdog (it holds off while reconnecting)
+WdNow() => A_TickCount
 ReconnectHere() => (Note("Reconnect;"), false)  ; the box's own Reconnect didn't bring it back
 SameAccount(t) => false
 StopSameAccount() => Note("Stop273;")
