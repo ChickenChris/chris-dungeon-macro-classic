@@ -5853,6 +5853,10 @@ TryPlace(x, y, slot) {
     ; Turbo placing (a setting, for slow PCs: Chris 16 Nov, "it tries placing units much slower"): the menu
     ; waited 1 s, not 2, and the red text read once after the wait, not every second (up to 3 reads each)
     turbo := PlaceTurbo()
+    ; a slot with none down: the red text is read on every 3rd failed try too. Cloud 19 Nov: the same unit
+    ; in another slot was at its limit, "Cannot place more than 2 of this unit!" was never read and slot 3
+    ; was tried for minutes. Not after every try: that slowed a slow PC to ~40 s a unit
+    dryRead := CountPlaced(slot) < 1 && Mod(placeUnsure.Has(slot) ? placeUnsure[slot].Length : 0, 3) = 2
     quick := false, t1 := A_TickCount, lookMs := autoOpenOff || turbo ? 1000 : Max(2000, PlaceTimeout())
     redNext := turbo ? 999999 : 900
     while A_TickCount - t1 < lookMs {
@@ -5862,7 +5866,7 @@ TryPlace(x, y, slot) {
         ; menu read it too late (it kept placing): looked for after 0.9 s (Summer Hunt, or a slot with
         ; one down already, like before), and again each second while the menu is waited for: with a
         ; laggy game it came later, was never read and the slot was tried for minutes (mmanimals' video)
-        if A_TickCount - t1 >= redNext && (FoolMode() || CountPlaced(slot) >= 1) && !NewMenu() {
+        if A_TickCount - t1 >= redNext && (FoolMode() || CountPlaced(slot) >= 1 || dryRead) && !NewMenu() {
             redNext += 1000
             if PlaceRefused(slot) {
                 Keys("q")
@@ -5900,7 +5904,7 @@ TryPlace(x, y, slot) {
     how := ""
     if quick || WaitUnitMenu(autoOpenOff || turbo ? 300 : Max(300, PlaceTimeout() - lookMs))   ; (looked for lookMs already)
         how := "auto"
-    else if (refusals || CountPlaced(slot) >= 1 || turbo && FoolMode()) && PlaceRefused(slot)   ; a unique / limited unit's red text
+    else if (refusals || CountPlaced(slot) >= 1 || dryRead || turbo && FoolMode()) && PlaceRefused(slot)   ; a unique / limited unit's red text
         return false
     else if (!autoOpenSeen || autoOpenOff) && !NearUnit(x, y, 22) {
         ; No menu: nothing was placed, or the menu didn't open (the game's 'Disable Auto-Open
@@ -6144,9 +6148,13 @@ PlaceRefused(slot) {
         if most > have {
             slotCap[CapKey(slot)] := most
             found := FindUnseen(slot, most - have)
-            AddLog("Slot " slot ": the game allows " most " of this unit. " most - have " of them got placed without the macro seeing it"
-                . " (the unit's menu didn't show in time)" (found ? ": found where " (found = 1 ? "it is" : "they are") ", upgrading " (found = 1 ? "it" : "them") " too" : "")
-                . (found < most - have ? ". Set Placement speed slower in Settings" : ""))
+            if !have && !found                  ; none of this slot's seen or found: most likely the same unit sits in
+                AddLog("Slot " slot ": the game says " most " of this unit are down already, but none of this slot's were seen or found. "
+                    . "Is the same unit in another slot too? Its copies count for the limit. Placing no more of it this stage")   ; (Cloud 19 Nov)
+            else
+                AddLog("Slot " slot ": the game allows " most " of this unit. " most - have " of them got placed without the macro seeing it"
+                    . " (the unit's menu didn't show in time)" (found ? ": found where " (found = 1 ? "it is" : "they are") ", upgrading " (found = 1 ? "it" : "them") " too" : "")
+                    . (found < most - have ? ". Set Placement speed slower in Settings" : ""))
         } else if have {
             ; the number wasn't read ("Cannot place more tttan 3"): no limit is saved for next time, a
             ; wrong 2 kept every later stage at 2 of a unit the game allows 3 of

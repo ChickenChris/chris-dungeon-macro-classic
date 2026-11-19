@@ -83,6 +83,13 @@ fool := true, mapFull := 0, logs := "", slotCap := Map(), slotFull := Map(), cou
 said := "Wave 12 pper -OVE Lu29 Units 90 2000 v Kadayif @0123akiß210 Titles goo v 1000 Zonbie Enerty Speec Enerty Healt Cannot place more-then of thié unit!"
 Units(6)
 Check("derAffe's read (a profile's 'Units' beside it): slot 4's own limit, placing no more", PlaceRefused(4) && slotFull.Has(4) && !mapFull, mapFull " / " logs)
+; Cloud 19 Nov: slot 3 with none down, "Cannot place more than 2 of this unit!" (another slot holds the same
+; unit, at its limit): the slot stops, and the log points at the other slot, not at Placement speed
+Sleep 4100
+fool := false, mapFull := 0, logs := "", slotCap := Map(), slotFull := Map(), counted := 0
+said := "Cannot place more than 2 of this unit!"
+Check("none of slot 3 down, the game says 2 of this unit: slot 3 stops", PlaceRefused(3) && slotFull.Has(3), logs)
+Check("  the log asks about the same unit in another slot", InStr(logs, "another slot") && !InStr(logs, "Placement speed"), logs)
 FileAppend(fails ? "FAILED " fails "`n" : "ALL PASSED`n", "*", "UTF-8")
 ExitApp fails ? 1 : 0
 '''

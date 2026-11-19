@@ -118,6 +118,15 @@ TryPlace(460, 300, 1)
 el := A_TickCount - t
 Check("Turbo off: as before (2 s at least, read while waiting)", el >= 2000 && reads >= 2, el " ms, " reads " reads")
 fool := false
+; Cloud 19 Nov (Sky Island Portal): "Placing slot 3 (0/2)" for minutes under "Cannot place more than 2 of this
+; unit!": the same unit in another slot was at its limit, and the red text was never read for a slot with none
+; down (only in Summer Hunt or with one down). Now also on every 3rd failed try of a slot with none down
+placeUnsure := Map(), reads := 0, clicks := ""
+TryPlace(500, 300, 3)
+TryPlace(510, 300, 3)
+Check("a slot with none down: its 1st and 2nd failed tries read nothing (placing stays quick)", reads = 0, reads)
+TryPlace(520, 300, 3)
+Check("  its 3rd failed try reads the red text", reads >= 1, reads)
 FileAppend(fails ? "FAILED " fails "`n" : "ALL PASSED`n", "*", "UTF-8")
 ExitApp fails ? 1 : 0
 '''
