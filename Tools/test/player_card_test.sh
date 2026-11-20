@@ -84,7 +84,10 @@ Wait(ms) => 0
 AddLog(t) => logs.Push(t)
 Step(t) => 0
 FocusRoblox() => 0
-TurnCamera(w) => 0
+global turnedWithCard := -1
+TurnCamera(w) {                                 ; (whether a profile was still up while it turned)
+    global turnedWithCard := cardUp > 0
+}
 Stale() => 0
 NewMenu() => menuUp
 Clk(x, y) {
@@ -157,6 +160,11 @@ Check("a profile that won't close: tried twice, false", !r && Joined(clicks) = "
 cardUp := 1, clicks := [], menuUp := false
 ZoomCameraNow()
 Check("the camera zoom's click opened a profile: closed", Joined(clicks) = "717,129" && cardUp = 0, Joined(clicks))
+; Lunoc 19 Nov: the profile (another player on the same spot) was up while the camera was zoomed in and
+; turned to the walk's direction; it's closed right after the click, before the turn
+cardUp := 1, clicks := [], turnedWithCard := -1
+ZoomCameraNow(0)
+Check("  closed before the camera is turned to the walk's direction", turnedWithCard = 0 && cardUp = 0, turnedWithCard)
 cardUp := 0, clicks := []
 ZoomCameraNow()
 Check("the camera zoom without a profile: no extra click", clicks.Length = 0, Joined(clicks))

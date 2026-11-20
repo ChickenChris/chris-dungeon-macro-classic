@@ -114,7 +114,7 @@ Check("no mark, the camera flipped (down): keys turned as made facing up", playe
 Check("  told in the log", LogHas("camera faces down, the walk was made facing up"), logs.Length ? logs[1] : "")
 fakeFace := 90, played := ""
 WalkRoute("Planet Greenie")
-Check("no mark, the camera facing right (not the game's flip): as it is", played = "a+0,w+0,a-2200,w-2200,end@2200", played)
+Check("no mark, the camera facing right (it couldn't be turned up): keys turned as made facing up", played = "s+0,a+0,s-2200,a-2200,end@2200", played)
 if HASALTS {
     fakeFace := 0, played := "", altDepth := 0
     WalkRoute("Planet Greenie")

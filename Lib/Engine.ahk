@@ -3459,13 +3459,22 @@ GoToSpot(mapName, walk := true, force := false) {
     if tp
         TeleportToSpawn()
     if cfg["zoom"] {
-        want := tp && walk ? WalkFace(mapName) : -1     ; the camera turned the way the walk was made
+        ; the camera faces up before the walk and the Start vote, every time, lined up again while it
+        ; doesn't (Chris 20 Nov: "the cameras always have to point upwards before clicking start", "if it
+        ; points any way but up it will zoom in and then use arrow keys left or right"; Lunoc 19 Nov: the
+        ; turn fell short at left, the walk's keys were turned and the spots were off). A walk made facing
+        ; another way has its keys turned to match (WalkRoute); the walk recorder too: new walks face up
+        want := 0
         loop 3 {                        ; a Fool's Hunt card vote over the middle swallows the zoom:
             ClearVote()                 ; pick it first, and zoom again if one came up during it
             votes := foolVotes
             ZoomCamera(want)
-            if foolVotes = votes && !VoteOnScreen()
+            if foolVotes != votes || VoteOnScreen()
+                continue
+            f := want >= 0 ? MiniFacing() : -1
+            if f < 0 || f = want || A_Index = 3
                 break
+            AddLog("The camera still faces " FaceName(f) " (the walk: " FaceName(want) "), lining it up again")
         }
     }
     if tp && walk
@@ -3503,7 +3512,12 @@ ZoomCameraNow(want := -1) {
     }
     Wait(150)
     Click
-    if want >= 0 || want = -2          ; (-2: a walk with no mark, turned up when the game flipped it)
+    ; the click on another player (one on the same spot) opened their profile: closed before the turn,
+    ; it stayed up through the turn and the zoom out (Lunoc 19 Nov: a profile up at the start vote, the
+    ; camera still zoomed in, the spot missed)
+    if PlayerCardUp()
+        ClosePlayerCard()
+    if want >= 0                       ; up (Chris 20 Nov: always)
         TurnCamera(want)               ; turned the way the walk was made (zoomed in, a sideways move turns it)
     MouseMove 400, 400                 ; tilt down
     Wait(100)
@@ -3821,8 +3835,8 @@ WalkRoute(mapName) {
         ClickWalk(Integer(cm[1]), Integer(cm[2]))
     else {
         face := MiniFacing(), want := RouteFace(route)
-        if want < 0 && face = 180
-            want := 0                               ; the game's flip (normal is up): a walk with no mark was made facing up
+        if want < 0
+            want := 0                               ; no mark: made the normal way, facing up (Chris 20 Nov)
         if want >= 0 && face >= 0 && face != want {
             AddLog("The camera faces " FaceName(face) ", the walk was made facing " FaceName(want) ": its keys turned to match")
             route := TurnRoute(route, Mod(face - want + 360, 360))
@@ -3929,10 +3943,6 @@ TurnRoute(route, turn) {
 
 ; the direction the map's walk was made with (its mark), -2 for one without a mark (made the normal way:
 ; up when the game flipped it), -1: a click walk
-WalkFace(mapName) {
-    route := cfg["walks"].Get(PlaceKey(mapName), "")
-    return RegExMatch(route, "^click:") ? -1 : (f := RouteFace(route)) >= 0 ? f : -2
-}
 
 ; Some maps come with the camera turned (Chris 9 Nov: Future City in other weather, like Inferno, "has
 ; the camera 180° turned"): the walk and the spots, made with it the other way, went elsewhere. Turned
@@ -3941,23 +3951,46 @@ WalkFace(mapName) {
 ; 135°, the steps in between are 90°. True when it faces `want` now
 TurnCamera(want) {
     face := MiniFacing()
-    if want = -2                                ; made the normal way: the game flips it on purpose (Chris 9 Nov:
-        want := face = 180 ? 0 : face           ; against macros, "flipped is downwards and normal is upwards")
     if want < 0 || face < 0
         return false
     if face = want
         return true
+    ; the arrow keys first (Chris 20 Nov: "use arrow keys left or right to adjust the camera", "or mouse"):
+    ; they turn it zoomed in or out, with a profile up too. The mouse when they don't turn it at all
+    global camKeySign
+    r := CamTurn(want, face, CamKey, 40, 160, camKeySign)
+    if r = "" && (f := MiniFacing()) >= 0 && f != want
+        r := CamTurn(want, f, CamNudge, 15, 240), r := r = "" ? "" : r " with the mouse (the arrow keys didn't turn it)"
+    if r = "" && MiniFacing() != want {
+        AddLog("The camera faced " FaceName(face) " (it should face " FaceName(want) "), but it couldn't turn the camera. "
+            . "The walk's keys are turned instead; your spots may be off on this map")
+        return false
+    }
+    if r != ""
+        AddLog(r)
+    return true
+}
+
+; turns the camera from face to want with nudge(dir, size), measured on the minimap's arrow (it only tells
+; 4 directions: it changes at 45° and at 135°). 25 nudges without the arrow changing: the camera turns
+; slowly (Roblox's Camera Sensitivity is per account), 4 times bigger ones, up to maxSize; still nothing:
+; it doesn't turn. It went the other way (the arrow keys on some accounts): again from there the other
+; way, and the keys remember it. Returns the log line, "" when it didn't get there
+CamTurn(want, face, nudge, size, maxSize, sign := 1, again := true) {
+    global camKeySign
     turn := Mod(want - face + 360, 360)
     dir := turn = 270 ? -1 : 1                  ; a quarter to the left: turned left
     first := Mod(face + dir * 90 + 360, 360), second := Mod(face + dir * 180 + 360, 360)
-    ; 25 nudges without the arrow changing (45°): the camera turns slowly (Roblox's Camera Sensitivity is
-    ; per account). Then 4 times bigger nudges, then 16 times; still nothing: it doesn't turn at all, given
-    ; up after 75 (it went to 150, ~20 s: RNG's alt 2, 10 Nov). (Those didn't turn because the nudges were
-    ; MouseMoves to a place: see CamNudge.) Fixed once the arrow moved, so the half turn is measured in one size
-    n := 0, n1 := 0, n2 := 0, px := 15, since := 0
+    wrong := Mod(face - dir * 90 + 360, 360)
+    n := 0, n1 := 0, n2 := 0, sz := size, since := 0
     while n < 150 {
-        CamNudge(dir, px), n++, since++
+        nudge(sign * dir, sz), n++, since++
         f := MiniFacing()
+        if !n1 && f = wrong && turn != 180 && again {
+            if nudge = CamKey
+                camKeySign := -sign
+            return CamTurn(want, f, nudge, size, maxSize, -sign, false)
+        }
         if !n1 && f = first
             n1 := n
         else if n1 && f = second {
@@ -3965,23 +3998,31 @@ TurnCamera(want) {
             break
         }
         if !n1 && since >= 25 {
-            if px >= 240
+            if sz >= maxSize
                 break
-            px *= 4, since := 0
+            sz *= 4, since := 0
         }
     }
-    if !n2 {
-        AddLog("The camera faced " FaceName(face) " (the walk was made facing " FaceName(want) "), but it couldn't turn the camera. "
-            . "The walk's keys are turned instead; your spots may be off on this map")
-        return false
-    }
+    if !n2
+        return ""
     ; 135° was crossed half a step before (it's only seen after): on 45° more for a half turn, back 45° for a quarter
     loop Round((n2 - n1) / 2 + (turn = 180 ? -0.5 : 0.5))
-        CamNudge(turn = 180 ? dir : -dir, px)
-    AddLog("The camera faced " FaceName(face) ", the walk was made facing " FaceName(want) ": turned it "
+        nudge(sign * (turn = 180 ? dir : -dir), sz)
+    return "The camera faced " FaceName(face) ", it should face " FaceName(want) ": turned it "
         . (turn = 180 ? "round" : dir > 0 ? "a quarter right" : "a quarter left")
-        . (px > 15 ? " (it turned slowly, so bigger steps were used)" : ""))
-    return true
+        . (sz > size ? " (it turned slowly, so bigger steps were used)" : "")
+}
+global camKeySign := 1                      ; -1: the arrow keys turn the camera the other way on this account
+
+; one tap of the Left or Right arrow key: Roblox turns the camera with them (zoomed in or out). Holds on
+; Pause and stops on Stop
+CamKey(dir, ms := 40) {
+    Chk()
+    key := dir > 0 ? "Right" : "Left"
+    SendKeys("{" key " down}")
+    Sleep ms
+    SendKeys("{" key " up}")
+    Sleep 60
 }
 
 ; one small sideways turn of the camera. Zoomed in (first person) Roblox keeps the pointer in the middle

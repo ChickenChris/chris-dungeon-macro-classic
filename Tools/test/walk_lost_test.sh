@@ -31,6 +31,8 @@ Check(name, ok, got := "") {
 TeleportToSpawn() => 0
 ZoomCamera(want := -1) => 0
 WalkFace(m) => -1
+MiniFacing() => -1
+FaceName(d) => "?"
 ClearVote() => 0
 VoteOnScreen() => false
 global foolVotes := 0
