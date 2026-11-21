@@ -3960,12 +3960,22 @@ TurnCamera(want) {
         return false
     if face = want
         return true
-    ; the arrow keys first (Chris 20 Nov: "use arrow keys left or right to adjust the camera", "or mouse"):
-    ; they turn it zoomed in or out, with a profile up too. The mouse when they don't turn it at all
-    global camKeySign
-    r := CamTurn(want, face, CamKey, 40, 160, camKeySign)
+    ; an arrow key HELD first (Chris 20 Nov: "use arrow keys left or right to adjust the camera", "or mouse";
+    ; 21 Nov "it's super slow": tapped, a turn took about 10 s before the Start vote, every round on a map
+    ; whose camera starts sideways). The mouse when they don't turn it: then the keys aren't tried again
+    ; this run (4 s lost once, not every round)
+    global camKeysWork
+    r := ""
+    if camKeysWork != 0 {
+        r := KeyTurn(want, face)
+        if r = "nokeys" {
+            camKeysWork := 0, r := ""
+            AddLog("The arrow keys don't turn the camera here: it's turned with the mouse from now on")
+        } else if r != ""
+            camKeysWork := 1
+    }
     if r = "" && (f := MiniFacing()) >= 0 && f != want
-        r := CamTurn(want, f, CamNudge, 15, 240), r := r = "" ? "" : r " with the mouse (the arrow keys didn't turn it)"
+        r := CamTurn(want, f, CamNudge, 15, 240), r := r = "" ? "" : r " with the mouse"
     if r = "" && MiniFacing() != want {
         AddLog("The camera faced " FaceName(face) " (it should face " FaceName(want) "), but it couldn't turn the camera. "
             . "The walk's keys are turned instead; your spots may be off on this map")
@@ -3975,14 +3985,69 @@ TurnCamera(want) {
         AddLog(r)
     return true
 }
+global camKeySign := 1                      ; -1: the arrow keys turn the camera the other way on this account
+global camKeysWork := -1                    ; the arrow keys turn the camera: -1 not known yet, 1 yes, 0 no (the mouse)
 
-; turns the camera from face to want with nudge(dir, size), measured on the minimap's arrow (it only tells
+; turns the camera from face to want with an arrow key held down (Roblox turns it steadily, about a full
+; circle in 2.5 s: Chris's clip). The minimap's arrow only tells 4 directions (it changes at 45° and
+; 135°): the time between those two is a quarter turn's, so from the 135° change it goes on 45° (a half
+; turn) or back 45° (a quarter) by holding a key half that time. It went the other way (some accounts):
+; again from there the other way, and that's remembered. Returns the log line, "nokeys" when the camera
+; didn't turn at all in 4 s, "" when it didn't get there
+KeyTurn(want, face, again := true) {
+    global camKeySign
+    turn := Mod(want - face + 360, 360)
+    dir := turn = 270 ? -1 : 1                  ; a quarter to the left: turned left
+    first := Mod(face + dir * 90 + 360, 360), second := Mod(face + dir * 180 + 360, 360)
+    wrong := Mod(face - dir * 90 + 360, 360)
+    key := camKeySign * dir > 0 ? "Right" : "Left"
+    tA := 0, tB := 0, rd := 0, f := face, flipped := false
+    Chk()
+    SendKeys("{" key " down}")
+    try {
+        t0 := A_TickCount
+        while A_TickCount - t0 < 4000 {
+            r0 := A_TickCount, f := MiniFacing(), now := A_TickCount, rd := now - r0
+            if !tA && f = wrong && turn != 180 {     ; the other way round on this account
+                flipped := true
+                break
+            }
+            if !tA && f = first
+                tA := now
+            else if tA && f = second {
+                tB := now
+                break
+            }
+            Sleep 10
+        }
+    } finally SendKeys("{" key " up}")
+    if flipped {
+        if !again
+            return ""
+        camKeySign := -camKeySign
+        return KeyTurn(want, f, false)
+    }
+    if !tA
+        return f = face ? "nokeys" : ""
+    if !tB
+        return ""
+    ; the 135° change is seen up to a read late: a little less on for a half turn, a little more back
+    half := (tB - tA) / 2, lag := rd + 5
+    back := turn = 180 ? dir : -dir
+    key := camKeySign * back > 0 ? "Right" : "Left"
+    SendKeys("{" key " down}")
+    try Sleep(Max(Round(turn = 180 ? half - lag : half + lag), 0))
+    finally SendKeys("{" key " up}")
+    return "The camera faced " FaceName(face) ", it should face " FaceName(want) ": turned it "
+        . (turn = 180 ? "round" : dir > 0 ? "a quarter right" : "a quarter left") " (arrow keys)"
+}
+
+; turns the camera from face to want with nudge(dir, size) (the mouse), measured on the minimap's arrow (it only tells
 ; 4 directions: it changes at 45° and at 135°). 25 nudges without the arrow changing: the camera turns
 ; slowly (Roblox's Camera Sensitivity is per account), 4 times bigger ones, up to maxSize; still nothing:
 ; it doesn't turn. It went the other way (the arrow keys on some accounts): again from there the other
-; way, and the keys remember it. Returns the log line, "" when it didn't get there
+; way. Returns the log line, "" when it didn't get there
 CamTurn(want, face, nudge, size, maxSize, sign := 1, again := true) {
-    global camKeySign
     turn := Mod(want - face + 360, 360)
     dir := turn = 270 ? -1 : 1                  ; a quarter to the left: turned left
     first := Mod(face + dir * 90 + 360, 360), second := Mod(face + dir * 180 + 360, 360)
@@ -3991,11 +4056,8 @@ CamTurn(want, face, nudge, size, maxSize, sign := 1, again := true) {
     while n < 150 {
         nudge(sign * dir, sz), n++, since++
         f := MiniFacing()
-        if !n1 && f = wrong && turn != 180 && again {
-            if nudge = CamKey
-                camKeySign := -sign
+        if !n1 && f = wrong && turn != 180 && again
             return CamTurn(want, f, nudge, size, maxSize, -sign, false)
-        }
         if !n1 && f = first
             n1 := n
         else if n1 && f = second {
@@ -4016,18 +4078,6 @@ CamTurn(want, face, nudge, size, maxSize, sign := 1, again := true) {
     return "The camera faced " FaceName(face) ", it should face " FaceName(want) ": turned it "
         . (turn = 180 ? "round" : dir > 0 ? "a quarter right" : "a quarter left")
         . (sz > size ? " (it turned slowly, so bigger steps were used)" : "")
-}
-global camKeySign := 1                      ; -1: the arrow keys turn the camera the other way on this account
-
-; one tap of the Left or Right arrow key: Roblox turns the camera with them (zoomed in or out). Holds on
-; Pause and stops on Stop
-CamKey(dir, ms := 40) {
-    Chk()
-    key := dir > 0 ? "Right" : "Left"
-    SendKeys("{" key " down}")
-    Sleep ms
-    SendKeys("{" key " up}")
-    Sleep 60
 }
 
 ; one small sideways turn of the camera. Zoomed in (first person) Roblox keeps the pointer in the middle

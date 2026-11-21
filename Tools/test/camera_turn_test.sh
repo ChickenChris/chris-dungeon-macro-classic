@@ -24,7 +24,7 @@ alts = "global altDepth" in src
 body = r'''#Requires AutoHotkey v2.0
 OnError((e, m) => (FileAppend("ERROR " e.Message " (line " e.Line ")`n", "*"), ExitApp(3)))
 global fails := 0, logs := [], yaw := 0.0, perNudge := 7.0, nudges := 0, altDepth := 0
-global keyPer := 0.0, keyRev := false, taps := 0, camKeySign := 1
+global keySpeed := 0.0, keyRev := false, keyDown := "", downAt := 0, keyHolds := 0, camKeySign := 1, camKeysWork := -1
 global cfg := Map("walks", Map("Future City", "face:0,w+0,w-900,end@900", "Old Map", "w+0,w-500", "Clicked", "click:400,300"))
 Check(name, ok, got := "") {
     global fails
@@ -38,13 +38,19 @@ CamNudge(dir, px := 15) {                        ; the fake camera: a 15 px nudg
     global yaw, nudges
     yaw := Mod(yaw + dir * perNudge * px / 15 + 720, 360), nudges++
 }
-CamKey(dir, ms := 40) {                          ; the arrow keys: a 40 ms tap turns it keyPer degrees (keyRev: the other way)
-    global yaw, taps
-    yaw := Mod(yaw + (keyRev ? -1 : 1) * dir * keyPer * ms / 40 + 720, 360), taps++
+; the arrow keys: held, the fake camera turns keySpeed degrees a second (keyRev: the other way)
+KeyYaw() => keyDown = "" ? 0 : (A_TickCount - downAt) / 1000 * keySpeed * (keyDown = "Right" ? 1 : -1) * (keyRev ? -1 : 1)
+SendKeys(k) {
+    global yaw, keyDown, downAt, keyHolds
+    if RegExMatch(k, "^\{(Left|Right) down\}$", &m)
+        yaw := Mod(yaw + KeyYaw() + 720, 360), keyDown := m[1], downAt := A_TickCount, keyHolds++
+    else if RegExMatch(k, "^\{(Left|Right) up\}$")
+        yaw := Mod(yaw + KeyYaw() + 720, 360), keyDown := ""
 }
-MiniFacing() => Mod(Round(yaw / 90) * 90, 360)   ; like the arrow: 4 directions, changing at 45°
+Chk() => 0
+MiniFacing() => Mod(Round(Mod(yaw + KeyYaw() + 720, 360) / 90) * 90, 360)   ; like the arrow: 4 directions, changing at 45°
 Off(a, b) => Abs(Mod(a - b + 540, 360) - 180)
-''' + "\n".join(fn(n) for n in ["TurnCamera", "CamTurn", "FaceName", "RouteFace"]) + r'''
+''' + "\n".join(fn(n) for n in ["TurnCamera", "KeyTurn", "CamTurn", "FaceName", "RouteFace"]) + r'''
 
 for step in [3.0, 7.0, 11.0] {
     for t in [[0, 180], [180, 0], [0, 90], [0, 270], [270, 90]] {
@@ -76,26 +82,29 @@ yaw := 0.0, perNudge := 7.0, nudges := 0
 Check("already the right way: not touched", TurnCamera(0) && !nudges, nudges)
 Check("no direction wanted: not touched", !TurnCamera(-1) && !nudges, nudges)
 
-; the arrow keys (Chris 20 Nov), before the mouse
+; the arrow keys HELD (Chris 20 Nov "use arrow keys"; 21 Nov "it's super slow": tapped, a turn took about
+; 10 s before the Start vote). Chris's clip: a full circle in about 2.5 s held
 for t in [[180, 0], [90, 0], [270, 0], [0, 90]] {
-    yaw := t[1] + 0.0, keyPer := 5.0, keyRev := false, perNudge := 7.0, nudges := 0, taps := 0, logs := []
-    ok := TurnCamera(t[2])
-    Check("arrow keys, " FaceName(t[1]) " to " FaceName(t[2]) ": turned with the keys, the mouse not used", ok && Off(yaw, t[2]) <= 5 && taps && !nudges, Round(yaw) "° " taps " taps " nudges " nudges")
+    yaw := t[1] + 0.0, keySpeed := 144.0, keyRev := false, camKeysWork := -1, perNudge := 7.0, nudges := 0, logs := []
+    t0 := A_TickCount
+    ok := TurnCamera(t[2]), took := A_TickCount - t0
+    Check("arrow keys held, " FaceName(t[1]) " to " FaceName(t[2]) ": within 10°, under 3 s, no mouse", ok && Off(yaw, t[2]) <= 10 && took < 3000 && !nudges, Round(yaw) "° " took " ms " nudges " nudges")
 }
 Check("  told in the log", logs.Length && InStr(logs[logs.Length], "faced up") && InStr(logs[logs.Length], "a quarter right") && !InStr(logs[logs.Length], "mouse"), logs.Length ? logs[logs.Length] : "")
-yaw := 90.0, keyPer := 5.0, keyRev := true, nudges := 0, taps := 0, camKeySign := 1
+yaw := 90.0, keySpeed := 144.0, keyRev := true, camKeysWork := -1, nudges := 0, camKeySign := 1
 ok := TurnCamera(0)
-Check("arrow keys that turn it the other way on this account: still up", ok && Off(yaw, 0) <= 5 && !nudges, Round(yaw) "° " nudges)
-yaw := 270.0, taps := 0
-ok := TurnCamera(0), t1 := taps
-yaw := 270.0, taps := 0, camKeySign := -camKeySign
-TurnCamera(0), t2 := taps
-Check("  and remembered: the next turn goes the right way at once", ok && Off(yaw, 0) <= 5 && t1 < t2, t1 " taps vs " t2)
+Check("arrow keys that turn it the other way on this account: still up", ok && Off(yaw, 0) <= 10 && !nudges, Round(yaw) "° " nudges)
+Check("  and remembered for the next turns", camKeySign = -1, camKeySign)
 keyRev := false, camKeySign := 1
-yaw := 180.0, keyPer := 0.0, perNudge := 7.0, nudges := 0, taps := 0, logs := []
-ok := TurnCamera(0)
-Check("the arrow keys don't turn it: the mouse does", ok && Off(yaw, 0) <= 7 && nudges && taps <= 50, Round(yaw) "° " taps " taps " nudges " nudges")
-Check("  told in the log", logs.Length && InStr(logs[logs.Length], "mouse"), logs.Length ? logs[logs.Length] : "")
+yaw := 180.0, keySpeed := 0.0, camKeysWork := -1, perNudge := 7.0, nudges := 0, logs := []
+t0 := A_TickCount
+ok := TurnCamera(0), took1 := A_TickCount - t0
+Check("the arrow keys don't turn it: the mouse does, the keys given up within 4.5 s", ok && Off(yaw, 0) <= 7 && nudges && took1 < 4500, Round(yaw) "° " took1 " ms " nudges " nudges")
+Check("  told in the log", logs.Length && InStr(logs[1], "mouse"), logs.Length ? logs[1] : "")
+yaw := 180.0, nudges := 0, keyHolds := 0
+t0 := A_TickCount
+ok := TurnCamera(0), took2 := A_TickCount - t0
+Check("  the next turn goes straight to the mouse (the keys not tried again)", ok && took2 < 1000 && nudges && !keyHolds, took2 " ms, " keyHolds " key holds")
 FileAppend(fails ? "FAILED " fails "`n" : "ALL PASSED`n", "*", "UTF-8")
 ExitApp fails ? 1 : 0
 '''
@@ -124,9 +133,9 @@ f = re.search(r"^CamNudge\(dir, px := 15\) \{.*?^\}", e, re.S | re.M)
 b = f.group(0) if f else ""
 print(("PASS" if 'DllCall("mouse_event", "UInt", 0x0001, "Int", dir * px' in b and "MouseMove" not in b else "FAIL") + " the nudge is a relative mouse move, not MouseMove to a place")
 print(("PASS" if "Chk()" in b else "FAIL") + " the nudge holds on Pause and stops on Stop")
-k = re.search(r"^CamKey\(dir, ms := 40\) \{.*?^\}", e, re.S | re.M)
+k = re.search(r"^KeyTurn\([^)\n]*\) \{.*?^\}", e, re.S | re.M)
 kb = k.group(0) if k else ""
-print(("PASS" if '"{" key " down}"' in kb and '"{" key " up}"' in kb and '"Right"' in kb and '"Left"' in kb and "Chk()" in kb else "FAIL") + " the arrow-key tap: Left or Right held, Pause respected")
+print(("PASS" if '"{" key " down}"' in kb and "finally SendKeys(\"{\" key \" up}\")" in kb and '"Right"' in kb and '"Left"' in kb and "Chk()" in kb else "FAIL") + " the arrow key held: Left or Right, always let go (finally), Pause respected")
 P2
 WINEDEBUG=-all timeout 90 xvfb-run -a wine "$AHK" /ErrorStdOut "Z:${T//\//\\}\\t.ahk" 2>&1 | grep -v "^X conn" | tr -d '\r')
 rm -rf "$T"
