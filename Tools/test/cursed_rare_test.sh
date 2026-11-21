@@ -1,7 +1,11 @@
 #!/bin/bash
-# A cursed room always holds a rare chest (150 of 150 in a player's log). Lib\Engine.ahk CursedRare:
-# the room counts a rare chest even when its picture wasn't matched (Lunoc: a 4-thing room's small
-# rare chest was read as a plain "Chest", and a Shop + Shrine room won). Run under Wine
+# A cursed room's chest is its rare chest. Lib\Engine.ahk CursedRare: the room counts a rare chest even
+# when its picture wasn't matched, if a chest was seen in it at all (Lunoc: a 4-thing room's small rare
+# chest was read as a plain "Chest", and a Shop + Shrine room won). Not every cursed room has one: a
+# player 21 Nov (log): "the macro doesn't pick the rare chest", with Rare chest at the top and no curse
+# avoided. One room ahead it saw Shielding + Hoard, Shopping + Rare chest, Shielding + Shop; on offer all
+# three counted a rare chest and the Shop room won (21 to 20). At 15:02 the same: Wind + Hoard, Health +
+# Shop, Shielding + Rare chest all at 16, and Health + Shop (no chest) was taken. Run under Wine
 cd "$(dirname "$0")/../.."
 AHK=/tmp/claude-0/-home-claude/cf9d9217-0cd8-5fd7-b7c3-bca236a851f1/scratchpad/ahkbin/AutoHotkey64.exe
 T=$(mktemp -d)
@@ -60,10 +64,19 @@ if HAS_RR                                         ; Premium: a rare-chest room o
     Check("counted as a rare-chest room (Cat Tower)", roomRare.Get(1, false))
 ; Lunoc's numbers: Shop + Shrine scored 12 against this room; now the cursed room is worth more
 Check("Lunoc's case: the Regen room now beats Shop + Shrine", pk.score > 5 + 4, pk.score)
-; no chest read at all: the rare chest is still there
-pk := MakePk(2, "Shop")
+; no chest seen at all (no rare chest picture, no CHEST label): no rare chest made up
+pk := MakePk(2, "Shop"), pk.chests := 0
 CursedRare(pk)
-Check("a cursed room with no chest read gets its rare chest", Has(pk) = "Shop+Rare_Chest+" && pk.score = 5 + 12, Has(pk) " " pk.score)
+Check("a cursed room with no chest seen: no rare chest counted", Has(pk) = "Shop+" && pk.score = 5, Has(pk) " " pk.score)
+; the player's 15:02 rooms (Rare chest at the top): Health + Shop + Hoard (no chest), Shielding + rare chest
+a := MakePk(5, "Shop", "Hoard"), a.chests := 0
+b := MakePk(6, "Rare_Chest"), b.chests := 1
+CursedRare(a), CursedRare(b)
+Check("  the cursed rare chest room beats a cursed Shop + Hoard room with no chest", b.score > a.score, a.score " vs " b.score)
+; a CHEST label seen but no chest read from the picture list: still the rare chest (Lunoc's small icons)
+pk := MakePk(7, "Shop"), pk.chests := 1
+CursedRare(pk)
+Check("  a CHEST label seen, the chest not matched: its rare chest", Has(pk) = "Shop+Rare_Chest+", Has(pk))
 ; the rare chest already read: nothing changes
 pk := MakePk(3, "Rare_Chest", "Hoard")
 CursedRare(pk)

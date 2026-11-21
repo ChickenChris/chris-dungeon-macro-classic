@@ -1121,11 +1121,16 @@ RoomSpare(p) => p.HasOwnProp("spare") ? p.spare : 0
 ; double (it's what dungeons are farmed for), a curse costs more than a chest and a hoard
 ; together (cursed rooms lose runs), and a shop is worth nothing until you have the coins
 ; to spend in it ("Only go to a shop with" setting).
-; a cursed room always holds a rare chest (150 of 150 cursed rooms in a player's log), so it counts
-; one even when its picture wasn't matched: in a room with 4 things the icons are smaller, the rare
+; a cursed room's chest is its rare chest, so a cursed room with a chest seen in it counts a rare
+; chest even when its picture wasn't matched: in a room with 4 things the icons are smaller, the rare
 ; chest picture missed, and only the plain "CHEST" label was found. A "Chest" read there is that rare chest
 CursedRare(pk) {
     if IndexOf(pk.has, "Rare_Chest")
+        return
+    ; no chest seen in it at all (no rare chest picture, no CHEST label): none counted. Not every cursed
+    ; room has one (a player 21 Nov, Rare chest at the top: Shielding + Shop and Health + Shop rooms with
+    ; no chest counted one and won over the rare chest room, "the macro doesn't pick the rare chest")
+    if !IndexOf(pk.has, "Chest") && !(pk.HasOwnProp("chests") && pk.chests)
         return
     ; one CHEST label: it's the rare chest's. Two: a rare chest and a normal one (Lunoc)
     if (pk.HasOwnProp("chests") ? pk.chests : 1) < 2 && (i := IndexOf(pk.has, "Chest"))
