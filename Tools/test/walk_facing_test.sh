@@ -23,7 +23,7 @@ haveFx = os.path.exists(fxdir + "facing_down_dungeon_throne.bmp")   # (Premium: 
 body = r'''#Requires AutoHotkey v2.0
 OnError((e, m) => (FileAppend("ERROR " e.Message " (line " e.Line ")`n", "*"), ExitApp(3)))
 #Include ROOT\Lib\FindText.ahk
-global fails := 0, RBX := "", logs := [], played := "", fakeFace := -1, altDepth := 0, walkFaces := Map(), walkedHere := false
+global fails := 0, RBX := "", logs := [], played := "", fakeFace := -1, altDepth := 0, walkFaces := Map(), walkedHere := false, miniHeart := ""
 global cfg := Map("walks", Map("Dungeon Throne", "face:180,w+0,d+0,w-700,s+900,s-1000,d-1200,Space+1300,Space-1400,end@1500", "Planet Greenie", "a+0,w+0,a-2200,w-2200,end@2200"))
 Check(name, ok, got := "") {
     global fails
@@ -80,6 +80,7 @@ Check("drawn arrow <: left", FacingOf(Arrow(["...#", "..##", ".##.", "##..", ".#
 Check("drawn arrow >: right", FacingOf(Arrow(["#...", "##..", ".##.", "..##", ".##.", "##..", "#..."])) = 90)
 heart := Arrow(["..#....#.", "#########", "#########", "#########", "#########", ".#######.", "..#####..", "...###..."])
 Check("the base's white heart isn't an arrow", FacingOf(heart) = -1, FacingOf(heart))
+miniHeart := ""                                         ; (the heart above was drawn on the same spot)
 both := Arrow(["#....#", "##.##.", ".###..", "..#..."])
 for k in Arrow(["..##..", ".####.", "##..##", "#....#"])
     both[k + 40000] := 1                                ; another white arrow 40 px to the right
