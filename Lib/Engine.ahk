@@ -3883,9 +3883,16 @@ MiniFacing() {
 }
 
 ; white: a Map of x * 1000 + y. The one arrow-sized hollow white mark and which way it points (its open
-; end is where its pixels spread wider). -1 when there's none, or more than one
+; end is where its pixels spread wider). -1 when there's none, or more than one. The arrow is 8-12 px in a
+; 6x3 / 6x4 box. The base's heart is white too: seen whole (a solid shape of 40-70 px) its spot is
+; remembered, and nothing there counts. It blinks when the base is hit, and a half-drawn heart (19-28 px,
+; 8-9 wide or tall, or a 3x5 bit) was taken for the arrow pointing down or left: with the real arrow hidden
+; (standing at the heart after the teleport to spawn) the camera was turned wrong and the walk went another
+; way (J 22 Nov: "the macro gets the white cross and heart of the base mixed up")
+global miniHeart := ""                      ; the heart's box when last seen whole: [x0, y0, x1, y1]
 FacingOf(white) {
-    seen := Map(), found := -1, n := 0
+    global miniHeart
+    seen := Map(), comps := []
     for k in white {
         if seen.Has(k)
             continue
@@ -3900,18 +3907,29 @@ FacingOf(white) {
                         seen[q] := 1, stack.Push(q)
                 }
         }
-        if comp.Length < 6 || comp.Length > 30
-            continue
         x0 := 99999, x1 := 0, y0 := 99999, y1 := 0, sx := 0, sy := 0
         for p in comp {
             px := p // 1000, py := Mod(p, 1000)
             x0 := Min(x0, px), x1 := Max(x1, px), y0 := Min(y0, py), y1 := Max(y1, py), sx += px, sy += py
         }
-        if comp.Length / ((x1 - x0 + 1) * (y1 - y0 + 1)) >= 0.65   ; solid: the heart
+        c := {pix: comp, x0: x0, y0: y0, x1: x1, y1: y1, cx: sx / comp.Length, cy: sy / comp.Length}
+        c.fill := comp.Length / ((x1 - x0 + 1) * (y1 - y0 + 1))
+        comps.Push(c)
+        if comp.Length >= 40 && comp.Length <= 70 && c.fill >= 0.6     ; the heart, whole
+            miniHeart := [x0, y0, x1, y1]
+    }
+    found := -1, n := 0
+    for c in comps {
+        if c.pix.Length < 6 || c.pix.Length > 16 || c.x1 - c.x0 > 6 || c.y1 - c.y0 > 6     ; not arrow-sized
             continue
-        cx := sx / comp.Length, cy := sy / comp.Length
+        if c.fill >= 0.65                                                   ; solid: not the hollow arrow
+            continue
+        if miniHeart && c.x0 >= miniHeart[1] - 1 && c.x1 <= miniHeart[3] + 1
+            && c.y0 >= miniHeart[2] - 1 && c.y1 <= miniHeart[4] + 1        ; a bit of the heart
+            continue
+        cx := c.cx, cy := c.cy
         above := [0, 0], below := [0, 0], lft := [0, 0], rgt := [0, 0]     ; [sum, count]
-        for p in comp {
+        for p in c.pix {
             px := p // 1000, py := Mod(p, 1000)
             if py < cy
                 above[1] += Abs(px - cx), above[2]++
