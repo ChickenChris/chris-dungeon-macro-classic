@@ -7382,6 +7382,11 @@ IcReadUnlocked() {
 OldRoundScreen() {
     if stageActive || !postStage || A_TickCount - postStage >= 90000
         return false
+    ; a Vote start is only ever on a new round: played at once (a player 22 Nov, Ant Kingdom: the room's
+    ; loading was taken as "didn't load", and when it showed, its vote sat there a minute while popups were
+    ; clicked; the round started without the macro: Defeat, and Stop after a defeat stopped it)
+    if Det("VoteStart")
+        return false
     if FoolMode()
         return foolReplayAt < postStage
     m := cfg.Get("mode", "Dungeon")
