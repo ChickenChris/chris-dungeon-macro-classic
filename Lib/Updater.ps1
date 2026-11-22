@@ -111,9 +111,18 @@ function Fetch($url, $out) {
 function RunUpdate {
     # Chris's test folder (a .dev file in it): an update would put the published version over the test one
     if (Test-Path -LiteralPath (Join-Path $dir '.dev')) { throw 'This is a test folder (it has a .dev file): not updated, so your test version stays.' }
-    $tmp = Join-Path $env:TEMP 'cdm-classic'
-    if (Test-Path $tmp) { Remove-Item $tmp -Recurse -Force }
-    New-Item -ItemType Directory -Path $tmp | Out-Null
+    # the download folder. A user name with letters like a-tilde or Cyrillic gets Temp a short 8.3 name
+    # (C:\Users\JO8240~1\AppData\Local\Temp) and Remove-Item can't handle those ("An object at the specified
+    # path C:\Users\JO8240~1 does not exist", PowerShell issue 21070): the clean-up after an update failed
+    # quietly and the next update stopped on the leftover (Shadow 22 Nov). Such a Temp isn't used, the folder
+    # is cleared and made with .NET, and a leftover that won't go gets a new folder
+    $root = $env:TEMP
+    if ($root -match '~' -and $env:LOCALAPPDATA -and [IO.Directory]::Exists($env:LOCALAPPDATA)) { $root = $env:LOCALAPPDATA }
+    $tmp = Join-Path $root 'cdm-classic'
+    try { if ([IO.Directory]::Exists($tmp)) { [IO.Directory]::Delete($tmp, $true) } }
+    catch { $tmp = Join-Path $root ('cdm-classic-' + [Guid]::NewGuid().ToString('N').Substring(0, 8)) }
+    [void][IO.Directory]::CreateDirectory($tmp)
+    if ($root -ne $env:TEMP) { try { [IO.Directory]::Delete((Join-Path $env:TEMP 'cdm-classic'), $true) } catch { } }   # the leftover there
     $zip = Join-Path $tmp 'classic.zip'
 
     Step 1 'Downloading the newest version...'
@@ -140,7 +149,7 @@ function RunUpdate {
     robocopy $src.FullName $dir /E /XD Settings Logs .git /XF Update.bat .gitattributes .gitignore README.md /R:5 /W:1 /NFL /NDL /NJH /NJS /NP | Out-Null
     if ($LASTEXITCODE -ge 8) { Say 'failed' Red; throw 'Copying the new files failed. Is the macro still open?' }
     Ok
-    Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue
+    try { [IO.Directory]::Delete($tmp, $true) } catch { }
 
     if ($have -and $new -and $new -eq $have) { CatSit "$new" }
     elseif ($new) { Say ''; CatRun $(if ($have) { "$have" } else { '?' }) "$new" }
