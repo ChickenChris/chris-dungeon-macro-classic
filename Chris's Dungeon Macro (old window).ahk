@@ -17,6 +17,7 @@ SendMode "Event"
 #Include %A_ScriptDir%\Lib\Engine.ahk
 #Include %A_ScriptDir%\Lib\Story.ahk
 #Include %A_ScriptDir%\Lib\Challenge.ahk
+#Include %A_ScriptDir%\Lib\Misty.ahk
 #Include %A_ScriptDir%\Lib\AutoUpdate.ahk
 ; no order list in the old window
 OrderDue() => false

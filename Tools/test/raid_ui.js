@@ -61,14 +61,14 @@ const raidBtn = (p) => p.evaluateHandle(() => [...document.querySelectorAll("#se
     check(tag + ": the raid panel's controls fit, the switch on its own line", panel.inside && panel.joinBelow, JSON.stringify(panel));
     const legendOpen = await p.evaluate(() => document.querySelector("#legendSub")?.classList.contains("open"));
     check(tag + ": the Legend panel stays closed", !legendOpen);
-    // the mode row still fits with 7 buttons (nothing wraps or spills out of it)
+    // the mode row fits its 8 buttons in two rows of four (the Misty Tower, 23 Nov: on one line it was cut off), none cut
     const fit = await p.evaluate(() => {
       const row = document.querySelector("#segModeHome"), r = row.getBoundingClientRect();
       const bs = [...row.querySelectorAll("button")].map((x) => x.getBoundingClientRect());
-      return { n: bs.length, oneLine: bs.every((x) => Math.abs(x.top - bs[0].top) < 2), inside: bs.every((x) => x.left >= r.left - 1 && x.right <= r.right + 1),
+      return { n: bs.length, rows: new Set(bs.map((x) => Math.round(x.top))).size, inside: bs.every((x) => x.left >= r.left - 1 && x.right <= r.right + 1),
         clipped: [...row.querySelectorAll("button")].some((x) => x.scrollWidth > x.clientWidth + 1) };
     });
-    check(tag + ": the mode row holds its buttons on one line", fit.oneLine && fit.inside && !fit.clipped, JSON.stringify(fit));
+    check(tag + ": the mode row holds its buttons in two rows, none cut", fit.rows === 2 && fit.inside && !fit.clipped, JSON.stringify(fit));
     check(tag + ": no page errors", !p.errors.length, p.errors.join(" | "));
     await p.screenshot({ path: `${out}/raid_${tag}.png`, clip: { x: 0, y: 0, width: 1423, height: 300 } });
     await p.close();

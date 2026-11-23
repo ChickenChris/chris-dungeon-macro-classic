@@ -322,7 +322,8 @@ body[data-run="stopping"] .dot { background: var(--bad); }
 .seg.wide button { flex: 1; height: 28px; font-size: 12.5px; }
 .modebar > .toggle { margin-top: 8px; }
 .toggle.dim { opacity: .45; }
-#segModeHome button { flex: auto; padding: 0 7px; white-space: nowrap; font-size: 12px; }   /* five modes on one line */
+#segModeHome { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 2px; min-width: 0; }   /* eight modes: two rows of four */
+#segModeHome button { padding: 0 6px; white-space: nowrap; font-size: 12px; overflow: hidden; text-overflow: ellipsis; }
 body.classic #segModeHome button[data-premium] { gap: 3px; }
 .hero-text p b { color: var(--cloud); font-weight: 500; }
 .controls { display: flex; flex-direction: column; gap: 6px; align-items: stretch; width: 168px; }

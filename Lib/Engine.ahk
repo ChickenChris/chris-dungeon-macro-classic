@@ -472,12 +472,12 @@ Tick() {
         WaitFor(() => ScanRooms().Length || SpecialScreen(), 3000)
         return
     }
-    if (ICMode() || LegendMode() || RaidMode()) && OpenPortalRow() {   ; "Open Portal?" left open
+    if (ICMode() || LegendMode() || RaidMode() || TowerMode()) && OpenPortalRow() {   ; "Open Portal?" left open
         idleSince := 0
         OpenPortalFriends()
         return
     }
-    if (ICMode() || LegendMode() || RaidMode()) && FoolJoinUp() {   ; "Join Matchmaking?" left open: Play Here
+    if (ICMode() || LegendMode() || RaidMode() || TowerMode()) && FoolJoinUp() {   ; "Join Matchmaking?" left open: Play Here
         idleSince := 0
         PlayHere()
         Wait(800)
@@ -494,6 +494,8 @@ Tick() {
             StartLegend()
         else if RaidMode()
             StartRaid()
+        else if TowerMode()
+            StartTower()
         else if FoolMode()
             StartSummerHunt()
         else
@@ -1430,7 +1432,7 @@ PlayTo(where) {
     while A_TickCount - t0 < 2500 {
         Wait(150)
         if PlayChooserUp() {
-            Clk(where = "summer" ? 270 : 529, 323)
+            Clk(where = "summer" ? 270 : where = "misty" ? 400 : 529, 323)
             return true
         }
         if SigLight(SceneSig()) <= 25           ; teleporting already (no such window)
@@ -3396,7 +3398,8 @@ LoadingScreens() {
         "Space Center", ["spacecenter", "spacecenter2"], "Spirit Town", ["spirittown", "spirittown2"],
         "Spirit World", ["spiritworld"], "Storm Hideout", ["stormhideout"],
         "Strange Town", ["strangetown"], "Virtual Dungeon", ["virtualdungeon", "virtualdungeon2"],
-        "Walled City", ["walledcity"]
+        "Walled City", ["walledcity"],
+        "Misty Village", []                     ; UPD 21.5's event: the Misty Tower's floors
     )
     return m
 }
@@ -7455,7 +7458,7 @@ OldRoundScreen() {
     if FoolMode()
         return foolReplayAt < postStage
     m := cfg.Get("mode", "Dungeon")
-    return m = "Dungeon" || m = "Raid" || m = "Legend"
+    return m = "Dungeon" || m = "Raid" || m = "Legend" || m = "Misty Tower"
 }
 
 ; counts the stage once (win / loss / time), whichever end screen shows first
@@ -7493,6 +7496,10 @@ HandleEnd() {
     }
     if RaidMode() {
         RaidReplay()
+        return
+    }
+    if TowerMode() {
+        TowerNext()
         return
     }
     if ICMode() {

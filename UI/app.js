@@ -445,11 +445,12 @@ function renderSpotsPage() {
 }
 
 // Farm mode: one switch on the start page, one on the Dungeon page, kept in step
-const MODES = ["Dungeon", "Infinity Castle", "Fool's Hunt", "Infinite", "Legend", "Raid", "Portal"];
-const FREE_MODES = ["Dungeon", "Infinity Castle", "Legend", "Raid", "Fool's Hunt"];   // Fool's Hunt = the Summer Hunt (free in Classic since UPD 21)   // the ones Classic has (Infinity Castle free since 3.0.100)
+const MODES = ["Dungeon", "Infinity Castle", "Fool's Hunt", "Infinite", "Legend", "Raid", "Portal", "Misty Tower"];
+const FREE_MODES = ["Dungeon", "Infinity Castle", "Legend", "Raid", "Fool's Hunt", "Misty Tower"];   // Fool's Hunt = the Summer Hunt (free in Classic since UPD 21)   // the ones Classic has (Infinity Castle free since 3.0.100)
 const isInf = () => S.cfg.mode === "Infinite";
 const isLegend = () => S.cfg.mode === "Legend";
 const isRaid = () => S.cfg.mode === "Raid";
+const isTower = () => S.cfg.mode === "Misty Tower";     // UPD 21.5's tower, floor after floor
 const isPortal = () => S.cfg.mode === "Portal";
 const isIC = () => S.cfg.mode === "Infinity Castle";
 const isFool = () => S.cfg.mode === "Fool's Hunt";
@@ -476,6 +477,7 @@ function renderMode() {
   im.onchange = () => setVal("infMap", maps[+im.value]);
   $("#legendSub").classList.toggle("open", isLegend());
   $("#raidSub").classList.toggle("open", isRaid());
+  $("#towerSub").classList.toggle("open", isTower());
   $("#autoChallenge").classList.toggle("dim", isFool());
   $("#portalSub").classList.toggle("open", isPortal());
   const pn = $("#portalName");
@@ -494,6 +496,7 @@ function renderMode() {
   ra.innerHTML = options(acts, Math.min(4, Math.max(0, (+S.cfg.raidAct || 1) - 1)));
   ra.onchange = () => { setVal("raidAct", +ra.value + 1); if (run) setRun(run); };
   seg($("#segRaidJoin"), ["Play Here", "Find Match"], +S.cfg.raidMatch ? 1 : 0, (i) => setVal("raidMatch", i));
+  seg($("#segTowerJoin"), ["Play Here", "Find Match"], +S.cfg.towerMatch ? 1 : 0, (i) => setVal("towerMatch", i));
   // Find Match: back since the game's next update (Global Matchmaking, the player types the number)
   seg($("#segFoolJoin"), ["Play Here", "Find Match"], +S.cfg.foolMatch ? 1 : 0, (i) => {
     setVal("foolMatch", i);

@@ -24,6 +24,7 @@ SendMode "Event"
 #Include %A_ScriptDir%\Lib\Engine.ahk
 #Include %A_ScriptDir%\Lib\Story.ahk
 #Include %A_ScriptDir%\Lib\Challenge.ahk
+#Include %A_ScriptDir%\Lib\Misty.ahk
 #Include %A_ScriptDir%\Lib\Order.ahk
 #Include %A_ScriptDir%\Lib\DebugRec.ahk
 #Include %A_ScriptDir%\Lib\AutoUpdate.ahk
@@ -343,7 +344,7 @@ HandleMessage(msg) {
             if IndexOf(["mode", "icHard"], m.Get("key", ""))      ; the floor instead of the room trail; Floors
                 UpdateMapLabel(), UpdateStats()
         case "order":
-            SetOrder(m.Get("list", []), ["Dungeon", "Legend", "Raid", "Infinity Castle", "Fool's Hunt"])
+            SetOrder(m.Get("list", []), ["Dungeon", "Legend", "Raid", "Infinity Castle", "Fool's Hunt", "Misty Tower"])
             UI("refresh", UiState())
         case "slot":
             i := m.Get("i", 0), prop := m.Get("prop", "")
@@ -462,7 +463,7 @@ SetCfg(key, value) {
         value := String(value)
     if key = "keyboard" && !IndexOf(["Auto", "QWERTY", "AZERTY", "QWERTZ", "Non-Latin"], value)
         return
-    if key = "mode" && !IndexOf(["Dungeon", "Legend", "Raid", "Infinity Castle", "Fool's Hunt"], value)   ; the other modes are in Premium (Fool's Hunt: the Summer Hunt)
+    if key = "mode" && !IndexOf(["Dungeon", "Legend", "Raid", "Infinity Castle", "Fool's Hunt", "Misty Tower"], value)   ; the other modes are in Premium (Fool's Hunt: the Summer Hunt)
         return
     cfg[key] := value
     SaveConfig()
@@ -1377,7 +1378,7 @@ DefaultConfig() {
         "denyAllShrines", 0, "denyUnknownShrine", 1, "stopAfterDefeat", 0,
         "placeSpeed", 1, "placeTurbo", 0, "webhook", "", "hookRuns", 1, "psLink", "", "fixOnStart", 1, "tolerance", 2, "retries", 3, "useBuild", 0,
         "bgStrength", 3, "bgGif", "", "accent", "Crimson",
-        "bgOpacity", 70, "bgBlur", 0, "glass", 60, "bgAnimate", 1, "bgFile", "", "bgName", "", "lastSpotMap", "", "elemTeams", 0, "keyboard", "Auto", "mode", "Dungeon", "legendWorld", "Magic Hills (Elf Invasion)", "legendStage", 1, "raidWorld", "Sacred Planet", "raidAct", 1, "raidMatch", 0, "autoChallenge", 0, "orderOn", 0, "orderRepeat", 1, "autoRec", 1, "order", [], "challengeSlot", 0, "icHard", 0, "icStopFloors", 0, "foolCoins", 0, "foolSafe", 0, "walksReset", "", "foolMatch", 0, "foolCards", FOOL_CARDS(), "team", 1, "teamDefault", 1, "teams", [],
+        "bgOpacity", 70, "bgBlur", 0, "glass", 60, "bgAnimate", 1, "bgFile", "", "bgName", "", "lastSpotMap", "", "elemTeams", 0, "keyboard", "Auto", "mode", "Dungeon", "legendWorld", "Magic Hills (Elf Invasion)", "legendStage", 1, "raidWorld", "Sacred Planet", "raidAct", 1, "raidMatch", 0, "towerMatch", 0, "autoChallenge", 0, "orderOn", 0, "orderRepeat", 1, "autoRec", 1, "order", [], "challengeSlot", 0, "icHard", 0, "icStopFloors", 0, "foolCoins", 0, "foolSafe", 0, "walksReset", "", "foolMatch", 0, "foolCards", FOOL_CARDS(), "team", 1, "teamDefault", 1, "teams", [],
         "route", ["Rare_Chest", "Chest", "Shop", "Hoard", "Shrine", "Boss"],
         "avoid", Map("Flying", 1, "Wind", 0, "Money", 1, "Health", 1, "Exploding", 0, "Shielding", 1, "Regen", 1),
         "curseRank", ["Flying", "Money", "Health", "Shielding", "Regen", "Wind", "Exploding"], "skipWorst", 5,
@@ -1512,7 +1513,7 @@ class IniDoc {
 
 ScalarKeys() => ["pattern", "useSpots", "saveForTop", "autoAbility", "zoom", "tpSpawn", "saveChests", "buyShop",
     "denyAllShrines", "denyUnknownShrine", "stopAfterDefeat", "placeSpeed", "placeTurbo", "webhook", "hookRuns", "psLink", "fixOnStart", "tolerance", "skipWorst", "retries", "useBuild",
-    "bgStrength", "bgGif", "accent", "bgOpacity", "bgBlur", "glass", "bgAnimate", "bgFile", "bgName", "lastSpotMap", "elemTeams", "keyboard", "mode", "legendWorld", "legendStage", "raidWorld", "raidAct", "raidMatch", "autoChallenge", "challengeSlot", "orderOn", "orderRepeat", "autoRec", "icHard", "icStopFloors", "foolCoins", "foolSafe", "foolMatch", "walksReset"]
+    "bgStrength", "bgGif", "accent", "bgOpacity", "bgBlur", "glass", "bgAnimate", "bgFile", "bgName", "lastSpotMap", "elemTeams", "keyboard", "mode", "legendWorld", "legendStage", "raidWorld", "raidAct", "raidMatch", "towerMatch", "autoChallenge", "challengeSlot", "orderOn", "orderRepeat", "autoRec", "icHard", "icStopFloors", "foolCoins", "foolSafe", "foolMatch", "walksReset"]
 
 ; Fool's Hunt cards (Premium): only shown, locked, on the Dungeon page
 FOOL_CARDS() => ["shield", "regen", "health", "speed", "yen", "range", "cooldown", "attack", "grounded", "slow", "explosive", "resistant", "spellproof", "plated", "gale", "updraft", "boss"]
@@ -1561,7 +1562,7 @@ LoadConfig() {
     cfg["tolerance"] := ClampInt(cfg["tolerance"], 1, 3, 2)
     cfg["retries"] := ClampInt(cfg["retries"], 1, RETRIES.Length, 3)
     cfg["build"] := ReadBuild("Build", 6)
-    cfg["order"] := ReadOrder(["Dungeon", "Legend", "Raid", "Infinity Castle", "Fool's Hunt"])
+    cfg["order"] := ReadOrder(["Dungeon", "Legend", "Raid", "Infinity Castle", "Fool's Hunt", "Misty Tower"])
     ; Element teams: team 1 is [Slot1..6] / [Build] (the setup from before teams), team k [TkSlot..] / [TkBuild]
     n := ClampInt(IniRead(cfgFile, "Teams", "Count", 1), 1, 8, 1), teams := []
     loop n {
@@ -1601,7 +1602,7 @@ LoadConfig() {
     for name in [cfg["spots"]*]
         if InStr(name, "(Fool's Hunt)")
             cfg["spots"].Delete(name)
-    if !IndexOf(["Dungeon", "Legend", "Raid", "Infinity Castle", "Fool's Hunt"], cfg["mode"])   ; a Premium mode from copied settings
+    if !IndexOf(["Dungeon", "Legend", "Raid", "Infinity Castle", "Fool's Hunt", "Misty Tower"], cfg["mode"])   ; a Premium mode from copied settings
         cfg["mode"] := "Dungeon"
     fc := []                                    ; the Summer Hunt card list, best first
     loop FOOL_CARDS().Length {

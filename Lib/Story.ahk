@@ -808,8 +808,8 @@ RaidToMatch() {
 
 ; matched: the match fills up and teleports, the loading screen hides the settings gear. True then; false
 ; after about 2.5 minutes without it, or a number window still up (closed: nothing starts under it)
-RaidWaitMatch() {
-    Step("waiting for the raid match to start")
+RaidWaitMatch(what := "raid") {                 ; what: "raid" / "Misty Tower" for the log
+    Step("waiting for the " what " match to start")
     loop 600 {                                  ; (600 x 250 ms)
         Stale()
         if CaptchaWindowUp() {
@@ -821,8 +821,8 @@ RaidWaitMatch() {
             return true
         Wait(250)
     }
-    AddLog("The raid match didn't start within 2.5 minutes. Trying again")
-    SaveDebugShot("raid_queue")
+    AddLog("The " what " match didn't start within 2.5 minutes. Trying again")
+    SaveDebugShot(StrLower(what) "_queue")
     return false
 }
 
