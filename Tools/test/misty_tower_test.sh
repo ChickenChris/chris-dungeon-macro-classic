@@ -1,8 +1,9 @@
 #!/bin/bash
-# The Misty Tower mode (Lib\Misty.ahk TowerFloorsIn, StartTower, TowerNext). Chris 23 Nov: it climbs floor by
-# floor. The tower window's floor list counts down: the next floor locked on top ("Clear the floor below to
-# unlock!"), then the highest open one: the highest "Floor N" read is clicked, Start (401,438: the window sits
-# as the other pads' do, Chris's screenshot 23 Nov; the clip's frame caught it still sliding in, 57 px higher),
+# The Misty Tower mode (Lib\Misty.ahk TowerFloorIn, StartTower, TowerNext). Chris 23 Nov: it climbs floor by
+# floor. The tower window opens on the highest open floor already (its panel: "Misty Tower: Floor 21"); no floor
+# is clicked (a player 23 Nov, 20 cleared: Floor 21 was misread and Floor 20 clicked, "Chose the wrong floor"),
+# its number is only read for the log. Start (401,438: the window sits as the other pads' do, Chris's
+# screenshot 23 Nov; the clip's frame caught it still sliding in, 57 px higher),
 # Play Here (PadStart) or Find Match, LoadStage("Misty Village"). A win: "Next Floor" at the top of the end
 # screen (488,121, his clip), the next floor loads. A loss: Replay / Retry if the game shows one, else the
 # lobby (the same floor is picked again). Wine
@@ -56,7 +57,7 @@ FoolJoinUp() => joinUp
 FoolMatchTries(f, what) => matchOk
 RaidWaitMatch(what := "") => true
 FindOpenDungeon(&x, &y) => false
-TowerWords() => words
+TowerTitle() => title
 PadStart(label, select := true) {
     global started
     started := label
@@ -90,20 +91,17 @@ Clk(x, y, *) {
     if y = 121 && works
         endUp := false, shown := Map()          ; the end screen goes, the next floor loads
 }
-W(t, x, y) => {Text: t, x: x - 10, y: y - 6, w: 20, h: 12}
-''' + "\n".join([fn("TowerMatchOn"), fn("TowerFloorsIn"), fn("TowerFloorPick"), fn("StartTower"), fn("TowerToMatch"), fn("TowerNext")]) + r'''
+''' + "\n".join([fn("TowerMatchOn"), fn("TowerFloorIn"), fn("TowerFloorRead"), fn("StartTower"), fn("TowerToMatch"), fn("TowerNext")]) + r'''
 
-; the list as Chris's screenshot shows it (Floor 2 at 276, Floor 1 at 311), with one more floor open
-words := [W("Clear", 255, 236), W("the", 275, 236), W("floor", 295, 236), W("below", 255, 245), W("to", 280, 245), W("unlock!", 305, 245),
-    W("Floor", 280, 276), W("3", 315, 276), W("Floor", 280, 311), W("2", 315, 311), W("Floor", 280, 346), W("1", 315, 346)]
-f := TowerFloorsIn(words, &fy)
-Check("the highest open floor in the list: 3 (the locked one above it isn't a floor)", f = 3 && fy = 276, f " at " fy)
-Check("  glued: Floor12 / Floor11", TowerFloorsIn([W("Floor12", 290, 230), W("Floor11", 290, 270)], &fy) = 12 && fy = 230)
-Check("  nothing read: 0", TowerFloorsIn([], &fy) = 0)
+; the panel's title as the player's recording shows it (20 floors cleared, the window opened on Floor 21)
+Check("the floor the window opened on: Misty Tower: Floor 21 -> 21", TowerFloorIn("Misty Tower: Floor 21") = 21)
+Check("  glued / misread: MistyTower:Floor21, Floor 3, F1oor 7", TowerFloorIn("MistyTower:Floor21") = 21 && TowerFloorIn("Floor 3") = 3 && TowerFloorIn("Misty Tower: F1oor 7") = 7)
+Check("  nothing read: 0", TowerFloorIn("") = 0 && TowerFloorIn("Misty Village") = 0)
+global title := "Misty Tower: Floor 21"
 clicks := "", lg := ""
 StartTower()
-Check("the tower: Floor 3 clicked, Start, Play Here's start, the map", InStr(clicks, "290,276;401,438;") && started = "Misty Tower" && loaded = "Misty Village", clicks " / " started)
-Check("  the log names the floor", InStr(lg, "Floor 3"), lg)
+Check("the tower: no floor clicked (it's on the highest already), Start, Play Here's start, the map", InStr(clicks, "400,390;401,438;") && !InStr(clicks, "290,") && started = "Misty Tower" && loaded = "Misty Village", clicks " / " started)
+Check("  the log names the floor", InStr(lg, "Floor 21") && towerFloor = 21, lg)
 cfg["towerMatch"] := 1, joinUp := true, clicks := "", started := "", loaded := ""
 StartTower()
 Check("Find Match: the match, no Play Here start", InStr(clicks, "401,438;") && started = "" && loaded = "Misty Village", clicks " / " started)
@@ -133,8 +131,9 @@ if missing:
 open(T + "/t.ahk", "w", encoding="utf-8-sig").write(body)
 tw = re.search(r"^TowerWindowUp\(\) =>.*$", mis, re.M); tw = tw.group(0) if tw else ""
 print(("PASS" if "OcrFindWord(160, 172, 330, 30," in tw and "^misty$" not in tw else "FAIL") + " the tower window's title read where it sits (y 172-202), not Misty Village's window by 'Misty'")
-tl = re.search(r"^TowerWords\(\) \{.*?^\}", mis, re.S | re.M); tl = tl.group(0) if tl else ""
-print(("PASS" if "OCR.FromRect(ox + 240, oy + 228, 100, 190," in tl and "y: 228 + w.y" in tl else "FAIL") + " the floor list read from y 228")
+tl = re.search(r"^TowerTitle\(\) \{.*?^\}", mis, re.S | re.M); tl = tl.group(0) if tl else ""
+print(("PASS" if "OCR.FromRect(ox + 355, oy + 212, 200, 32," in tl else "FAIL") + " the panel's title read where it sits (Misty Tower: Floor N, x 355-555, y 212-244)")
+print(("PASS" if not re.search(r"^(TowerWords|TowerFloorsIn|TowerFloorPick)\(", mis, re.M) else "FAIL") + " no floor clicked from the list any more")
 P
 WINEDEBUG=-all timeout 90 xvfb-run -a wine "$AHK" /ErrorStdOut "Z:${T//\//\\}\\t.ahk" 2>&1 | grep -v "^X conn" | tr -d '\r'
 rm -rf "$T"

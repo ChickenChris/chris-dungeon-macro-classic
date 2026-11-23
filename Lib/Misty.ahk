@@ -133,38 +133,23 @@ MistyEndAt(re, &x, &y) => OcrFindWord(0, 95, 800, 55, re, &x, &y) || OcrFindWord
 ; ---------------------------------------------------------------- the Misty Tower mode
 global towerFloor := 0          ; the floor being played (read from the tower window), 0 unknown
 
-; the floor list's words (the tower window's left side, x 243-337 from y 228: under the title, from the locked
-; floor's "Clear the floor below to unlock!" down, Chris's screenshot 23 Nov), in game coordinates
-TowerWords() {
-    out := []
+; The tower window opens on the highest open floor already: nothing is clicked in its list (a player 23 Nov,
+; 20 floors cleared: "Floor 21" misread, Floor 20 clicked, "Chose the wrong floor"). Its number is read from the
+; panel's title ("Misty Tower: Floor 21", x 355-555 y 212-244) for the log only
+TowerTitle() {
     try {
         WinGetClientPos &ox, &oy, , , RBX
-        for w in OCR.FromRect(ox + 240, oy + 228, 100, 190, OcrLang(), {scale: 2.5, grayscale: true}).Words
-            out.Push({Text: w.Text, x: 240 + w.x, y: 228 + w.y, w: w.w, h: w.h})
+        return OCR.FromRect(ox + 355, oy + 212, 200, 32, OcrLang(), {scale: 2.5, grayscale: true}).Text
     }
-    return out
+    return ""
 }
-; the list counts down (Chris's clip): the next floor locked on top ("Clear the floor below to unlock!", no
-; number), then the highest open floor. Its number (0 none read), y its button's middle
-TowerFloorsIn(words, &y) {
-    best := 0, y := 0
-    for i, w in words {
-        n := 0
-        if RegExMatch(w.Text, "i)^F[l1I]oor(\d{1,3})$", &m)
-            n := Integer(m[1])
-        else if RegExMatch(w.Text, "i)^F[l1I]oor$") && i < words.Length && RegExMatch(words[i + 1].Text, "^\d{1,3}$")
-            n := Integer(words[i + 1].Text)
-        if n > best
-            best := n, y := Round(w.y + w.h / 2)
-    }
-    return best
-}
-; the highest open floor clicked (the first one not cleared). Its number, 0 when none was read
-TowerFloorPick() {
+TowerFloorIn(txt) => RegExMatch(txt, "i)F[l1I]oor\s*(\d{1,3})", &m) ? Integer(m[1]) : 0
+; the floor the window is on (0 when it isn't read)
+TowerFloorRead() {
     global towerFloor
-    n := TowerFloorsIn(TowerWords(), &y)
+    n := TowerFloorIn(TowerTitle())
     if n
-        Clk(290, y), towerFloor := n            ; its button (x 243-337)
+        towerFloor := n
     return n
 }
 
@@ -176,7 +161,7 @@ StartTower() {
     CloseChat()
     if !MistyToTower()
         return
-    n := TowerFloorPick()
+    n := TowerFloorRead()                       ; (the window is on the highest open floor)
     what := n ? "Misty Tower Floor " n : "the Misty Tower"
     Wait(400)
     Clk(401, 438)                               ; Start (where the other pads' Select is)
@@ -203,7 +188,7 @@ TowerToMatch() {
         return true
     if !MistyToTower()
         return false
-    TowerFloorPick(), Wait(400)
+    TowerFloorRead(), Wait(400)
     Clk(401, 438)                               ; Start (where the other pads' Select is)
     Wait(1000)
     Stale()
