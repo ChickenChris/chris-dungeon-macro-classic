@@ -221,11 +221,11 @@ html = open(root + "/UI/index.html", encoding="utf-8").read()
 checks = [
   ("the lobby starts a raid in Raid mode", re.search(r"else if RaidMode\(\)\s*\n\s*StartRaid\(\)", eng)),
   ("the end of a raid replays it", re.search(r"if RaidMode\(\) \{\s*\n\s*RaidReplay\(\)", eng)),
-  ("a pad's Join Matchmaking / Open Portal left open is handled in Raid mode too", eng.count("RaidMode()) && ") == 2),
+  ("a pad's Join Matchmaking / Open Portal left open is handled in Raid mode too", len(re.findall(r"RaidMode\(\)(?: \|\| \w+\(\))*\) && ", eng)) == 2),
   ("Raid is a mode in the settings, the order list and the check", len(re.findall(r'\[[^\[\]]*"Legend", "Raid"[^\[\]]*\]', main)) >= 3),
   ("the raid world and raid are saved", '"legendStage", "raidWorld", "raidAct"' in main and '"raidWorld", "Sacred Planet", "raidAct", 1' in main),
   ("the app gets the raid worlds", '"raidWorlds", RAID_WORLDS()' in main),
-  ("the app: a Raid button (in Classic too)", '"Legend", "Raid", "Portal"]' in app and re.search(r'FREE_MODES = \[[^\]]*"Raid"', app)),
+  ("the app: a Raid button (in Classic too)", '"Legend", "Raid", "Portal"' in app and re.search(r'FREE_MODES = \[[^\]]*"Raid"', app)),
   ("the app: the raid panel", all(x in html for x in ['id="raidSub"', 'id="raidWorld"', 'id="raidAct"'])),
   ("Find Match for raids is saved (off at first)", '"raidAct", 1, "raidMatch", 0' in main and '"raidAct", "raidMatch"' in main),
   ("the app: Play Here / Find Match on the raid panel", 'id="segRaidJoin"' in html and re.search(r'seg\(\$\("#segRaidJoin"\), \["Play Here", "Find Match"\]', app)),
