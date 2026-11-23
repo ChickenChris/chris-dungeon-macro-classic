@@ -7371,32 +7371,41 @@ StageOver() {
     FoolTick()                                  ; Fool's Hunt: card votes and the hotbar
     return Det("Xp") || Det("EndScreen") || Det("Next") || Det("Lobby") || EndButtonsSeen()
         || Det("FinishDungeon") || Det("DungeonDeath") || SpecialScreen() || ScanRooms().Length
-        || EndByColour()
+        || EndByColour() || VillageShopOver()
 }
 
 ; UPD 21's results box: the big red DEFEAT / gold VICTORY title and the green Next under it (Next
 ; 268-372 x 378-410 on Chris's last_result.png). The pictures of the old end screen didn't always
 ; match, and a lost round took long to be noticed (Chris)
 EndByColour() => ColorShare(280, 384, 360, 404, (r, g, b) => g >= 170 && r <= 120 && b <= 90) >= 0.45
-    && (XpPanelUp() || PeopleListOver()) && !VoteOnScreen() && (TitleColour() != "" || VillageShopOver())
+    && (XpPanelUp() || PeopleListOver()) && !VoteOnScreen() && TitleColour() != ""
 
-; UPD 21.5's "Village Shop!" (Scarlet Ore defenses: Spike Trap, War Drum, Sun Lamp) pops up over a Misty Village
-; round's VICTORY (the Misty Tower's floors are on that map too): the title under it couldn't be read, the end wasn't seen and the macro went on upgrading units
-; on the results until Chris paused it (debug_20261123_101915). Read only when the results' Next shows; closed
-; with its X (582,210), then the results are read as always
+; UPD 21.5's "Village Shop!" (Scarlet Ore defenses: Spike Trap, Bamboo Barricade, War Drum, Wisteria Incense,
+; Sun Lamp...) pops up at a Misty Village round's VICTORY (the Misty Tower's floors too), before Next, sometimes over the Replay screen after it.
+; The results under it couldn't be read: the end wasn't seen and the macro went on upgrading units on the results
+; until Chris paused it (debug_20261123_101915, 094046; its Next under the shop is a duller green than the end
+; check takes). Its title read, then its X (582,210) and "LEAVE THE SHOP?" Leave (Chris's screenshot)
+VillageShopUp() => OcrFindWord(240, 175, 330, 70, "i)^village$|^shop", &sx, &sy)
+VillageShopClose() {
+    static told := false
+    if !VillageShopUp()
+        return false
+    Clk(582, 210)                               ; its X
+    if WaitFor(() => OcrFindWord(220, 310, 380, 90, "i)^leave$", &lx, &ly), 2500, 250)
+        OcrFindWord(220, 310, 380, 90, "i)^leave$", &lx, &ly), Clk(lx, ly)
+    Wait(600)
+    Stale()
+    if !told
+        told := true, AddLog("Misty Village: the Village Shop showed over the results, closed it (Leave)")
+    return true
+}
+; at the results (their XP Progress panel up), looked for every 2 s while the round's end is looked for
 VillageShopOver() {
-    static last := 0, told := false
-    if A_TickCount - last < 2000
+    static last := 0
+    if !XpPanelUp() || A_TickCount - last < 2000
         return false
     last := A_TickCount
-    if !OcrFindWord(260, 180, 280, 45, "i)^village$|^shop", &sx, &sy)
-        return false
-    if !told
-        told := true, AddLog("Misty Village: the Village Shop showed over the results, closed it")
-    Clk(582, 210)                               ; its X
-    Wait(500)
-    Stale()
-    return true
+    return VillageShopClose()
 }
 
 ; Roblox's player list ("People / Total Damage", Tab) left open over the results' XP Progress panel:

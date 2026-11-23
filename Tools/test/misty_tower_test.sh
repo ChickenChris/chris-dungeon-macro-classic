@@ -42,6 +42,7 @@ Wait(ms) => 0
 CloseChat() => 0
 SaveDebugShot(p*) => 0
 ChallengeLeave() => false
+VillageShopClose() => false
 global foolAlts := [], foolAltMissed := Map(), portalRegroup := false, portalAltWait := 20000   ; (no alts here)
 AltsReconnectAll() => false
 FoolDuo() => false

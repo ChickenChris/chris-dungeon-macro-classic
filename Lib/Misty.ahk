@@ -200,6 +200,7 @@ TowerToMatch() {
 ; Find Match: the lobby for a new match. Nothing happening after the click: the lobby
 TowerNext() {
     global towerFloor
+    VillageShopClose()                          ; the Village Shop can show over the end screen
     won := lastResult = "win"
     if won
         AddLog("Misty Tower: " (towerFloor ? "Floor " towerFloor : "the floor") " cleared" (towerFloor ? ", up to Floor " towerFloor + 1 : ""))
