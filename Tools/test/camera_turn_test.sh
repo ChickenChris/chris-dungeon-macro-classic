@@ -5,7 +5,14 @@
 # tells 4 directions, so the turn is measured: it changes at 45° and at 135°. A fake camera here:
 # each nudge turns it a set number of degrees. Chris 20 Nov: "if it points any way but up it will zoom in
 # and then use arrow keys left or right to adjust the camera so it points upwards", "or mouse": the arrow
-# keys first, the mouse when they don't turn it. Lib\Engine.ahk TurnCamera, CamTurn, GoToSpot. Run under Wine
+# keys first, the mouse when they don't turn it.
+# A player 23 Nov (Classic, Ant Kingdom, debug_20261123_181647): "it walked off the wrong side of the map". The
+# camera faced right, a quarter turn to up was logged, but the view was left at an angle: on a busy PC the screen
+# shows the camera 0.1-0.2 s late, so the arrow changes were seen late and the key was let go late (15-30° off
+# at this speed, still "up" on the arrow), and Ryn's walk went off sideways. Now it goes on through the wanted
+# direction, back until it's seen there again (that way back measures how late the screen is), then half a
+# quarter turn less that. The fake screen here can be behind by lagMs.
+# Lib\Engine.ahk TurnCamera, KeyTurn, CamTurn, GoToSpot. Run under Wine
 cd "$(dirname "$0")/../.."
 AHK=/tmp/claude-0/-home-claude/cf9d9217-0cd8-5fd7-b7c3-bca236a851f1/scratchpad/ahkbin/AutoHotkey64.exe
 T=$(mktemp -d)
@@ -25,6 +32,7 @@ body = r'''#Requires AutoHotkey v2.0
 OnError((e, m) => (FileAppend("ERROR " e.Message " (line " e.Line ")`n", "*"), ExitApp(3)))
 global fails := 0, logs := [], yaw := 0.0, perNudge := 7.0, nudges := 0, altDepth := 0
 global keySpeed := 0.0, keyRev := false, keyDown := "", downAt := 0, keyHolds := 0, camKeySign := 1, camKeysWork := -1
+global lagMs := 0, past := [], base := 0.0, stageStart := 1, shots := 0
 global cfg := Map("walks", Map("Future City", "face:0,w+0,w-900,end@900", "Old Map", "w+0,w-500", "Clicked", "click:400,300"))
 Check(name, ok, got := "") {
     global fails
@@ -37,6 +45,20 @@ PlaceKey(m) => m
 CamNudge(dir, px := 15) {                        ; the fake camera: a 15 px nudge turns it perNudge degrees
     global yaw, nudges
     yaw := Mod(yaw + dir * perNudge * px / 15 + 720, 360), nudges++
+    past.Push({t: A_TickCount, y: yaw, key: ""})
+}
+; what the camera faced at time t (for a screen lagMs behind): the last key or nudge before t, and since
+YawAt(t) {
+    y := base, k := "", at := 0
+    for e in past
+        if e.t <= t
+            y := e.y, k := e.key, at := e.t
+    return Mod(y + (k = "" ? 0 : (t - at) / 1000 * keySpeed * (k = "Right" ? 1 : -1) * (keyRev ? -1 : 1)) + 720, 360)
+}
+Stale() => 0
+SaveDebugShot(p*) {
+    global shots
+    shots++
 }
 ; the arrow keys: held, the fake camera turns keySpeed degrees a second (keyRev: the other way)
 KeyYaw() => keyDown = "" ? 0 : (A_TickCount - downAt) / 1000 * keySpeed * (keyDown = "Right" ? 1 : -1) * (keyRev ? -1 : 1)
@@ -46,11 +68,12 @@ SendKeys(k) {
         yaw := Mod(yaw + KeyYaw() + 720, 360), keyDown := m[1], downAt := A_TickCount, keyHolds++
     else if RegExMatch(k, "^\{(Left|Right) up\}$")
         yaw := Mod(yaw + KeyYaw() + 720, 360), keyDown := ""
+    past.Push({t: A_TickCount, y: yaw, key: keyDown})
 }
 Chk() => 0
-MiniFacing() => Mod(Round(Mod(yaw + KeyYaw() + 720, 360) / 90) * 90, 360)   ; like the arrow: 4 directions, changing at 45°
+MiniFacing() => Mod(Round((lagMs ? YawAt(A_TickCount - lagMs) : Mod(yaw + KeyYaw() + 720, 360)) / 90) * 90, 360)   ; like the arrow: 4 directions, changing at 45°
 Off(a, b) => Abs(Mod(a - b + 540, 360) - 180)
-''' + "\n".join(fn(n) for n in ["TurnCamera", "KeyTurn", "CamTurn", "FaceName", "RouteFace"]) + r'''
+''' + "\n".join(fn(n) for n in ["TurnCamera", "KeyTurn", "CamTurn", "FaceName", "RouteFace", "MiniFacingRead", "CamUnseen"]) + r'''
 
 for step in [3.0, 7.0, 11.0] {
     for t in [[0, 180], [180, 0], [0, 90], [0, 270], [270, 90]] {
@@ -105,6 +128,19 @@ yaw := 180.0, nudges := 0, keyHolds := 0
 t0 := A_TickCount
 ok := TurnCamera(0), took2 := A_TickCount - t0
 Check("  the next turn goes straight to the mouse (the keys not tried again)", ok && took2 < 1000 && nudges && !keyHolds, took2 " ms, " keyHolds " key holds")
+; the screen behind the camera (a busy PC): the arrow keys still land within 10°
+for lag in [120, 200] {
+    for t in [[90, 0], [270, 0], [180, 0], [0, 90]] {
+        yaw := t[1] + 0.0, base := yaw, past := [], lagMs := lag, keySpeed := 144.0, keyRev := false, camKeySign := 1, camKeysWork := -1, nudges := 0, logs := []
+        ok := TurnCamera(t[2])
+        Sleep lag + 50
+        Check("the screen " lag " ms behind (a busy PC), " FaceName(t[1]) " to " FaceName(t[2]) ": within 10°, keys only", ok && Off(yaw, t[2]) <= 10 && !nudges, Round(yaw) "° " nudges " nudges")
+    }
+}
+yaw := 180.0, base := yaw, past := [], lagMs := 150, keyRev := true, camKeySign := 1, camKeysWork := -1, nudges := 0
+ok := TurnCamera(0)
+Check("  keys turning the other way on this account, a half turn, the screen 150 ms behind: within 10°", ok && Off(yaw, 0) <= 10 && !nudges, Round(yaw) "° " nudges)
+keyRev := false, lagMs := 0
 FileAppend(fails ? "FAILED " fails "`n" : "ALL PASSED`n", "*", "UTF-8")
 ExitApp fails ? 1 : 0
 '''
@@ -137,6 +173,6 @@ k = re.search(r"^KeyTurn\([^)\n]*\) \{.*?^\}", e, re.S | re.M)
 kb = k.group(0) if k else ""
 print(("PASS" if '"{" key " down}"' in kb and "finally SendKeys(\"{\" key \" up}\")" in kb and '"Right"' in kb and '"Left"' in kb and "Chk()" in kb else "FAIL") + " the arrow key held: Left or Right, always let go (finally), Pause respected")
 P2
-WINEDEBUG=-all timeout 90 xvfb-run -a wine "$AHK" /ErrorStdOut "Z:${T//\//\\}\\t.ahk" 2>&1 | grep -v "^X conn" | tr -d '\r')
+WINEDEBUG=-all timeout 150 xvfb-run -a wine "$AHK" /ErrorStdOut "Z:${T//\//\\}\\t.ahk" 2>&1 | grep -v "^X conn" | tr -d '\r'; [ "${PIPESTATUS[0]}" = 124 ] && echo "FAILED (timed out)")
 rm -rf "$T"
 if echo "$R" | grep -q "^FAIL"; then echo "$OUT" | grep -v "ALL PASSED"; echo "FAILED (static)"; else echo "$OUT"; fi

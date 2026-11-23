@@ -4091,55 +4091,71 @@ global camKeySign := 1                      ; -1: the arrow keys turn the camera
 global camKeysWork := -1                    ; the arrow keys turn the camera: -1 not known yet, 1 yes, 0 no (the mouse)
 
 ; turns the camera from face to want with an arrow key held down (Roblox turns it steadily, about a full
-; circle in 2.5 s: Chris's clip). The minimap's arrow only tells 4 directions (it changes at 45° and
-; 135°): the time between those two is a quarter turn's, so from the 135° change it goes on 45° (a half
-; turn) or back 45° (a quarter) by holding a key half that time. It went the other way (some accounts):
-; again from there the other way, and that's remembered. Returns the log line, "nokeys" when the camera
-; didn't turn at all in 4 s, "" when it didn't get there
+; circle in 2.5 s: Chris's clip). The minimap's arrow only tells 4 directions (it changes at 45° off each), and
+; on a busy PC the screen shows the camera 0.1-0.2 s late: the changes were seen late, the key let go late, and
+; the camera was left 15-30° off, still "up" on the arrow (a player 23 Nov, Ant Kingdom: "it walked off the
+; wrong side of the map"). So it goes on through the wanted direction and out the other side (the time between:
+; a quarter turn's), then back until it's seen in the wanted direction again: that way back takes the overshoot
+; plus how late the screen is, twice, so the lateness is known; from there half a quarter turn more, less that.
+; It went the other way (some accounts): again from there the other way, and that's remembered. Returns the
+; log line, "nokeys" when the camera didn't turn at all in 4 s, "" when it didn't get there
 KeyTurn(want, face, again := true) {
     global camKeySign
     turn := Mod(want - face + 360, 360)
     dir := turn = 270 ? -1 : 1                  ; a quarter to the left: turned left
-    first := Mod(face + dir * 90 + 360, 360), second := Mod(face + dir * 180 + 360, 360)
     wrong := Mod(face - dir * 90 + 360, 360)
     key := camKeySign * dir > 0 ? "Right" : "Left"
-    tA := 0, tB := 0, rd := 0, f := face, flipped := false
+    tIn := 0, tOut := 0, f := face, flipped := false, outAt := -1
     Chk()
     SendKeys("{" key " down}")
     try {
         t0 := A_TickCount
         while A_TickCount - t0 < 4000 {
-            r0 := A_TickCount, f := MiniFacing(), now := A_TickCount, rd := now - r0
-            if !tA && f = wrong && turn != 180 {     ; the other way round on this account
+            Stale()                             ; a new picture every read (one kept for checks can be 90 ms old)
+            f := MiniFacing(), now := A_TickCount
+            if !tIn && f = wrong && turn != 180 {     ; the other way round on this account
                 flipped := true
                 break
             }
-            if !tA && f = first
-                tA := now
-            else if tA && f = second {
-                tB := now
+            if !tIn && f = want
+                tIn := now
+            else if tIn && f >= 0 && f != want {      ; out the other side
+                tOut := now, outAt := f
                 break
             }
             Sleep 10
         }
     } finally SendKeys("{" key " up}")
+    rel := A_TickCount
     if flipped {
         if !again
             return ""
         camKeySign := -camKeySign
         return KeyTurn(want, f, false)
     }
-    if !tA
+    if !tIn
         return f = face ? "nokeys" : ""
-    if !tB
+    if !tOut
         return ""
-    ; the 135° change is seen up to a read late: a little less on for a half turn, a little more back
-    half := (tB - tA) / 2, lag := rd + 5
-    back := turn = 180 ? dir : -dir
-    key := camKeySign * back > 0 ? "Right" : "Left"
-    SendKeys("{" key " down}")
-    try Sleep(Max(Round(turn = 180 ? half - lag : half + lag), 0))
-    finally SendKeys("{" key " up}")
+    if turn = 180 && outAt != Mod(want + dir * 90 + 360, 360)
+        camKeySign := -camKeySign                     ; a half turn that went round the other way: remembered
+    quarter := tOut - tIn, back := key = "Right" ? "Left" : "Right", seen := 0
+    SendKeys("{" back " down}")
+    try {
+        p := A_TickCount
+        while A_TickCount - p < quarter + 1500 {
+            Stale()
+            if MiniFacing() = want {
+                seen := A_TickCount
+                break
+            }
+            Sleep 10
+        }
+        ; how late the screen is: (the way back - the time the key was held after the change was seen) / 2.
+        ; Never seen back: let go now
+        late := seen ? Min(Max((seen - p - (rel - tOut)) / 2, 0), quarter / 2) : quarter / 2
+        Sleep Max(Round(quarter / 2 - late), 0)
+    } finally SendKeys("{" back " up}")
     return "The camera faced " FaceName(face) ", it should face " FaceName(want) ": turned it "
         . (turn = 180 ? "round" : dir > 0 ? "a quarter right" : "a quarter left") " (arrow keys)"
 }
