@@ -3521,17 +3521,21 @@ GoToSpot(mapName, walk := true, force := false) {
         ; points any way but up it will zoom in and then use arrow keys left or right"; Lunoc 19 Nov: the
         ; turn fell short at left, the walk's keys were turned and the spots were off). A walk made facing
         ; another way has its keys turned to match (WalkRoute); the walk recorder too: new walks face up
-        want := 0
+        want := 0, f := -1
         loop 3 {                        ; a Fool's Hunt card vote over the middle swallows the zoom:
             ClearVote()                 ; pick it first, and zoom again if one came up during it
             votes := foolVotes
             ZoomCamera(want)
             if foolVotes != votes || VoteOnScreen()
                 continue
-            f := want >= 0 ? MiniFacing() : -1
+            f := want >= 0 ? MiniFacingRead() : -1
             if f < 0 || f = want || A_Index = 3
                 break
             AddLog("The camera still faces " FaceName(f) " (the walk: " FaceName(want) "), lining it up again")
+        }
+        if f >= 0 && f != want {        ; (it went on silently, Chris 23 Nov: "the camera pointing to the right")
+            AddLog("The camera still faces " FaceName(f) " after 3 tries: the walk's keys are turned to match, your spots may be off. Saved a screenshot: Logs\camera_turn_....bmp (send it in Discord)")
+            SaveDebugShot("camera_turn")
         }
     }
     if tp && walk
@@ -3572,8 +3576,7 @@ ZoomCameraNow(want := -1) {
     ; the click on another player (one on the same spot) opened their profile: closed before the turn,
     ; it stayed up through the turn and the zoom out (Lunoc 19 Nov: a profile up at the start vote, the
     ; camera still zoomed in, the spot missed)
-    if PlayerCardUp()
-        ClosePlayerCard()
+    ClosePlayerCard()
     if want >= 0                       ; up (Chris 20 Nov: always)
         TurnCamera(want)               ; turned the way the walk was made (zoomed in, a sideways move turns it)
     MouseMove 400, 400                 ; tilt down
@@ -4001,6 +4004,31 @@ FacingOf(white) {
     return n = 1 ? found : -1
 }
 
+; the minimap arrow, read again for a moment while it isn't seen (6 reads in about a second): at spawn your alts'
+; arrows, a unit's ring or the base's blinking heart can sit on it (Chris 23 Nov, the laptop: one read, not seen,
+; and the camera stayed facing left with nothing said). -1 when it was never seen
+MiniFacingRead(tries := 6) {
+    loop tries {
+        if (f := MiniFacing()) >= 0
+            return f
+        if A_Index < tries {
+            Sleep 150
+            Stale()
+        }
+    }
+    return -1
+}
+
+; the arrow couldn't be seen to line the camera up: said once a round, with a screenshot to see why
+CamUnseen() {
+    static at := -1
+    if at = stageStart
+        return
+    at := stageStart
+    AddLog("Couldn't see your arrow on the minimap, so the camera wasn't lined up. Saved a screenshot: Logs\camera_....bmp (send it in Discord)")
+    SaveDebugShot("camera")
+}
+
 RouteFace(route) => RegExMatch(route, "(?:^|,)face:(\d+)", &m) ? Integer(m[1]) : -1
 FaceName(d) => d = 0 ? "up" : d = 90 ? "right" : d = 180 ? "down" : d = 270 ? "left" : "?"
 
@@ -4025,9 +4053,13 @@ TurnRoute(route, turn) {
 ; minimap. It only tells 4 directions, so the turn is measured: the arrow changes at 45° and again at
 ; 135°, the steps in between are 90°. True when it faces `want` now
 TurnCamera(want) {
-    face := MiniFacing()
-    if want < 0 || face < 0
+    if want < 0
         return false
+    face := MiniFacingRead()
+    if face < 0 {                               ; never seen: said (it ended the line-up silently, Chris 23 Nov)
+        CamUnseen()
+        return false
+    }
     if face = want
         return true
     ; an arrow key HELD first (Chris 20 Nov: "use arrow keys left or right to adjust the camera", "or mouse";
