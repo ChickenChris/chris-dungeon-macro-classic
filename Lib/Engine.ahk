@@ -3456,6 +3456,7 @@ PlayStage() {
         placedUnits := [], allPlaced := false, slotPrice := Map()
         global slotMenuName := Map()             ; (an element team can put other units in the slots)
         global placeUnsure := Map(), unseenFound := [], menuTimes := []
+        global foolTaken := Map()                ; (the Summer Hunt cards taken, for their max per round)
         global walkedHere := false
         ; the team for this room's boosted element, FIRST: units can only be changed before the game
         ; starts ("You can change your units before the game starts!"). After the teleport, the walk and
@@ -8992,6 +8993,45 @@ SummerReplay() {
 }
 
 ; UPD 21: the lines under a card's name (SummerPearls and what it does)
+; what a card adds to its kind, read off it ("+50% Enemy Health": 50, "+3 Enemy Shield": 3, Whiteout's "+100%
+; SummerPearls +50% Enemy Health -15% Range": 50): the number just before its words (no other number and no
+; SummerPearls between). Not read: its level times the level I amount (the Summer Hunt cards page)
+CardAmount(key, eff, lvl) {
+    static words := Map("health", "health|\bhp\b", "shield", "shield", "regen", "regen", "speed", "speed",
+        "explosive", "range|explo", "resistant", "resist", "spellproof", "magic", "plated", "physical",
+        "gale", "flying|flyer", "updraft", "soar|flyer", "boss", "boss")
+    static base := Map("health", 50, "shield", 3, "regen", 0.5, "speed", 25, "explosive", 6, "resistant", 50,
+        "spellproof", 75, "plated", 75, "gale", 15, "updraft", 25, "boss", 1)
+    if words.Has(key) && RegExMatch(eff, "i)(\d+(?:[.,]\d+)?)(?:(?!pearl)\D){0,30}?(?:" words[key] ")", &m)
+        return Number(StrReplace(m[1], ",", "."))
+    return base.Get(key, 1) * Max(1, lvl)
+}
+
+; a card that weakens your units: Whiteout's big red "-15% Range" (RNG / The Grinch 23 Nov: "can it not see the
+; fat -15% range that accompanies the card"). A minus before a % of Range, Attack or Damage (not Attack Cooldown:
+; less of that is your own buff), and on a red card any % of Range (its minus can be lost; an enemy card never
+; gives you range, and Explosive Deaths' blast "+6 Range" has no %). The drawback as read ("-15% Range"), "" if none
+CardWeakens(eff, green) {
+    if RegExMatch(eff, "i)[-–—~]\s*\d+(?:[.,]\d+)?\s*%\s*(?:range|damage|dmg|attack(?!\s*(?:c[o0]|spe)))", &m)
+        || !green && RegExMatch(eff, "i)\d+(?:[.,]\d+)?\s*%\s*range", &m)
+        return m[0]
+    return ""
+}
+
+; Summer Hunt cards: a max per round on each enemy card (0 = none, RNG / The Grinch 23 Nov: "if 400% never take hp
+; again for that run"). What this round took is in foolTaken (started over every round)
+global foolTaken := Map()
+CardMaxOf(key) => key != "" && cfg.Has("foolMax") && cfg["foolMax"].Has(key) ? cfg["foolMax"][key] : 0
+CardOverMax(key, amt) => (mx := CardMaxOf(key)) > 0 && foolTaken.Get(key, 0) + amt > mx
+CARD_PCT() => "|health|regen|speed|gale|updraft|"
+CardUnits(key, n) => (n = Floor(n) ? Integer(n) : Round(n, 1)) (InStr(CARD_PCT(), "|" key "|") ? "%" : "")
+CardName(key) {
+    static names := Map("health", "Enemy Health", "shield", "Enemy Shield", "regen", "Enemy Regen", "speed", "Enemy Speed",
+        "explosive", "Explosive Deaths", "resistant", "Resistant Enemies", "spellproof", "Spellproof Enemies",
+        "plated", "Plated Enemies", "gale", "Gale", "updraft", "Updraft", "boss", "Boss Damage")
+    return names.Get(key, key)
+}
+
 CardEffect(cx) {
     t := ""
     try {
@@ -9197,9 +9237,11 @@ FoolCards() {
                 key := w[2]
                 break
             }
-        ; the weather cards (Washout, Sandblast, Arcane Storm, Rain Barrel...) have names of their own:
-        ; what they do decides instead. A green card is yours (no SummerPearls), a red one the enemies'
-        if key = "" && voteNew                  ; (only then: a read less per card, the vote is short)
+        ; what it does, read on every card: what it adds to its kind (a max per run) and a drawback for your
+        ; units (Whiteout's big red "-15% Range", RNG / The Grinch 23 Nov). The weather cards (Washout, Sandblast,
+        ; Arcane Storm, Rain Barrel...) have names of their own: what they do decides their kind too. A green
+        ; card is yours (no SummerPearls), a red one the enemies'
+        if voteNew
             eff := CardEffect(cx)
         if key = "" && eff != ""
             for w in green ? [["\byen\b|¥|\d{3,}\s*[y¥]", "yen"], ["attack|\batk\b|damage", "attack"], ["range", "range"],
@@ -9212,7 +9254,7 @@ FoolCards() {
                 }
         ; its level: the I / II / III at the end of the name (read as I, l, 1 or |)
         lvl := RegExMatch(txt, "[Il1|]{1,3}(?=\W*$)", &lm) ? StrLen(lm[0]) : 1
-        cards.Push({x: cx, key: key, txt: txt, lvl: lvl, pearls: pearls, green: green})
+        cards.Push({x: cx, key: key, txt: txt, lvl: lvl, pearls: pearls, green: green, amt: CardAmount(key, eff, lvl), weak: eff != "" ? CardWeakens(eff, green) : ""})
         shown .= (shown = "" ? "" : " | ") (txt = "" ? "?" : txt) (pearls > 0 ? " +" pearls "%" : "")
     }
     ; a card it can't read counts as the middle of your list: it used to count for nothing, so
@@ -9240,6 +9282,10 @@ FoolCards() {
         buff := c.green || (c.key != "" && !InStr(enemy, "|" c.key "|"))
         lv := c.pearls >= 120 ? 3 : c.pearls >= 60 ? 2 : c.pearls > 0 ? 1 : c.lvl
         score := (safe ? (buff ? -100000 : coins * 100) : coinsFirst ? -coins * 100 : 0) + (rk || mid) + (buff ? -lv : lv) * 0.01
+        ; last, in every mode: one that weakens your units, and one past its max this round (Chris 23 Nov: "Always
+        ; avoid them"). Still picked when all three are (no vote: the game picks one at random)
+        c.over := !buff && CardOverMax(c.key, c.amt)
+        score += (c.weak != "" ? 1e12 : 0) + (c.over ? 1e12 : 0)
         if score < bestRank
             best := c, bestRank := score
     }
@@ -9259,7 +9305,17 @@ FoolCards() {
     confirmed := FoolVoteAt(best.x, dy)
     votedAt := A_TickCount, firstSeen := 0
     foolVotes++
-    AddLog("Card: " (best.txt != "" ? best.txt : "the middle one") "  (cards: " shown ")"
+    ; this round's enemy cards added up, for their max (it knows what it took)
+    note := ""
+    if confirmed && best.key != "" && InStr(enemy, "|" best.key "|") {
+        foolTaken[best.key] := foolTaken.Get(best.key, 0) + best.amt
+        if CardMaxOf(best.key)
+            note .= "  [" CardName(best.key) " " CardUnits(best.key, foolTaken[best.key]) " of max " CardUnits(best.key, CardMaxOf(best.key)) " this round]"
+    }
+    for c in cards
+        if c != best && (c.weak != "" || c.HasOwnProp("over") && c.over)
+            note .= "  [not " (c.txt != "" ? c.txt : "?") ": " (c.weak != "" ? c.weak " on your units" : CardName(c.key) " at " CardUnits(c.key, foolTaken.Get(c.key, 0)) ", max " CardUnits(c.key, CardMaxOf(c.key))) "]"
+    AddLog("Card: " (best.txt != "" ? best.txt : "the middle one") "  (cards: " shown ")" note
         . (confirmed ? "" : "  [Vote didn't go through, saved a screenshot: Logs\vote_miss_....bmp]"))
     t0 := A_TickCount
     while A_TickCount - t0 < 12000 {

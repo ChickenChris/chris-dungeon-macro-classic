@@ -383,6 +383,10 @@ HandleMessage(msg) {
                     cfg["foolCards"].Push(v)
                 SaveConfig()
             }
+        case "foolMax":                         ; a max per round on an enemy card (Summer Hunt cards; 0 = none)
+            k := m.Get("key", ""), v := m.Get("value", 0)
+            if InStr(FOOL_ENEMY(), "|" k "|") && IsNumber(v)
+                v := Max(0, Round(v, 1)), cfg["foolMax"][k] := v = Floor(v) ? Integer(v) : v, SaveConfig()
         case "team": UseTeam(IsInteger(v := m.Get("i", 1)) ? Integer(v) : 1)
         case "teamAdd": AddTeam()
         case "teamDel": DelTeam(IsInteger(v := m.Get("i", 0)) ? Integer(v) : 0)
@@ -440,6 +444,7 @@ UiState() {
         c[k] := cfg[k]
     ; Premium's parts show locked on the page, with what Classic does there
     c["foolCards"] := cfg.Has("foolCards") ? cfg["foolCards"] : FOOL_CARDS()   ; the Summer Hunt's card list (free since UPD 21)
+    c["foolMax"] := cfg["foolMax"]               ; (and a max per round on its enemy cards)
     for k, v in Map("foolOwnTeam", 0, "foolFreeze", 80,
         "foolAccounts", 2, "showcase", 0, "showcaseName", "", "showcaseDiscord", "",
         "lookAhead", 0, "dmgType", "Both", "shopUnknown", 1, "shopMinCoins", 0)
@@ -1378,7 +1383,7 @@ DefaultConfig() {
         "denyAllShrines", 0, "denyUnknownShrine", 1, "stopAfterDefeat", 0,
         "placeSpeed", 1, "placeTurbo", 0, "webhook", "", "hookRuns", 1, "psLink", "", "fixOnStart", 1, "tolerance", 2, "retries", 3, "useBuild", 0,
         "bgStrength", 3, "bgGif", "", "accent", "Crimson",
-        "bgOpacity", 70, "bgBlur", 0, "glass", 60, "bgAnimate", 1, "bgFile", "", "bgName", "", "lastSpotMap", "", "elemTeams", 0, "keyboard", "Auto", "mode", "Dungeon", "legendWorld", "Magic Hills (Elf Invasion)", "legendStage", 1, "raidWorld", "Sacred Planet", "raidAct", 1, "raidMatch", 0, "towerMatch", 0, "autoChallenge", 0, "orderOn", 0, "orderRepeat", 1, "autoRec", 1, "order", [], "challengeSlot", 0, "icHard", 0, "icStopFloors", 0, "foolCoins", 0, "foolSafe", 0, "walksReset", "", "foolMatch", 0, "foolCards", FOOL_CARDS(), "team", 1, "teamDefault", 1, "teams", [],
+        "bgOpacity", 70, "bgBlur", 0, "glass", 60, "bgAnimate", 1, "bgFile", "", "bgName", "", "lastSpotMap", "", "elemTeams", 0, "keyboard", "Auto", "mode", "Dungeon", "legendWorld", "Magic Hills (Elf Invasion)", "legendStage", 1, "raidWorld", "Sacred Planet", "raidAct", 1, "raidMatch", 0, "towerMatch", 0, "autoChallenge", 0, "orderOn", 0, "orderRepeat", 1, "autoRec", 1, "order", [], "challengeSlot", 0, "icHard", 0, "icStopFloors", 0, "foolCoins", 0, "foolSafe", 0, "walksReset", "", "foolMatch", 0, "foolCards", FOOL_CARDS(), "foolMax", Map(), "team", 1, "teamDefault", 1, "teams", [],
         "route", ["Rare_Chest", "Chest", "Shop", "Hoard", "Shrine", "Boss"],
         "avoid", Map("Flying", 1, "Wind", 0, "Money", 1, "Health", 1, "Exploding", 0, "Shielding", 1, "Regen", 1),
         "curseRank", ["Flying", "Money", "Health", "Shielding", "Regen", "Wind", "Exploding"], "skipWorst", 5,
@@ -1517,6 +1522,8 @@ ScalarKeys() => ["pattern", "useSpots", "saveForTop", "autoAbility", "zoom", "tp
 
 ; Fool's Hunt cards (Premium): only shown, locked, on the Dungeon page
 FOOL_CARDS() => ["shield", "regen", "health", "speed", "yen", "range", "cooldown", "attack", "grounded", "slow", "explosive", "resistant", "spellproof", "plated", "gale", "updraft", "boss"]
+; the enemy cards (a max per round can be set on each)
+FOOL_ENEMY() => "|boss|shield|regen|health|speed|explosive|resistant|spellproof|plated|gale|updraft|"
 
 LoadConfig() {
     if !FileExist(cfgFile)
@@ -1614,6 +1621,11 @@ LoadConfig() {
         if !IndexOf(fc, v)
             fc.Push(v)
     cfg["foolCards"] := fc
+    for k in StrSplit(Trim(FOOL_ENEMY(), "|"), "|") {   ; a max per round on an enemy card ([Fool] Max_health=400)
+        v := IniRead(cfgFile, "Fool", "Max_" k, "")
+        if IsNumber(v) && v > 0
+            cfg["foolMax"][k] := v + 0
+    }
 }
 
 ; quick clicks on the Units / Build pages (1 to 17 units = 16 clicks) saved 16 times: now once,
@@ -1661,6 +1673,9 @@ SaveConfig(*) {
         ini.Drop("Fool")
         for i, v in cfg["foolCards"]
             ini.Set("Fool", "Card" i, v)
+        for k, v in cfg["foolMax"]
+            if v > 0
+                ini.Set("Fool", "Max_" k, v)
         ini.Drop("Walks")
         for name, route in cfg["walks"]
             ini.Set("Walks", name, route)

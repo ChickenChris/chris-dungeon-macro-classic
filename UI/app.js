@@ -166,7 +166,7 @@ function sortable(list, onMove) {
   if (list._sortable) return;
   list._sortable = true;
   list.addEventListener("pointerdown", (e) => {
-    if (e.button !== 0 || e.target.closest("button, .switch")) return;
+    if (e.button !== 0 || e.target.closest("button, .switch, input, .cmax")) return;   // (a box in a row: typed in, not dragged)
     const item = e.target.closest(".item.drag");
     if (!item || item.parentElement !== list) return;
     e.preventDefault();
@@ -591,14 +591,28 @@ const FOOL_INFO = {
   slow: ["Firebreak (Inferno)", "-30% enemy speed"],
   boss: ["Boss Damage", "Bosses get stronger, more SummerPearls"],
 };
+// a max per round on each enemy card (RNG / The Grinch 23 Nov: "if 400% never take hp again for that run"): the
+// macro adds up what each card it took gave (+50% Enemy Health...) and never takes one past its max that round
+const FOOL_ENEMY = ["shield", "regen", "health", "speed", "explosive", "resistant", "spellproof", "plated", "gale", "updraft", "boss"];
+const FOOL_PCT = ["health", "regen", "speed", "gale", "updraft"];
 function renderFoolCards() {
   const list = S.cfg.foolCards || [], el = $("#foolCards");
   if (!el) return;
+  const mx = S.cfg.foolMax || {};
   el.innerHTML = list.map((k, i) => {
     const [name, info] = FOOL_INFO[k] || [k, ""];
-    return `<div class="item drag tall" data-i="${i}"><span class="grip">${icon("grip-vertical")}</span><span class="num">${i + 1}</span>
-      <span class="txt">${esc(name)}<small>${esc(info)}</small></span></div>`;
+    const box = FOOL_ENEMY.includes(k) ? `<label class="cmax" title="The most of ${esc(name)} in one round: it adds up what each card it took gave, and skips this card once it would go past. Empty: no max">
+      <small>max</small><input type="number" class="cmax-in" min="0" max="99999" step="any" value="${+mx[k] > 0 ? +mx[k] : ""}" placeholder="–"><small class="u">${FOOL_PCT.includes(k) ? "%" : ""}</small></label>` : "";
+    return `<div class="item drag tall" data-i="${i}" data-key="${k}"><span class="grip">${icon("grip-vertical")}</span><span class="num">${i + 1}</span>
+      <span class="txt">${esc(name)}<small>${esc(info)}</small></span>${box}</div>`;
   }).join("");
+  $$("input.cmax-in", el).forEach((inp) => {
+    inp.onchange = () => {
+      const k = inp.closest(".item").dataset.key, v = Math.max(0, Math.round((parseFloat(inp.value) || 0) * 10) / 10);
+      S.cfg.foolMax = Object.assign({}, S.cfg.foolMax || {}, { [k]: v });
+      send("foolMax", { key: k, value: v });
+    };
+  });
   sortable(el, (from, to) => { list.splice(to, 0, list.splice(from, 1)[0]); send("foolCards", { list }); renderFoolCards(); });
 }
 
