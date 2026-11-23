@@ -7378,7 +7378,26 @@ StageOver() {
 ; 268-372 x 378-410 on Chris's last_result.png). The pictures of the old end screen didn't always
 ; match, and a lost round took long to be noticed (Chris)
 EndByColour() => ColorShare(280, 384, 360, 404, (r, g, b) => g >= 170 && r <= 120 && b <= 90) >= 0.45
-    && (XpPanelUp() || PeopleListOver()) && !VoteOnScreen() && TitleColour() != ""
+    && (XpPanelUp() || PeopleListOver()) && !VoteOnScreen() && (TitleColour() != "" || VillageShopOver())
+
+; UPD 21.5's "Village Shop!" (Scarlet Ore defenses: Spike Trap, War Drum, Sun Lamp) pops up over a Misty Village
+; round's VICTORY (the Misty Tower's floors are on that map too): the title under it couldn't be read, the end wasn't seen and the macro went on upgrading units
+; on the results until Chris paused it (debug_20261123_101915). Read only when the results' Next shows; closed
+; with its X (582,210), then the results are read as always
+VillageShopOver() {
+    static last := 0, told := false
+    if A_TickCount - last < 2000
+        return false
+    last := A_TickCount
+    if !OcrFindWord(260, 180, 280, 45, "i)^village$|^shop", &sx, &sy)
+        return false
+    if !told
+        told := true, AddLog("Misty Village: the Village Shop showed over the results, closed it")
+    Clk(582, 210)                               ; its X
+    Wait(500)
+    Stale()
+    return true
+}
 
 ; Roblox's player list ("People / Total Damage", Tab) left open over the results' XP Progress panel:
 ; the results weren't recognised and the macro sat on VICTORY for good (a player's video, Zen's log:
