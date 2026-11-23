@@ -1420,6 +1420,53 @@ IsDarkish(r, g, b) => r + g + b < 170
 
 ShrineGone() => !Det("Shrine") && !ShrineButtons() && TextScreen() != "Shrine"
 
+; Play (85,295). UPD 21.5.0 (Chris 23 Nov: "new interference when you click on play"): Play opens "Where
+; do you want to Play?" (Summer Event / Misty Village / Regular Stages) instead of teleporting, and the
+; macro waited for a teleport that never came. Its card is clicked: where "summer" (Summer Event) or
+; "regular" (Regular Stages). True when that window was there
+PlayTo(where) {
+    Clk(85, 295)                                ; Play
+    t0 := A_TickCount
+    while A_TickCount - t0 < 2500 {
+        Wait(150)
+        if PlayChooserUp() {
+            Clk(where = "summer" ? 270 : 529, 323)
+            return true
+        }
+        if SigLight(SceneSig()) <= 25           ; teleporting already (no such window)
+            break
+    }
+    return false
+}
+; "Where do you want to Play?": its dark panel, the Summer Event card's green border (x 214-217) and the
+; Regular Stages card's blue one (x 473-476), y 267-380 (Chris's screenshot, UPD 21.5.0)
+PlayChooserUp() => RowsWith(209, 285, 222, 365, (r, g, b) => g >= 200 && r <= 110 && b <= 140) >= 0.7
+    && RowsWith(468, 285, 481, 365, (r, g, b) => g >= 180 && b >= 180 && r <= 90) >= 0.7
+    && ColorShare(180, 285, 204, 365, (r, g, b) => Max(r, g, b) <= 35) >= 0.8
+
+; share (0..1) of rows (every 6 px) in a game-area box with at least one pixel whose colour passes
+; test(r, g, b): for a thin border that may sit a pixel or two off
+RowsWith(x1, y1, x2, y2, test) {
+    hits := 0, total := 0
+    try {
+        WinGetClientPos &ox, &oy, , , RBX
+        Fresh()
+        scr := FindText()
+        py := y1
+        while py <= y2 {
+            px := x1, got := false
+            while px <= x2 && !got {
+                col := scr.GetColor(ox + px, oy + py, 0) & 0xFFFFFF
+                got := test((col >> 16) & 0xFF, (col >> 8) & 0xFF, col & 0xFF)
+                px++
+            }
+            hits += got ? 1 : 0, total++
+            py += 6
+        }
+    }
+    return total ? hits / total : 0
+}
+
 ; share (0..1) of a grid of points in a game-area box whose colour passes test(r, g, b)
 ColorShare(x1, y1, x2, y2, test) {
     hits := 0, total := 0
@@ -9369,7 +9416,7 @@ FoolToPad() {
         moved := false
         loop 3 {
             before := SceneSig()
-            Clk(85, 295)                        ; Play
+            PlayTo("summer")                    ; Play (UPD 21.5: then Summer Event)
             Step("lobby: waiting for the teleport")
             if WaitAreaTeleport(before, A_Index < 3) || FoolJoinUp() {   ; (the last try: any big change)
                 moved := true

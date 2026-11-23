@@ -90,11 +90,12 @@ PadWalk() {
         if PadCancelUp()
             return true
         before := SceneSig()
-        Clk(85, 295)                            ; Play
+        chose := PlayTo("regular")              ; Play (UPD 21.5: then Regular Stages)
         Step("lobby: waiting for the teleport")
         WaitAreaTeleport(before)
         FocusRoblox()
-        ToNormalArea()                          ; UPD 21: Play lands in the Summer Hunt area first
+        if !chose                               ; UPD 21: Play landed in the Summer Hunt area first.
+            ToNormalArea()                      ; (21.5's Regular Stages goes to the normal one)
         ; UPD 21 (Chris's recording): from where the teleport lands the capsules are ahead to the right:
         ; W+D (D alone walked past them and it took a 2nd Play, Chris). Not there: D, then S+D
         Step("walking to the Story pads")
