@@ -50,6 +50,7 @@ global lastMapRaw := ""
 global lastCurseRaw := ""      ; the text last read while looking for a room's curse (for the log)        ; the last text read while looking for the map name (for the log)
 global placedUnits := []
 global placeUnsure := Map()     ; slot -> spots clicked this stage where no menu showed (maybe placed unseen)
+global menuTimes := []           ; how long the last placed units' menus took to show this round (ms, last 5)
 global unseenFound := []        ; units found that way, for PlaceSlot to count as placed
 global allPlaced := false       ; every unit is down: from now on the F panel may be used
 global lastResult := ""
@@ -3454,7 +3455,7 @@ PlayStage() {
         lastResult := ""
         placedUnits := [], allPlaced := false, slotPrice := Map()
         global slotMenuName := Map()             ; (an element team can put other units in the slots)
-        global placeUnsure := Map(), unseenFound := []
+        global placeUnsure := Map(), unseenFound := [], menuTimes := []
         global walkedHere := false
         ; the team for this room's boosted element, FIRST: units can only be changed before the game
         ; starts ("You can change your units before the game starts!"). After the teleport, the walk and
@@ -5972,6 +5973,25 @@ NearUnit(x, y, r) {
     return false
 }
 
+; Failed placing tries were slow (Chris 23 Nov: "so much unnecessary waiting time ... its so slow", ~6 s each
+; on his debug_20261123_094046): the wait for a placed unit's menu follows how fast this game shows it this
+; round: the slowest of the last 5 menus + 0.5 s, never under 0.8 s, never over the old wait (oldMs: 2 s or the
+; Placement speed); before 2 menus were seen, the old wait. A late menu makes the next waits longer again
+MenuSeen(ms) {
+    global menuTimes
+    menuTimes.Push(ms)
+    while menuTimes.Length > 5
+        menuTimes.RemoveAt(1)
+}
+MenuWaitMs(oldMs) {
+    if menuTimes.Length < 2
+        return oldMs
+    slow := 0
+    for t in menuTimes
+        slow := Max(slow, t)
+    return Min(oldMs, Max(800, slow + 500))
+}
+
 TryPlace(x, y, slot) {
     global autoOpenSeen, autoOpenOff, clickOpened
     CardsPause()                            ; a wave just ended: its cards may be about to come
@@ -6021,7 +6041,7 @@ TryPlace(x, y, slot) {
     ; in another slot was at its limit, "Cannot place more than 2 of this unit!" was never read and slot 3
     ; was tried for minutes. Not after every try: that slowed a slow PC to ~40 s a unit
     dryRead := CountPlaced(slot) < 1 && Mod(placeUnsure.Has(slot) ? placeUnsure[slot].Length : 0, 3) = 2
-    quick := false, t1 := A_TickCount, lookMs := autoOpenOff || turbo ? 1000 : Max(2000, PlaceTimeout())
+    quick := false, t1 := A_TickCount, lookMs := autoOpenOff || turbo ? 1000 : MenuWaitMs(Max(2000, PlaceTimeout())), readAt := 0
     redNext := turbo ? 999999 : 900
     while A_TickCount - t1 < lookMs {
         Sleep 60
@@ -6031,7 +6051,7 @@ TryPlace(x, y, slot) {
         ; one down already, like before), and again each second while the menu is waited for: with a
         ; laggy game it came later, was never read and the slot was tried for minutes (mmanimals' video)
         if A_TickCount - t1 >= redNext && (FoolMode() || CountPlaced(slot) >= 1 || dryRead) && !NewMenu() {
-            redNext += 1000
+            redNext += 1000, readAt := A_TickCount
             if PlaceRefused(slot) {
                 Keys("q")
                 return false
@@ -6043,6 +6063,7 @@ TryPlace(x, y, slot) {
             return false
         }
         if NewMenu() {
+            MenuSeen(A_TickCount - t1)
             quick := !IsSummonMenu()
             if quick {
                 Sleep 250
@@ -6066,9 +6087,11 @@ TryPlace(x, y, slot) {
     ; MenuParts): the yen can't be read reliably. The game lags now and then, so a late menu
     ; gets extra time.
     how := ""
-    if quick || WaitUnitMenu(autoOpenOff || turbo ? 300 : Max(300, PlaceTimeout() - lookMs))   ; (looked for lookMs already)
+    if quick || WaitUnitMenu(autoOpenOff || turbo ? 300 : Max(300, PlaceTimeout() - lookMs)) {   ; (looked for lookMs already)
         how := "auto"
-    else if (refusals || CountPlaced(slot) >= 1 || dryRead || turbo && FoolMode()) && PlaceRefused(slot)   ; a unique / limited unit's red text
+        if !quick
+            MenuSeen(A_TickCount - t1)          ; a late menu: the next waits are longer
+    } else if (refusals || CountPlaced(slot) >= 1 || dryRead || turbo && FoolMode()) && A_TickCount - readAt >= 900 && PlaceRefused(slot)   ; a unique / limited unit's red text
         return false
     else if (!autoOpenSeen || autoOpenOff) && !NearUnit(x, y, 22) {
         ; No menu: nothing was placed, or the menu didn't open (the game's 'Disable Auto-Open

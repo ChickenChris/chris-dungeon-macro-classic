@@ -12,6 +12,9 @@ src = open(f"{root}/Lib/Engine.ahk", encoding="utf-8-sig").read()
 m = re.search(r"^TryPlace\([^)\n]*\) \{.*?^\}", src, re.S | re.M)
 fn = m.group(0) if m else (print("FAIL not defined: TryPlace") or "TryPlace(p*) => false")
 flag = "true" if "refusals := FoolMode()" in fn else "false"
+for n in ["MenuWaitMs", "MenuSeen"]:          # (the menu wait follows the game's speed, Chris 23 Nov)
+    mm = re.search(r"^" + n + r"\([^)\n]*\) \{.*?^\}", src, re.S | re.M)
+    fn += "\n" + (mm.group(0) if mm else n + "(p*) => 2000")
 body = r'''#Requires AutoHotkey v2.0
 #Warn VarUnset, StdOut
 NewMenu() => false
@@ -20,6 +23,7 @@ Stale() => 0
 WrongUnitMenu(p*) => false
 MenuUnitName() => ""
 global slotMenuName := Map()
+global menuTimes := []
 CountPlaced(n) => 0
 AutoOffSeen() => Det("AutoOff")
 ClickAuto() => Clk(373, 237)
