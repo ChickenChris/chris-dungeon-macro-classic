@@ -445,7 +445,7 @@ function renderSpotsPage() {
 }
 
 // Farm mode: one switch on the start page, one on the Dungeon page, kept in step
-const MODES = ["Dungeon", "Infinity Castle", "Fool's Hunt", "Infinite", "Legend", "Raid", "Portal", "Misty Tower"];
+const MODES = ["Dungeon", "Infinity Castle", "Fool's Hunt", "Infinite", "Legend", "Raid", "Portal", "Artifact", "Misty Village", "Misty Tower"];   // as Premium's; the ones not in FREE_MODES show locked
 const FREE_MODES = ["Dungeon", "Infinity Castle", "Legend", "Raid", "Fool's Hunt", "Misty Tower"];   // Fool's Hunt = the Summer Hunt (free in Classic since UPD 21)   // the ones Classic has (Infinity Castle free since 3.0.100)
 const isInf = () => S.cfg.mode === "Infinite";
 const isLegend = () => S.cfg.mode === "Legend";

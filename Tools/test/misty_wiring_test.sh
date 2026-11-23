@@ -35,7 +35,9 @@ mo = re.search(r"^const MODES = \[(.*)\];", app, re.M)
 fm = re.search(r"^const FREE_MODES = \[(.*?)\];", app, re.M)
 check("the window's modes: the Misty Tower, free in Classic", bool(mo) and '"Misty Tower"' in mo.group(1) and bool(fm) and '"Misty Tower"' in fm.group(1))
 css = open(f"{root}/UI/app.css", encoding="utf-8").read()
-check("  eight modes: two rows of four (one row cut the Misty Tower off)", "#segModeHome { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));" in css)
+check("  Misty Village and Artifact shown locked (Premium), as Infinite and Portal (Chris 23 Nov: \"the calssic doesnt show misty village as locked\")",
+      bool(mo) and '"Misty Village"' in mo.group(1) and '"Artifact"' in mo.group(1) and "Misty Village" not in fm.group(1) and "Artifact" not in fm.group(1))
+check("  ten modes: two rows of five, each column as wide as its longest name (none cut)", "#segModeHome { display: grid; grid-template-columns: repeat(5, auto);" in css)
 check("  its Play Here / Find Match", 'id="towerSub"' in html and 'id="segTowerJoin"' in html and 'setVal("towerMatch", i)' in app
       and '$("#towerSub").classList.toggle("open", isTower())' in app)
 ts = re.search(r'<div class="mode-sub" id="towerSub">.*?</div></div>', html, re.S); ts = ts.group(0) if ts else ""
