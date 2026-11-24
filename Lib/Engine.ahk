@@ -9076,6 +9076,21 @@ CardAmount(key, eff, lvl) {
     return base.Get(key, 1) * Max(1, lvl)
 }
 
+; every enemy effect a card adds, kind -> amount: its own kind (CardAmount) and any other "+N Enemy Health / Shield /
+; Regen / Speed" on it (The Grinch 23 Nov: max 400%, the game at 450%, the macro had counted 330%: a weather card's
+; Enemy Health wasn't). "Enemy" right before the word, no minus before the number: your own slow card's "-30% Enemy
+; Speed" isn't one
+CardAmounts(key, eff, lvl) {
+    static kinds := Map("health", "health|\bhp\b", "shield", "shield", "regen", "regen", "speed", "speed")
+    m := Map()
+    if InStr("|boss|shield|regen|health|speed|explosive|resistant|spellproof|plated|gale|updraft|", "|" key "|")
+        m[key] := CardAmount(key, eff, lvl)
+    for k, w in kinds
+        if k != key && RegExMatch(eff, "i)(?<![-–—~\d.,])(\d+(?:[.,]\d+)?)\s*%?\s*enem\w*\s*(?:" w ")", &mm)
+            m[k] := Number(StrReplace(mm[1], ",", "."))
+    return m
+}
+
 ; a card that weakens your units: Whiteout's big red "-15% Range" (RNG / The Grinch 23 Nov: "can it not see the
 ; fat -15% range that accompanies the card"). A minus before a % of Range, Attack or Damage (not Attack Cooldown:
 ; less of that is your own buff), and on a red card any % of Range (its minus can be lost; an enemy card never
@@ -9323,7 +9338,7 @@ FoolCards() {
                 }
         ; its level: the I / II / III at the end of the name (read as I, l, 1 or |)
         lvl := RegExMatch(txt, "[Il1|]{1,3}(?=\W*$)", &lm) ? StrLen(lm[0]) : 1
-        cards.Push({x: cx, key: key, txt: txt, lvl: lvl, pearls: pearls, green: green, amt: CardAmount(key, eff, lvl), weak: eff != "" ? CardWeakens(eff, green) : ""})
+        cards.Push({x: cx, key: key, txt: txt, lvl: lvl, pearls: pearls, green: green, amts: CardAmounts(key, eff, lvl), weak: eff != "" ? CardWeakens(eff, green) : ""})
         shown .= (shown = "" ? "" : " | ") (txt = "" ? "?" : txt) (pearls > 0 ? " +" pearls "%" : "")
     }
     ; a card it can't read counts as the middle of your list: it used to count for nothing, so
@@ -9353,8 +9368,13 @@ FoolCards() {
         score := (safe ? (buff ? -100000 : coins * 100) : coinsFirst ? -coins * 100 : 0) + (rk || mid) + (buff ? -lv : lv) * 0.01
         ; last, in every mode: one that weakens your units, and one past its max this round (Chris 23 Nov: "Always
         ; avoid them"). Still picked when all three are (no vote: the game picks one at random)
-        c.over := !buff && CardOverMax(c.key, c.amt)
-        score += (c.weak != "" ? 1e12 : 0) + (c.over ? 1e12 : 0)
+        c.over := ""                            ; the kind it would take past its max (any of its enemy effects)
+        for k, a in c.amts
+            if CardOverMax(k, a) {
+                c.over := k
+                break
+            }
+        score += (c.weak != "" ? 1e12 : 0) + (c.over != "" ? 1e12 : 0)
         if score < bestRank
             best := c, bestRank := score
     }
@@ -9376,14 +9396,15 @@ FoolCards() {
     foolVotes++
     ; this round's enemy cards added up, for their max (it knows what it took)
     note := ""
-    if confirmed && best.key != "" && InStr(enemy, "|" best.key "|") {
-        foolTaken[best.key] := foolTaken.Get(best.key, 0) + best.amt
-        if CardMaxOf(best.key)
-            note .= "  [" CardName(best.key) " " CardUnits(best.key, foolTaken[best.key]) " of max " CardUnits(best.key, CardMaxOf(best.key)) " this round]"
-    }
+    if confirmed
+        for k, a in best.amts {                 ; every enemy effect on it (a weather card's +50% Enemy Health too)
+            foolTaken[k] := foolTaken.Get(k, 0) + a
+            if CardMaxOf(k)
+                note .= "  [" CardName(k) " " CardUnits(k, foolTaken[k]) " of max " CardUnits(k, CardMaxOf(k)) " this round]"
+        }
     for c in cards
-        if c != best && (c.weak != "" || c.HasOwnProp("over") && c.over)
-            note .= "  [not " (c.txt != "" ? c.txt : "?") ": " (c.weak != "" ? c.weak " on your units" : CardName(c.key) " at " CardUnits(c.key, foolTaken.Get(c.key, 0)) ", max " CardUnits(c.key, CardMaxOf(c.key))) "]"
+        if c != best && (c.weak != "" || c.HasOwnProp("over") && c.over != "")
+            note .= "  [not " (c.txt != "" ? c.txt : "?") ": " (c.weak != "" ? c.weak " on your units" : CardName(c.over) " at " CardUnits(c.over, foolTaken.Get(c.over, 0)) ", max " CardUnits(c.over, CardMaxOf(c.over))) "]"
     AddLog("Card: " (best.txt != "" ? best.txt : "the middle one") "  (cards: " shown ")" note
         . (confirmed ? "" : "  [Vote didn't go through, saved a screenshot: Logs\vote_miss_....bmp]"))
     t0 := A_TickCount

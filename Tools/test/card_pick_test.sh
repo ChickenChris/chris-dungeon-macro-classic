@@ -7,7 +7,11 @@
 # number read off each card (+50% Enemy Health; Whiteout's +50% counts too), what this round took added up, and a
 # card past its max picked last. Cards that weaken your units ("the fat -15% range that accompanies the card":
 # Whiteout's big red line) picked last too, in every mode (Chris: "Always avoid them").
-# Lib\Engine.ahk FoolCards, CardAmount, CardWeakens, CardOverMax, the screen faked (its waits taken out). Run under Wine
+# The Grinch 23 Nov: "i set the max health to 400% and its currently at 450%" (his log: the macro counted 330%):
+# only a card's own kind was counted, and a weather card's other enemy effects ("+50% Enemy Health" on a card of
+# another kind) weren't. Every "+N Enemy Health / Shield / Regen / Speed" on a card counts now, and a card that
+# would take any of them past its max is skipped.
+# Lib\Engine.ahk FoolCards, CardAmount, CardAmounts, CardWeakens, CardOverMax, the screen faked. Run under Wine
 cd "$(dirname "$0")/../.."
 AHK=/tmp/claude-0/-home-claude/cf9d9217-0cd8-5fd7-b7c3-bca236a851f1/scratchpad/ahkbin/AutoHotkey64.exe
 T=$(mktemp -d)
@@ -56,7 +60,7 @@ FoolVoteAt(x, dy) {
 class OCR {                                     ; the card names, by where they're read
     static FromRect(x, y, w, h, p*) => {Text: names.Get(x + 75, "")}
 }
-''' + "\n".join([fn(eng, "FoolCards").replace("A_TickCount - votedAt < 25000", "false").replace("A_TickCount - firstSeen < 1500", "false").replace("WinGetClientPos &ox, &oy, , , RBX", "ox := 0, oy := 0"), fn(main, "IndexOf"), fn(main, "FOOL_CARDS"), fn(eng, "CardAmount"), fn(eng, "CardWeakens"), fn(eng, "CardOverMax"), fn(eng, "CardMaxOf"), fn(eng, "CardUnits"), fn(eng, "CardName"), fn(eng, "CARD_PCT")]) + r'''
+''' + "\n".join([fn(eng, "FoolCards").replace("A_TickCount - votedAt < 25000", "false").replace("A_TickCount - firstSeen < 1500", "false").replace("WinGetClientPos &ox, &oy, , , RBX", "ox := 0, oy := 0"), fn(main, "IndexOf"), fn(main, "FOOL_CARDS"), fn(eng, "CardAmount"), fn(eng, "CardAmounts"), fn(eng, "CardWeakens"), fn(eng, "CardOverMax"), fn(eng, "CardMaxOf"), fn(eng, "CardUnits"), fn(eng, "CardName"), fn(eng, "CARD_PCT")]) + r'''
 
 Pick(a, b, c, pa := -1, pb := -1, pc := -1, ea := "", eb := "", ec := "", gc := false) {
     global names, pearlsAt, effAt, greenAt, voted
@@ -127,6 +131,23 @@ Check("  at 300%, Enemy Health III (+150%) would go past 400%: Plated Enemies", 
 foolTaken := Map("health", 375)
 got := Pick("Whiteout", "+ Boss Damage", "+ Plated Enemies", 100, 30, 30, "+100% SummerPearls +50% Enemy Health Blizzard Card", "", "+30% SummerPearls +75 Enemy Physical Resist")
 Check("  a weather card's +50% Enemy Health counts too", got = "+ Plated Enemies", got)
+; ---- every enemy effect on a card counts (The Grinch 23 Nov: the game at 450%, the macro had 330%)
+a := CardAmounts("yen", "+50% Yen +50% Enemy Health Sandstorm Card", 1)
+Check("a card of another kind with +50% Enemy Health: counts 50% health", a.Has("health") && a["health"] = 50 && a.Count = 1, a.Count)
+a := CardAmounts("health", "+30% SummerPearls +50% Enemy Health +25% Enemy Speed", 1)
+Check("  health and speed on one card: both", a.Get("health", 0) = 50 && a.Get("speed", 0) = 25, a.Get("speed", 0))
+a := CardAmounts("slow", "-30% Enemy Speed for 10 s", 1)
+Check("  your own slow card (-30% Enemy Speed): not enemy speed", !a.Count, a.Count)
+a := CardAmounts("shield", "+50% SummerPearls +3 Enemy Shield Blizzard Card", 1)
+Check("  a card's own kind as before (+3 Enemy Shield)", a.Get("shield", 0) = 3 && a.Count = 1, a.Count)
+cfg["foolMax"] := Map("health", 400), foolTaken := Map("health", 380)
+got := Pick("* Attack", "+ Plated Enemies", "Buried Treasure", 0, 30, 0, "+10% Attack", "+30% SummerPearls +75 Enemy Physical Resist", "+50% Yen +50% Enemy Health Sandstorm Card", true)
+Check("Enemy Health at 380% of max 400%: a weather card with +50% Enemy Health is skipped too", got != "Buried Treasure", got)
+foolTaken := Map("health", 100)
+cfg["foolCards"] := ["yen", "attack", "plated", "shield", "regen", "health", "speed", "range", "cooldown", "grounded", "slow", "explosive", "resistant", "spellproof", "gale", "updraft", "boss"]
+got := Pick("* Attack", "+ Plated Enemies", "Buried Treasure", 0, 30, 0, "+10% Attack", "+30% SummerPearls +75 Enemy Physical Resist", "+50% Yen +50% Enemy Health Sandstorm Card", true)
+Check("  under the max: picked, and its +50% Enemy Health counted (100% -> 150%)", foolTaken.Get("health", 0) = 150, got " " foolTaken.Get("health", 0))
+cfg["foolCards"] := FOOL_CARDS()
 cfg["foolMax"] := Map("health", 0), foolTaken := Map("health", 2000)
 got := Pick("+ Enemy Health", "+ Boss Damage", "+ Plated Enemies", 30, 30, 30, "+30% SummerPearls +50% Enemy Health", "", "")
 Check("no max (0): as before", got = "+ Enemy Health", got)
