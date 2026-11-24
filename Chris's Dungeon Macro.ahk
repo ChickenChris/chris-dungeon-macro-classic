@@ -1379,7 +1379,7 @@ IndexOf(arr, val) {
 DefaultConfig() {
     return Map(
         "pattern", "Spiral", "useSpots", 1, "saveForTop", 0, "autoAbility", 1,
-        "zoom", 1, "tpSpawn", 1, "saveChests", 1, "buyShop", 1,
+        "zoom", 1, "tpSpawn", 1, "lowGfx", 0, "saveChests", 1, "buyShop", 1,
         "denyAllShrines", 0, "denyUnknownShrine", 1, "stopAfterDefeat", 0,
         "placeSpeed", 1, "placeTurbo", 0, "webhook", "", "hookRuns", 1, "psLink", "", "fixOnStart", 1, "tolerance", 2, "retries", 3, "useBuild", 0,
         "bgStrength", 3, "bgGif", "", "accent", "Crimson",
@@ -1516,7 +1516,7 @@ class IniDoc {
     }
 }
 
-ScalarKeys() => ["pattern", "useSpots", "saveForTop", "autoAbility", "zoom", "tpSpawn", "saveChests", "buyShop",
+ScalarKeys() => ["pattern", "useSpots", "saveForTop", "autoAbility", "zoom", "tpSpawn", "lowGfx", "saveChests", "buyShop",
     "denyAllShrines", "denyUnknownShrine", "stopAfterDefeat", "placeSpeed", "placeTurbo", "webhook", "hookRuns", "psLink", "fixOnStart", "tolerance", "skipWorst", "retries", "useBuild",
     "bgStrength", "bgGif", "accent", "bgOpacity", "bgBlur", "glass", "bgAnimate", "bgFile", "bgName", "lastSpotMap", "elemTeams", "keyboard", "mode", "legendWorld", "legendStage", "raidWorld", "raidAct", "raidMatch", "towerMatch", "autoChallenge", "challengeSlot", "orderOn", "orderRepeat", "autoRec", "icHard", "icStopFloors", "foolCoins", "foolSafe", "foolMatch", "walksReset"]
 

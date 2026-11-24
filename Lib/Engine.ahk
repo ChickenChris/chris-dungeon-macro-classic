@@ -8173,12 +8173,14 @@ EnsureRoblox() {
 ; clicks, keys and native pixel reads are relative to the active window, so Roblox must be it
 FocusRoblox() {
     static told := 0
-    if !WinExist(RBX) || WinActive(RBX)
+    if !WinExist(RBX)
         return
+    if WinActive(RBX)
+        return GraphicsDown()
     try WinActivate RBX
     Sleep 120
     if WinActive(RBX)
-        return
+        return GraphicsDown()
     ; Windows kept another app in front (it does when you were just using it): keys went there.
     ; A click on Roblox itself brings it to the front: the top middle of the game, where nothing is
     fg := ""
@@ -8194,6 +8196,25 @@ FocusRoblox() {
     if A_TickCount - told > 300000 {
         told := A_TickCount
         AddLog("Another window" (fg != "" ? " (" fg ")" : "") " had the focus, so the macro's clicks and keys went there. Clicked into Roblox to take it back. Leave the other windows alone while the macro plays")
+    }
+}
+
+; "Lower Roblox's graphics while macroing" (Settings; from another macro's "Optimisation while macroing", Chris 24
+; Nov): every Roblox the macro plays (the main, each alt) goes to graphics level 1 the first time it's in front,
+; with Roblox's own keys (Shift+F10: a level down; 10 reach 1 from anywhere). A busy PC shows the game late and
+; misses clicks (the camera turns of 23 Nov). Roblox keeps the level after the macro: F10 turns it back up
+GraphicsDown() {
+    static done := Map(), told := false
+    if !running || !cfg.Get("lowGfx", 0) || !WinExist(RBX) || !WinActive(RBX) || done.Has(RBX)
+        return
+    done[RBX] := true
+    loop 10 {
+        SendKeys("+{F10}")
+        Sleep 60
+    }
+    if !told {
+        told := true
+        AddLog("Roblox's graphics turned down to level 1 while the macro plays (Lower Roblox's graphics, in Settings). Roblox keeps it: press F10 in Roblox to turn them back up")
     }
 }
 
