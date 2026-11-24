@@ -398,6 +398,7 @@ HandleMessage(msg) {
         case "spotMove": SpotMove(mp, m.Get("from", 0), m.Get("to", 0))
         case "spotClear": SpotClear(mp)
         case "recordWalk": RecordWalk(mp)
+        case "recordPlacing": RecordPlacing(mp)
         case "pickWalk": PickWalk(mp)
         case "testWalk": TestWalk(mp)
         case "clearWalk": ClearWalk(mp)
@@ -1003,6 +1004,102 @@ RecordWalk(name) {
     ReleaseKeys()
     manualRun := false
     SendSpots(name)
+}
+
+; "Record my placing" (from another macro's "Record a run: smart placement learns where your units stand",
+; Chris 24 Nov; Zak 23 Nov: on Space Center the walk's spot had nowhere to place). Like a round's start: teleport,
+; camera, the map's walk. Then you place your units by hand and each one placed is saved as a spot, in order:
+; the map's spots replaced by these, Use my spots on. F6 when done, F3 cancels. Placed = a unit picked (1-6, or
+; its card on the hotbar), a click in the game, and its menu opening: a click on a unit already there, a spot the
+; game refused, or a unit put back (Q) isn't one
+RecordPlacing(name) {
+    global manualRun, cancelManual
+    if running || manualRun
+        return WalkBusy()
+    if name = "" || name = "Unknown"
+        return Notify("Pick the map first")
+    if !WinExist(RBX)
+        return Notify("Open Roblox and load into " name " first")
+    manualRun := true, cancelManual := false
+    got := [], result := ""
+    try {
+        AddLog("Recording your placing on " name)
+        FocusRoblox()
+        GoToSpot(name, true, true)              ; where the macro places from: its spots are seen from here
+        tip := "RECORDING YOUR PLACING  -  place your units by hand, each one is saved as a spot`nPress F6 when you're done   (F3 cancels)"
+        ToolTip(tip, 10, 10)
+        armed := false, t0 := A_TickCount
+        loop {
+            if cancelManual || A_TickCount - t0 > 900000
+                break
+            ev := PlaceInput(&x, &y)
+            if ev = "done" {
+                result := "ok"
+                break
+            }
+            if ev = "quit"
+                break
+            if ev = "arm"
+                armed := true
+            else if ev = "cancel"
+                armed := false
+            else if ev = "click" && armed {
+                armed := false
+                if WaitUnitMenu(1500) {          ; its menu opened: the unit stands there
+                    got.Push({x: x, y: y})
+                    ToolTip(tip "`n" got.Length " placed", 10, 10)
+                }
+            }
+            Sleep 15
+        }
+        ToolTip()
+        if result != "ok"
+            AddLog("Recording your placing cancelled")
+        else if !got.Length
+            Notify("No units were placed, nothing saved")
+        else {
+            list := SpotsOf(name)
+            list.Length := 0
+            for p in got
+                list.Push(p)
+            cfg["useSpots"] := 1
+            SaveConfig()
+            msg := got.Length " spots saved for " PlaceKey(name) " from your placing (the old ones replaced). Use my spots is on"
+            AddLog(msg)
+            Notify(msg, "good")
+        }
+    } catch as err {
+        ToolTip()
+        AddLog("Recording your placing stopped: " err.Message)
+    }
+    ReleaseKeys()
+    manualRun := false
+    SendSpots(name)
+}
+
+; what the player just did while their placing is recorded: "done" (F6), "quit" (F3), "arm" (a unit picked: 1-6
+; or a click on the hotbar's cards), "cancel" (Q or a right click: the unit put back), "click" (in the game, x y
+; where), "" (nothing new). Keys by their code: any keyboard layout
+PlaceInput(&x, &y) {
+    static was := Map()
+    pressed(k) {                                ; just went down
+        d := GetKeyState(k, "P"), before := was.Get(k, false), was[k] := d
+        return d && !before
+    }
+    if pressed("F6")
+        return "done"
+    if pressed("F3")
+        return "quit"
+    loop 6
+        if pressed("vk3" A_Index)               ; the 1-6 keys
+            return "arm"
+    if pressed("vk51") || pressed("RButton")    ; Q
+        return "cancel"
+    if pressed("LButton") {
+        MouseGetPos &x, &y
+        return y >= 500 ? "arm" : "click"       ; the hotbar's cards are below 500
+    }
+    return ""
 }
 
 ; Click to Move walk: teleport to spawn like a recorded walk, then one click where the character
