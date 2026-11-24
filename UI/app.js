@@ -20,7 +20,7 @@ const ACCENTS = [
 const OLD_ACCENTS = { Purple: "Starlight", Cyan: "Starlight", Pink: "Petal", Emerald: "Meadow", Amber: "Ember" };
 const PAGES = [
   ["dash", "Dashboard", "layout-dashboard"], ["units", "Units", "swords"], ["build", "Build order", "list-ordered"],
-  ["spots", "Spots and walks", "map-pin"], ["dungeon", "Dungeon", "castle"], ["settings", "Settings", "settings"],
+  ["spots", "Spots and walks", "map-pin"], ["dungeon", "Dungeon", "castle"], ["catalog", "Preset catalog", "layers"], ["settings", "Settings", "settings"],
 ];
 
 let S = null;              // settings + lists from AHK
@@ -35,7 +35,8 @@ function fillIcons(root = document) {
 
 function buildRail() {
   const rail = $("#rail");
-  const btn = (id, label, ic) => `<button class="nav" data-page="${id}" aria-label="${label}">${icon(ic)}<span class="tip">${label}</span></button>`;
+  // the Preset catalog is Premium's (players share walks and spots there): its button is shown locked
+  const btn = (id, label, ic) => `<button class="nav" data-page="${id}" aria-label="${label}"${id === "catalog" ? ' data-premium="Preset catalog"' : ""}>${icon(ic)}<span class="tip">${label}</span></button>`;
   rail.innerHTML = PAGES.map((p) => btn(...p)).join("") + '<div class="rail-gap"></div>' + btn("look", "Look", "palette");
   rail.addEventListener("click", (e) => { const b = e.target.closest(".nav"); if (b) showPage(b.dataset.page); });
 }
