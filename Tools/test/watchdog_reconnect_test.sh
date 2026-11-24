@@ -58,6 +58,7 @@ Launch(n := 1) {                                 ; Roblox opened again: back in 
 }
 Det(name) => name = "Lobby" && backAt && clock >= backAt
 IsDisconnected() => true
+WatchdogGame(now) => 0                           ; (the in-round check: no round in this test)
 SameAccount(t) => false
 StopSameAccount() => 0
 SendWebhook(p*) => 0

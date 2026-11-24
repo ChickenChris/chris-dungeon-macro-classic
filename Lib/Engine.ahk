@@ -8444,14 +8444,17 @@ Chk() {
 ;     rejoin the private server). Thrown from Chk(), so it reaches a step stuck anywhere, like Stop
 ;  B. a placement wait of 3 minutes in a round: the round goes on; what the macro read is logged and the
 ;     recording saved, so the reason shows up in the next bug report
+;  C. Anime Adventures gone from Roblox in a round (Chris 24 Nov): WatchdogGame
 ; =====================================================================
 global wdRoundAt := 0, wdFires := 0, wdBusy := false, wdStepTold := Map(), wdLastAt := 0, wdInStage := false
+global wdGearSeen := false, wdGearMiss := 0, wdGearAt := 0, wdLeft := false
 WdNow() => A_TickCount
 WatchdogCheck() {
-    global wdRoundAt, wdFires, wdStepTold, wdLastAt, wdInStage
+    global wdRoundAt, wdFires, wdStepTold, wdLastAt, wdInStage, wdGearSeen, wdGearMiss, wdGearAt
     now := WdNow()
     if wdBusy || !running || paused || manualRun {
         wdRoundAt := now                        ; a pause or a manual task isn't the macro being stuck
+        wdGearMiss := 0
         return
     }
     if now - wdLastAt < 1000
@@ -8462,8 +8465,9 @@ WatchdogCheck() {
     st := IsSet(stepNow) ? stepNow : ""
     if stageActive {
         if !wdInStage
-            wdStepTold := Map(), wdInStage := true
+            wdStepTold := Map(), wdInStage := true, wdGearSeen := false, wdGearMiss := 0, wdGearAt := 0
         wdRoundAt := now, wdFires := 0
+        WatchdogGame(now)
         if InStr(st, "place slot") && IsSet(stepAt) && now - stepAt >= 180000 && !wdStepTold.Has(st) {
             wdStepTold[st] := true
             WatchdogStepStuck(st)
@@ -8482,6 +8486,33 @@ WatchdogCheck() {
     }
 }
 
+; C (Chris 24 Nov, "Sometimes the macro enters a whole different game"; his recording: 40 s into a Misty
+; Village round the game went, a white screen then black, and 5 minutes later Roblox was in another game
+; (Your Bizarre Adventure), where the macro "placed" units for 24 minutes; a player's log: 9 hours like that).
+; The settings gear in the bottom left shows all round long (only a loading screen or the game's Settings
+; hide it; none of the other game's 118 frames had it): gone for 90 s in a round it was seen in, Roblox isn't
+; showing Anime Adventures any more. Rejoined (WatchdogRecover). Looked at every 5 s
+WatchdogGame(now) {
+    global wdGearSeen, wdGearMiss, wdGearAt, wdLeft
+    if now - wdGearAt < 5000
+        return
+    wdGearAt := now
+    if FoolGear() {
+        wdGearSeen := true, wdGearMiss := 0
+        return
+    }
+    if !wdGearSeen                              ; never seen this round: it can't be read on this PC
+        return
+    if !wdGearMiss
+        wdGearMiss := now
+    if now - wdGearMiss < 90000
+        return
+    wdGearSeen := false, wdGearMiss := 0, wdLeft := true
+    SaveDebugShot("wrong_game")
+    throw MacroRecover("Roblox stopped showing Anime Adventures in the round: nothing of the game for 1.5 minutes "
+        . "(another game, an ad or Roblox's home page opened). Saved a screenshot: Logs\wrong_game_....bmp. Rejoining your server")
+}
+
 ; B: what it read, so the log says why it waits (the yen, the slot's price, its card)
 WatchdogStepStuck(st) {
     if RegExMatch(st, "place slot (\d)", &m) {
@@ -8495,13 +8526,13 @@ WatchdogStepStuck(st) {
 
 ; A: the main loop caught MacroRecover: log, recording, webhook, then out of wherever it was
 WatchdogRecover(msg) {
-    global wdBusy, wdRoundAt
+    global wdBusy, wdRoundAt, wdLeft
     wdBusy := true
     try {
         AddLog(msg)
-        DbgSaveSoon("stuck: no round for 4 minutes")
+        DbgSaveSoon(wdLeft ? "Anime Adventures gone from Roblox in a round" : "stuck: no round for 4 minutes")
         try SendWebhook("Macro was stuck", msg, 0xF59E0B)
-        if wdFires >= 2
+        if wdFires >= 2 || wdLeft               ; (another game: no lobby to go back to)
             RejoinToLobby()
         else {
             Stale()
@@ -8509,7 +8540,7 @@ WatchdogRecover(msg) {
                 RejoinToLobby()
         }
     } finally {
-        wdBusy := false
+        wdBusy := false, wdLeft := false
         wdRoundAt := WdNow()
     }
 }
