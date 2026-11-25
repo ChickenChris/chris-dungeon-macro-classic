@@ -9705,8 +9705,10 @@ FoolToPad() {
     return false
 }
 
+; "Find Match": the game shows a number to type in before it matches you. The macro reads it and types it
+; in (3 tries); only when it can't does it wait for you to type it, with a sound, a message and a ping
 FoolFindMatch(last := true, what := "Summer Hunt") {
-    Step(what ": Find Match, waiting for you to type the number")
+    Step(what ": Find Match, typing the number")
     Clk(460, 330)                               ; Find Match
     t0 := A_TickCount                           ; up to 4 s for the number window: the first Find Match
     Wait(1500)                                  ; after starting was given up on at 1.5 s (Dark's log)
