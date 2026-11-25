@@ -5193,10 +5193,12 @@ RunBuildOrder(ctx) {
 }
 
 StepText(st) {
-    up := st.up < 0 ? "to max" : st.up " time" (st.up = 1 ? "" : "s")
+    up := st.up = -2 ? "auto upgrade (the game's)" : st.up < 0 ? "to max" : st.up " time" (st.up = 1 ? "" : "s")
     if st.kind = "place"
-        return "Place slot " st.slot " x" st.count (st.HasOwnProp("hill") && st.hill ? " on a hill" : "") (st.up = 0 ? "" : ", upgrade each " up)
+        return "Place slot " st.slot " x" st.count (st.HasOwnProp("hill") && st.hill ? " on a hill" : "") (st.up = 0 ? "" : st.up = -2 ? ", " up : ", upgrade each " up)
     n := st.HasOwnProp("units") ? st.units : 0
+    if st.up = -2
+        return (n ? "Upgrade " n " unit" (n = 1 ? "" : "s") " of slot " st.slot : "Upgrade slot " st.slot) ": " up
     return n ? "Upgrade " n " unit" (n = 1 ? "" : "s") " of slot " st.slot " " up : "Upgrade slot " st.slot " " up
 }
 
@@ -5597,7 +5599,54 @@ OverviewStateAt(cx, cy) {
 ; unit has reached the target. Waits for yen when nobody can afford anything.
 ; A build order step is exact: the "Until" limit on the Units tab doesn't cut it short.
 ; Returns false if the stage ended.
+; the unit's upgrade panel (Show Upgrade UI on left): the game's Auto Upgrade button (UPD 21.5, Chris's clip
+; 23 Nov): "Auto: Off" grey (74,75,82), "Auto: On" purple (211,152,248), at about (175,348). "" when neither
+; shows (no panel open)
+AutoUpgradeState() {
+    if ColorShare(150, 341, 198, 345, (r, g, b) => r >= 170 && b >= 200 && g >= 110 && g <= 190) >= 0.5
+        return "on"
+    if ColorShare(150, 341, 198, 345, (r, g, b) => r >= 55 && r <= 100 && Abs(g - r) <= 15 && Abs(b - r) <= 20) >= 0.5
+        return "off"
+    return ""
+}
+
+; a build step's "auto upgrade" (-2, Chris 23 Nov: "place slot 1 auto upgrade"; in Classic too, Chris 25 Nov):
+; each unit's panel opened and the game's Auto Upgrade switched on (the game then buys its upgrades, cheapest
+; first, priority 1). How many are on
+AutoUpgradeOn(units) {
+    n := 0
+    for u in units {
+        if StageOver()
+            break
+        if u.HasOwnProp("lost") && u.lost
+            continue
+        if !OpenUnit(u) {
+            AddLog("Slot " u.slot ": its upgrade panel didn't open, Auto Upgrade not switched on for that unit")
+            continue
+        }
+        s := AutoUpgradeState()
+        loop 2 {
+            if s = "on"
+                break
+            Clk(175, 348)                       ; Auto
+            Wait(400)
+            s := AutoUpgradeState()
+        }
+        if s = "on"
+            n++
+        else
+            AddLog("Slot " u.slot ": Auto Upgrade didn't switch on (its button wasn't seen in the panel)"), SaveDebugShot("auto_upgrade")
+        CloseMenuClick()
+        Wait(250)
+    }
+    if units.Length
+        AddLog("Slot " units[1].slot ": the game's Auto Upgrade on for " n " of " units.Length " unit" (units.Length = 1 ? "" : "s"))
+    return n
+}
+
 UpgradeGroup(units, times) {
+    if times = -2                               ; the game's Auto Upgrade (a build step's choice)
+        return (AutoUpgradeOn(units), !StageOver())
     ; counted from the level the menu shows ("Upgrade [5]") when it can be read: counting presses
     ; once called a unit done at level 5 of 6 (a misread level or a flickering price counted a
     ; press that didn't go through). Every unit is checked again before the step moves on.

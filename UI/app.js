@@ -322,13 +322,13 @@ function renderAbil() {
 
 function stepText(st) {
   if (st.kind === "yen") return `Wait until you have ${(+st.amount).toLocaleString("en-US")} yen`;
-  if (isPair(st)) return `${st.kind === "wenda" ? "Wenda" : "Erwin"} buff: slot ${st.slot}, 4 copies as in the video` + pairTimes(st) + (st.up ? `, upgrade each ${st.up < 0 ? "to max" : st.up + (st.up == 1 ? " time" : " times")}` : "");
+  if (isPair(st)) return `${st.kind === "wenda" ? "Wenda" : "Erwin"} buff: slot ${st.slot}, 4 copies as in the video` + pairTimes(st) + (st.up == -2 ? ", auto upgrade (the game's)" : st.up ? `, upgrade each ${st.up < 0 ? "to max" : st.up + (st.up == 1 ? " time" : " times")}` : "");
   if (st.kind === "buff") return `Buff rotation: slot ${st.slot}, ` + (+st.pairs ? `Erwin pairs (4 s apart, buff ${st.secs} s)` : `one copy every ${st.secs} s`);
   if (st.kind === "ability")
     return `Wave ${st.wave}: slot ${st.slot}'s ability, ${+st.units ? st.units + (st.units == 1 ? " unit" : " units") : "all units"}`
       + (+st.every < 0 ? ", switched to Auto from then" : +st.every ? `, again every ${st.every} wave${st.every == 1 ? "" : "s"}` : ", once");
-  const up = st.up < 0 ? "to max" : st.up + (st.up == 1 ? " time" : " times");
-  if (st.kind === "place") return `Place slot ${st.slot} ×${st.count}` + (+st.hill ? " on a hill" : "") + (st.up == 0 ? "" : `, upgrade each ${up}`);
+  const up = st.up == -2 ? "auto upgrade (the game's)" : st.up < 0 ? "to max" : st.up + (st.up == 1 ? " time" : " times");
+  if (st.kind === "place") return `Place slot ${st.slot} ×${st.count}` + (+st.hill ? " on a hill" : "") + (st.up == 0 ? "" : st.up == -2 ? `, ${up}` : `, upgrade each ${up}`);
   const n = +st.units || 0;
   return n ? `Upgrade ${n} unit${n == 1 ? "" : "s"} of slot ${st.slot} ${up}` : `Upgrade slot ${st.slot} ${up}`;
 }
@@ -777,8 +777,8 @@ function renderAll() {
 
 // "AA build: P1x2u2 P6x1umax U5u2"  =  place slot 1 x2 upgrade each 2 times, place slot 6 x1 to max, upgrade slot 5 twice
 function buildCode(list) {
-  const up = (n) => (n < 0 ? "max" : n);
-  return "AA build: " + list.map((st) => st.kind === "yen" ? `Y${st.amount}` : st.kind === "buff" ? `B${st.slot}s${st.secs}` + (+st.pairs ? "p" : "") : isPair(st) ? `${st.kind === "wenda" ? "W" : "E"}${st.slot}` + (st.up ? "u" + (st.up < 0 ? "max" : st.up) : "") + (pairSecs(st) !== 30 ? "s" + pairSecs(st) : "") + (pairGap(st) !== 4 ? "g" + pairGap(st) : "") : st.kind === "ability"
+  const up = (n) => (n == -2 ? "auto" : n < 0 ? "max" : n);   // ua: the game's Auto Upgrade
+  return "AA build: " + list.map((st) => st.kind === "yen" ? `Y${st.amount}` : st.kind === "buff" ? `B${st.slot}s${st.secs}` + (+st.pairs ? "p" : "") : isPair(st) ? `${st.kind === "wenda" ? "W" : "E"}${st.slot}` + (st.up ? "u" + up(st.up) : "") + (pairSecs(st) !== 30 ? "s" + pairSecs(st) : "") + (pairGap(st) !== 4 ? "g" + pairGap(st) : "") : st.kind === "ability"
     ? `A${st.slot}w${st.wave}` + (+st.units ? "n" + st.units : "") + (+st.every < 0 ? "a" : +st.every ? "e" + st.every : "")
     : st.kind === "place"
     ? `P${st.slot}x${st.count}` + (st.up ? "u" + up(st.up) : "") + (+st.hill ? "h" : "")
@@ -786,16 +786,16 @@ function buildCode(list) {
 }
 function parseBuildCode(text) {
   const out = [];
-  const mv = /^([PU])([1-6])(?:x(\d{1,2}))?(?:n(\d{1,2}))?(?:u(max|\d{1,2}))?(h?)$/i, ab = /^A([1-6])w(\d{1,3})(?:n(\d{1,2}))?(?:e(\d{1,2})|(a))?$/i;
+  const mv = /^([PU])([1-6])(?:x(\d{1,2}))?(?:n(\d{1,2}))?(?:u(max|auto|\d{1,2}))?(h?)$/i, ab = /^A([1-6])w(\d{1,3})(?:n(\d{1,2}))?(?:e(\d{1,2})|(a))?$/i;
   for (const tok of String(text).split(/[\s,]+/)) {
     let m;
-    if ((m = /^([EW])([1-6])(?:u(max|\d{1,2}))?(?:s(\d{2,3}))?(?:g(\d{1,2}))?$/i.exec(tok))) { out.push({ kind: m[1].toUpperCase() === "W" ? "wenda" : "erwin", slot: +m[2], count: 4, up: m[3] ? (m[3].toLowerCase() === "max" ? -1 : Math.min(10, +m[3])) : 0, secs: m[4] ? Math.max(10, Math.min(120, +m[4])) : 30, gap: m[5] ? Math.max(1, Math.min(30, +m[5])) : 4 }); continue; }
+    if ((m = /^([EW])([1-6])(?:u(max|auto|\d{1,2}))?(?:s(\d{2,3}))?(?:g(\d{1,2}))?$/i.exec(tok))) { out.push({ kind: m[1].toUpperCase() === "W" ? "wenda" : "erwin", slot: +m[2], count: 4, up: m[3] ? (m[3].toLowerCase() === "max" ? -1 : m[3].toLowerCase() === "auto" ? -2 : Math.min(10, +m[3])) : 0, secs: m[4] ? Math.max(10, Math.min(120, +m[4])) : 30, gap: m[5] ? Math.max(1, Math.min(30, +m[5])) : 4 }); continue; }
     if ((m = /^Y(\d{1,6})$/i.exec(tok))) { if (+m[1] > 0) out.push({ kind: "yen", slot: 1, count: 1, up: 0, amount: +m[1] }); continue; }
     if ((m = /^B([1-6])s(\d{2,3})(p?)$/i.exec(tok))) { out.push({ kind: "buff", slot: +m[1], count: 1, up: 0, secs: Math.max(10, Math.min(120, +m[2])), pairs: m[3] ? 1 : 0 }); continue; }
     if ((m = ab.exec(tok))) { out.push({ kind: "ability", slot: +m[1], count: 1, up: 0, wave: Math.max(1, +m[2]), units: Math.min(20, +m[3] || 0), every: m[5] ? -1 : Math.min(50, +m[4] || 0) }); continue; }
     if (!(m = mv.exec(tok))) continue;
     const kind = m[1].toUpperCase() === "P" ? "place" : "upgrade";
-    const up = m[5] ? (m[5].toLowerCase() === "max" ? -1 : Math.min(10, +m[5])) : 0;
+    const up = m[5] ? (m[5].toLowerCase() === "max" ? -1 : m[5].toLowerCase() === "auto" ? -2 : Math.min(10, +m[5])) : 0;
     if (kind === "upgrade" && !up) continue;
     out.push({ kind, slot: +m[2], count: kind === "place" ? Math.min(S.maxCount || 6, +m[3] || 1) : 1, up, units: kind === "upgrade" ? Math.min(20, +m[4] || 0) : 0, hill: kind === "place" && m[6] ? 1 : 0 });
   }

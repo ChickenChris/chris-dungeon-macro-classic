@@ -54,8 +54,8 @@ global ROOM_NAMES := ["Rare chest", "Chest", "Hoard", "Shop", "Shrine", "Boss", 
 global RETRIES := ["Few (quick)", "Normal", "Many", "Max (keeps trying)"]
 global UP_NAMES := ["no upgrades", "upgrade each 1 time", "upgrade each 2 times", "upgrade each 3 times",
     "upgrade each 4 times", "upgrade each 5 times", "upgrade each 6 times", "upgrade each 7 times",
-    "upgrade each 8 times", "upgrade each 9 times", "upgrade each 10 times", "upgrade each to max"]
-global UP_VALUES := [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, -1]
+    "upgrade each 8 times", "upgrade each 9 times", "upgrade each 10 times", "upgrade each to max", "auto upgrade (the game's Auto)"]
+global UP_VALUES := [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, -1, -2]      ; -2: the game's Auto Upgrade (UPD 21.5)
 global PATTERNS := ["Spiral", "Circle", "Grid", "Random"]
 global TOLS := ["Strict (exact match)", "Normal (5% off is fine)", "Loose (10% off is fine)"]
 global SPEEDS := ["Super fast (1s)", "Fast (1.5s)", "Normal (2s)", "Slow (2.5s)", "Very slow (3s)", "Toaster (4s)", "Potato (5s)"]
@@ -484,7 +484,7 @@ SetBuild(steps) {
             continue
         kind := st.Get("kind", ""), slot := st.Get("slot", 0), count := st.Get("count", 1), up := st.Get("up", 0), units := st.Get("units", 0)
         if (kind = "place" || kind = "upgrade") && IsInteger(slot) && IsInteger(count) && IsInteger(up) && !(kind = "upgrade" && up = 0)
-            list.Push({kind: kind, slot: ClampInt(slot, 1, 6, 1), count: ClampInt(count, 1, MaxCount(), 1), up: ClampInt(up, -1, 10, 0),
+            list.Push({kind: kind, slot: ClampInt(slot, 1, 6, 1), count: ClampInt(count, 1, MaxCount(), 1), up: ClampInt(up, -2, 10, 0),
                 units: kind = "upgrade" && IsInteger(units) ? ClampInt(units, 0, 20, 0) : 0,
                 hill: kind = "place" && st.Get("hill", 0) ? 1 : 0})
     }
@@ -1534,7 +1534,7 @@ ReadBuild(sec, most) {
         ; a 5th field: an upgrade step's number of units (0 = all of that slot)
         if f.Length >= 4 && (f[1] = "place" || f[1] = "upgrade") && IsInteger(f[2]) && IsInteger(f[3]) && IsInteger(f[4])
             && !(f[1] = "upgrade" && f[4] = 0)
-            list.Push({kind: f[1], slot: ClampInt(f[2], 1, 6, 1), count: ClampInt(f[3], 1, most, 1), up: ClampInt(f[4], -1, 10, 0),
+            list.Push({kind: f[1], slot: ClampInt(f[2], 1, 6, 1), count: ClampInt(f[3], 1, most, 1), up: ClampInt(f[4], -2, 10, 0),
                 units: f[1] = "upgrade" && f.Length >= 5 ? ClampInt(f[5], 0, 20, 0) : 0,
                 hill: f[1] = "place" && f.Length >= 6 && f[6] = "1" ? 1 : 0})      ; a 6th field: a place step on the hills
     }
