@@ -8661,12 +8661,20 @@ RbxMove(x, y) {
                 toldHow := how
                 AddLog("The mouse only moved with " how " (the normal way was blocked)")
             }
-            if (Abs(mx - ox - x) > 4 || Abs(my - oy - y) > 4) && A_TickCount - told > 120000 {
+            ; only SetCursorPos: it puts the cursor there, but the macro's clicks and keys are blocked the same
+            ; way as its mouse (Chris 25 Nov: Play clicked, nothing opened, in every mode; the log only said
+            ; the line above)
+            stuck := Abs(mx - ox - x) > 4 || Abs(my - oy - y) > 4
+            if (stuck || how = "SetCursorPos") && A_TickCount - told > 120000 {
                 told := A_TickCount
                 fg := ""
                 try fg := WinGetProcessName("A")
-                AddLog("Windows didn't let the macro move the mouse (stuck at " mx "," my ")" (fg != "" ? " (" fg " is in front)" : "")
+                AddLog((stuck ? "Windows didn't let the macro move the mouse (stuck at " mx "," my ")"
+                    : "Windows is blocking the macro's clicks and keys: only the cursor could be put there, a click doesn't reach the game")
+                    . (fg != "" ? " (" fg " is in front)" : "")
                     . (A_IsAdmin ? "" : ". If Roblox (or Bloxstrap) was opened as administrator, open it normally, or run the macro as administrator too (right click it, Run as administrator)"))
+                if !stuck
+                    Notify("Windows is blocking the macro's clicks: see the log", "bad")
             }
         }
         CoordMode "Mouse", old
